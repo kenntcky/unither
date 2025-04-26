@@ -94,3 +94,36 @@ export const deleteAssignment = async (id) => {
     return false;
   }
 };
+
+export const deleteSubject = async (id) => {
+  try {
+    // Delete the subject
+    const subjects = await getSubjects();
+    const newSubjects = subjects.filter(subject => subject.id !== id);
+    await saveSubjects(newSubjects);
+    
+    // Also delete or update all assignments associated with this subject
+    const assignments = await getAssignments();
+    const newAssignments = assignments.filter(assignment => assignment.subjectId !== id);
+    await saveAssignments(newAssignments);
+    
+    return true;
+  } catch (error) {
+    console.error('Error deleting subject:', error);
+    return false;
+  }
+};
+
+export const updateSubject = async (id, updatedSubject) => {
+  try {
+    const subjects = await getSubjects();
+    const newSubjects = subjects.map(subject => 
+      subject.id === id ? { ...subject, ...updatedSubject } : subject
+    );
+    await saveSubjects(newSubjects);
+    return true;
+  } catch (error) {
+    console.error('Error updating subject:', error);
+    return false;
+  }
+};

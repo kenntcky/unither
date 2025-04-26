@@ -1,3 +1,92 @@
+# TaskMaster
+
+A React Native app for managing assignments and subjects.
+
+## Security Notice for Git
+
+When pushing this project to Git, make sure to:
+
+1. **NEVER commit sensitive files** like:
+   - `firebase.json` (contains API keys)
+   - `google-services.json` (in android/app folder)
+   - `GoogleService-Info.plist` (for iOS)
+   - Keystore files
+   - `.env` files with secrets
+
+2. **Use the example files** as templates:
+   - Copy `firebase.example.json` to `firebase.json` and add your keys
+   - Create your own `google-services.json` from Firebase console
+
+3. **First-time setup for contributors**:
+   ```
+   # Clone the repository
+   git clone <your-repo-url>
+   
+   # Copy and configure sample files
+   cp firebase.example.json firebase.json
+   # Then edit firebase.json with your own Firebase credentials
+   
+   # Install dependencies
+   npm install
+   ```
+
+## Firebase Authentication Setup
+
+This app uses Firebase Authentication for user management. Follow these steps to set it up:
+
+1. Create a new Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2. Register your app in the Firebase project (both Android and iOS if applicable)
+3. Enable Authentication in the Firebase console:
+   - Go to Authentication > Sign-in method
+   - Enable Email/Password authentication
+   - Enable Google authentication
+4. For Google Auth:
+   - Follow the steps to configure OAuth consent screen in Google Cloud Console
+   - Add your SHA-1 fingerprint for Android
+   - Configure your iOS app with the correct bundle identifier
+5. Update the `firebase.json` file with your client IDs:
+   ```json
+   {
+     "react-native": {
+       "android_client_id": "YOUR_ANDROID_CLIENT_ID",
+       "ios_client_id": "YOUR_IOS_CLIENT_ID",
+       "web_client_id": "YOUR_WEB_CLIENT_ID"
+     }
+   }
+   ```
+   - The web client ID is needed for Google Sign-in
+   - You can find these values in your Firebase project settings
+
+## Running the App
+
+1. Install dependencies:
+   ```
+   npm install
+   ```
+
+2. Set up native code:
+   ```
+   npx react-native-asset
+   ```
+
+3. Run on Android:
+   ```
+   npm run android
+   ```
+
+4. Run on iOS (macOS only):
+   ```
+   cd ios && pod install && cd ..
+   npm run ios
+   ```
+
+## Features
+
+- User authentication (Email/Password and Google)
+- Subject management
+- Assignment tracking
+- Dashboard overview
+
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started
@@ -66,7 +155,7 @@ This is one way to run your app — you can also build it directly from Android 
 
 Now that you have successfully run the app, let's make changes!
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
 
 When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
 

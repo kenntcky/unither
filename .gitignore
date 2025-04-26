@@ -57,6 +57,10 @@ yarn-error.log
 **/fastlane/screenshots
 **/fastlane/test_output
 
+# Unrelated Files
+repo.git*/
+bfg.jar
+
 # Bundle artifact
 *.jsbundle
 
@@ -77,3 +81,18 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# Firebase files
+firebase.json
+google-services.json
+GoogleService-Info.plist
+
+# Keystore files
+*.keystore
+!debug.keystore
+**/android/app/taskmaster-release-key.keystore
+
+# Environment variables
+.env
+.env.*
+!.env.example
