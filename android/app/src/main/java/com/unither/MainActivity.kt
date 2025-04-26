@@ -1,4 +1,4 @@
-package com.taskmaster
+package com.unither
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
