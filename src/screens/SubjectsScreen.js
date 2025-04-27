@@ -3,37 +3,47 @@ import { StyleSheet, View, FlatList, TouchableOpacity, Text, Alert } from 'react
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import SubjectItem from '../components/SubjectItem';
 import Colors from '../constants/Colors';
-import { getSubjects, getAssignments, deleteSubject } from '../utils/storage';
+import { getSubjects, deleteSubject } from '../utils/storage';
+import { useAssignment } from '../context/AssignmentContext';
 import { t } from '../translations';
 
 const SubjectsScreen = ({ navigation }) => {
+  const { assignments, refreshAssignments } = useAssignment();
   const [subjects, setSubjects] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      refreshAssignments();
       loadSubjects();
     });
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, refreshAssignments]);
+
+  // Update subjects when assignments change
+  useEffect(() => {
+    updateSubjectsWithCounts();
+  }, [assignments]);
 
   const loadSubjects = async () => {
     setIsLoading(true);
-    // Load subjects and assignments concurrently
-    const [loadedSubjects, loadedAssignments] = await Promise.all([
-      getSubjects(),
-      getAssignments()
-    ]);
+    const loadedSubjects = await getSubjects();
+    updateSubjectsWithCounts(loadedSubjects);
+    setIsLoading(false);
+  };
+
+  const updateSubjectsWithCounts = (loadedSubjects) => {
+    // Use the cached subjects if no new ones are provided
+    const subjectsToUpdate = loadedSubjects || subjects;
     
     // Calculate assignment count for each subject
-    const subjectsWithCounts = loadedSubjects.map(subject => {
-      const count = loadedAssignments.filter(a => a.subjectId === subject.id).length;
+    const subjectsWithCounts = subjectsToUpdate.map(subject => {
+      const count = assignments.filter(a => a.subjectId === subject.id).length;
       return { ...subject, assignmentCount: count };
     });
     
     setSubjects(subjectsWithCounts);
-    setIsLoading(false);
   };
 
   const handleAddSubject = () => {

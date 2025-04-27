@@ -32,6 +32,8 @@ build/
 .idea
 .gradle
 local.properties
+android/gradle.properties
+!android/gradle.properties.example
 *.iml
 *.hprof
 .cxx/
@@ -84,15 +86,43 @@ bfg.jar
 
 # Firebase files
 firebase.json
+!firebase.example.json
 google-services.json
 GoogleService-Info.plist
 
 # Keystore files
 *.keystore
 !debug.keystore
-**/android/app/taskmaster-release-key.keystore
+# SECURITY ISSUE: Remove this exception to prevent committing release keystore
+# **/android/app/taskmaster-release-key.keystore
 
 # Environment variables
 .env
 .env.*
 !.env.example
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Log files
+*.log
+
+# Editor directories and files
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Generated files
+*.generated.*
+
+# Cache directories
+.cache/
+.eslintcache
+.sass-cache/

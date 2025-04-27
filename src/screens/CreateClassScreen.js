@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
 import { useClass } from '../context/ClassContext';
+import { t } from '../translations';
 
 const MAX_NAME_LENGTH = 50;
 const MAX_DESCRIPTION_LENGTH = 200;
@@ -32,20 +33,20 @@ const CreateClassScreen = () => {
     const newErrors = {};
     
     if (!name.trim()) {
-      newErrors.name = 'Class name is required';
+      newErrors.name = t('Class name is required');
     }
     
     if (name.length > MAX_NAME_LENGTH) {
-      newErrors.name = `Class name cannot exceed ${MAX_NAME_LENGTH} characters`;
+      newErrors.name = t('Class name cannot exceed {max} characters', { max: MAX_NAME_LENGTH });
     }
     
     if (description.length > MAX_DESCRIPTION_LENGTH) {
-      newErrors.description = `Description cannot exceed ${MAX_DESCRIPTION_LENGTH} characters`;
+      newErrors.description = t('Description cannot exceed {max} characters', { max: MAX_DESCRIPTION_LENGTH });
     }
     
     const maxUsersNum = parseInt(maxUsers, 10);
     if (isNaN(maxUsersNum) || maxUsersNum < 1 || maxUsersNum > 100) {
-      newErrors.maxUsers = 'Maximum users must be between 1 and 100';
+      newErrors.maxUsers = t('Maximum users must be between 1 and 100');
     }
     
     setErrors(newErrors);
@@ -65,11 +66,11 @@ const CreateClassScreen = () => {
     
     if (result.success) {
       Alert.alert(
-        'Success',
-        `Your class has been created!\nClass Code: ${result.classCode}`,
+        t('Success'),
+        t('Your class has been created!\nClass Code: {code}', { code: result.classCode }),
         [
           {
-            text: 'OK',
+            text: t('OK'),
             onPress: () => navigation.replace('ClassSelection')
           }
         ]
@@ -90,17 +91,17 @@ const CreateClassScreen = () => {
           >
             <MaterialIcons name="arrow-back" size={24} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Create a New Class</Text>
+          <Text style={styles.title}>{t('Create a New Class')}</Text>
         </View>
 
         <View style={styles.formContainer}>
-          <Text style={styles.sectionTitle}>Class Details</Text>
+          <Text style={styles.sectionTitle}>{t('Class Details')}</Text>
           
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Class Name<Text style={styles.required}>*</Text></Text>
+            <Text style={styles.label}>{t('Class Name')}<Text style={styles.required}>*</Text></Text>
             <TextInput
               style={[styles.input, errors.name && styles.inputError]}
-              placeholder="Enter class name"
+              placeholder={t('Enter class name')}
               placeholderTextColor={Colors.textSecondary}
               value={name}
               onChangeText={setName}
@@ -111,10 +112,10 @@ const CreateClassScreen = () => {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Description</Text>
+            <Text style={styles.label}>{t('Description')}</Text>
             <TextInput
               style={[styles.input, styles.textArea, errors.description && styles.inputError]}
-              placeholder="Enter class description"
+              placeholder={t('Enter class description')}
               placeholderTextColor={Colors.textSecondary}
               value={description}
               onChangeText={setDescription}
@@ -129,10 +130,10 @@ const CreateClassScreen = () => {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Maximum Number of Students</Text>
+            <Text style={styles.label}>{t('Maximum Number of Students')}</Text>
             <TextInput
               style={[styles.input, errors.maxUsers && styles.inputError]}
-              placeholder="Enter maximum number of students"
+              placeholder={t('Enter maximum number of students')}
               placeholderTextColor={Colors.textSecondary}
               value={maxUsers}
               onChangeText={setMaxUsers}
@@ -145,7 +146,7 @@ const CreateClassScreen = () => {
           <View style={styles.infoBox}>
             <MaterialIcons name="info" size={20} color={Colors.accent} style={styles.infoIcon} />
             <Text style={styles.infoText}>
-              Once your class is created, you'll receive a unique class code that you can share with your students.
+              {t('Once your class is created, you\'ll receive a unique class code that you can share with your students.')}
             </Text>
           </View>
         </View>
@@ -162,7 +163,7 @@ const CreateClassScreen = () => {
           ) : (
             <>
               <MaterialIcons name="add" size={24} color="#fff" />
-              <Text style={styles.createButtonText}>Create Class</Text>
+              <Text style={styles.createButtonText}>{t('Create Class')}</Text>
             </>
           )}
         </TouchableOpacity>

@@ -5,6 +5,7 @@ import auth from '@react-native-firebase/auth';
 const CLASSES_COLLECTION = 'classes';
 const USERS_COLLECTION = 'users';
 const CLASS_MEMBERS_COLLECTION = 'class_members';
+const ASSIGNMENTS_COLLECTION = 'assignments';
 
 // Generate a unique class code (6 characters alphanumeric)
 export const generateClassCode = async () => {
@@ -241,5 +242,221 @@ export const getClassDetails = async (classId) => {
   } catch (error) {
     console.error('Error getting class details:', error);
     return null;
+  }
+};
+
+// ASSIGNMENT FUNCTIONS FOR ONLINE SYNC
+
+// Create a new assignment in a class
+export const createAssignment = async (classId, assignmentData) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    // Create the assignment document
+    const assignmentRef = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .add({
+        ...assignmentData,
+        createdBy: currentUser.uid,
+        createdAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp()
+      });
+
+    return {
+      success: true,
+      assignmentId: assignmentRef.id
+    };
+  } catch (error) {
+    console.error('Error creating assignment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Get all assignments for a class
+export const getClassAssignments = async (classId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const assignmentsSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    if (assignmentsSnapshot.empty) {
+      return [];
+    }
+
+    return assignmentsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt && typeof data.createdAt.toDate === 'function' 
+          ? data.createdAt.toDate().toISOString() 
+          : new Date().toISOString(),
+        updatedAt: data.updatedAt && typeof data.updatedAt.toDate === 'function' 
+          ? data.updatedAt.toDate().toISOString() 
+          : new Date().toISOString(),
+        deadline: data.deadline && typeof data.deadline.toDate === 'function' 
+          ? data.deadline.toDate().toISOString() 
+          : data.deadline || null
+      };
+    });
+  } catch (error) {
+    console.error('Error getting class assignments:', error);
+    return [];
+  }
+};
+
+// Update an assignment
+export const updateClassAssignment = async (classId, assignmentId, updatedData) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .doc(assignmentId)
+      .update({
+        ...updatedData,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser.uid
+      });
+
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error updating assignment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Delete an assignment
+export const deleteClassAssignment = async (classId, assignmentId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .doc(assignmentId)
+      .delete();
+
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error deleting assignment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Set up real-time listener for assignments
+export const subscribeToClassAssignments = (classId, onUpdate) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const unsubscribe = firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .orderBy('createdAt', 'desc')
+      .onSnapshot(snapshot => {
+        const assignments = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt && typeof data.createdAt.toDate === 'function' 
+              ? data.createdAt.toDate().toISOString() 
+              : new Date().toISOString(),
+            updatedAt: data.updatedAt && typeof data.updatedAt.toDate === 'function' 
+              ? data.updatedAt.toDate().toISOString() 
+              : new Date().toISOString(),
+            deadline: data.deadline && typeof data.deadline.toDate === 'function' 
+              ? data.deadline.toDate().toISOString() 
+              : data.deadline || null
+          };
+        });
+        onUpdate(assignments);
+      }, error => {
+        console.error('Error in assignment listener:', error);
+      });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error setting up assignment listener:', error);
+    return () => {};
+  }
+};
+
+// Get all members of a class
+export const getClassMembers = async (classId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    // Get all members of the class
+    const membersSnapshot = await firestore()
+      .collection(CLASS_MEMBERS_COLLECTION)
+      .where('classId', '==', classId)
+      .orderBy('joinedAt', 'asc')  // Order by join date
+      .get();
+
+    if (membersSnapshot.empty) {
+      return [];
+    }
+
+    // Process the member documents
+    return membersSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userId: data.userId,
+        displayName: data.displayName || 'Unnamed User',
+        email: data.email || '',
+        role: data.role || 'student',
+        joinedAt: data.joinedAt && typeof data.joinedAt.toDate === 'function'
+          ? data.joinedAt.toDate().toISOString()
+          : new Date().toISOString(),
+        isCurrentUser: data.userId === currentUser.uid
+      };
+    });
+  } catch (error) {
+    console.error('Error getting class members:', error);
+    return [];
   }
 }; 

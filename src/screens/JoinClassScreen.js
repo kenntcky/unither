@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
 import { useClass } from '../context/ClassContext';
+import { t } from '../translations';
 
 const JoinClassScreen = () => {
   const navigation = useNavigation();
@@ -24,7 +25,7 @@ const JoinClassScreen = () => {
 
   const handleJoinClass = async () => {
     if (!classCode.trim()) {
-      setError('Please enter a class code');
+      setError(t('Please enter a class code'));
       return;
     }
 
@@ -32,11 +33,11 @@ const JoinClassScreen = () => {
     
     if (result.success) {
       Alert.alert(
-        'Success',
-        'You have successfully joined the class!',
+        t('Success'),
+        t('You have successfully joined the class!'),
         [
           {
-            text: 'OK',
+            text: t('OK'),
             onPress: () => navigation.replace('ClassSelection')
           }
         ]
@@ -57,7 +58,7 @@ const JoinClassScreen = () => {
           >
             <MaterialIcons name="arrow-back" size={24} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Join a Class</Text>
+          <Text style={styles.title}>{t('Join a Class')}</Text>
         </View>
 
         <View style={styles.content}>
@@ -66,14 +67,14 @@ const JoinClassScreen = () => {
           </View>
 
           <Text style={styles.instructions}>
-            Enter the class code provided by your teacher to join their class
+            {t('Enter the class code provided by your teacher to join their class')}
           </Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Class Code</Text>
+            <Text style={styles.label}>{t('Class Code')}</Text>
             <TextInput
               style={[styles.input, error && styles.inputError]}
-              placeholder="Enter class code (e.g. ABC123)"
+              placeholder={t('Enter class code (e.g. ABC123)')}
               placeholderTextColor={Colors.textSecondary}
               value={classCode}
               onChangeText={(text) => {
@@ -89,7 +90,7 @@ const JoinClassScreen = () => {
           <View style={styles.infoBox}>
             <MaterialIcons name="info" size={20} color={Colors.accent} style={styles.infoIcon} />
             <Text style={styles.infoText}>
-              Class codes are typically 6 characters long and are case-insensitive.
+              {t('Class codes are typically 6 characters long and are case-insensitive.')}
             </Text>
           </View>
         </View>
@@ -105,7 +106,7 @@ const JoinClassScreen = () => {
             ) : (
               <>
                 <MaterialIcons name="group-add" size={24} color="#fff" />
-                <Text style={styles.joinButtonText}>Join Class</Text>
+                <Text style={styles.joinButtonText}>{t('Join Class')}</Text>
               </>
             )}
           </TouchableOpacity>

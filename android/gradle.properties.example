@@ -37,3 +37,9 @@ newArchEnabled=true
 # Use this property to enable or disable the Hermes JS engine.
 # If set to false, you will be using JSC instead.
 hermesEnabled=true
+
+# Replace these with your actual keystore information
+TASKMASTER_STORE_FILE=your_keystore_file.keystore
+TASKMASTER_KEY_ALIAS=your_key_alias
+TASKMASTER_STORE_PASSWORD=your_store_password
+TASKMASTER_KEY_PASSWORD=your_key_password 

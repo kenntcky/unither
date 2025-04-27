@@ -18,9 +18,12 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ClassSelectionScreen from '../screens/ClassSelectionScreen';
 import CreateClassScreen from '../screens/CreateClassScreen';
 import JoinClassScreen from '../screens/JoinClassScreen';
+import ClassMembersScreen from '../screens/ClassMembersScreen';
+import LanguageSettingsScreen from '../screens/LanguageSettingsScreen';
 import Colors from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { ClassProvider } from '../context/ClassContext';
+import { t } from '../translations';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -67,9 +70,9 @@ const HomeStack = () => (
       },
     }}
   >
-    <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Dashboard' }} />
+    <Stack.Screen name="Home" component={HomeScreen} options={{ title: t('Dashboard') }} />
     <Stack.Screen name="AddAssignment" component={AddAssignmentScreen} options={({ route }) => ({
-      title: route.params?.edit ? 'Edit Assignment' : 'Add Assignment'
+      title: route.params?.edit ? t('Edit Assignment') : t('Add Assignment')
     })} />
     <Stack.Screen 
       name="AssignmentDetails" 
@@ -90,9 +93,9 @@ const AssignmentsStack = () => (
       },
     }}
   >
-    <Stack.Screen name="Assignments" component={AssignmentsScreen} />
+    <Stack.Screen name="Assignments" component={AssignmentsScreen} options={{ title: t('Assignments') }} />
     <Stack.Screen name="AddAssignment" component={AddAssignmentScreen} options={({ route }) => ({
-      title: route.params?.edit ? 'Edit Assignment' : 'Add Assignment'
+      title: route.params?.edit ? t('Edit Assignment') : t('Add Assignment')
     })} />
     <Stack.Screen 
       name="AssignmentDetails" 
@@ -113,11 +116,11 @@ const SubjectsStack = () => (
       },
     }}
   >
-    <Stack.Screen name="Subjects" component={SubjectsScreen} />
-    <Stack.Screen name="AddSubject" component={AddSubjectScreen} options={{ title: 'Add Subject' }} />
-    <Stack.Screen name="EditSubject" component={EditSubjectScreen} options={{ title: 'Edit Subject' }} />
+    <Stack.Screen name="Subjects" component={SubjectsScreen} options={{ title: t('Subjects') }} />
+    <Stack.Screen name="AddSubject" component={AddSubjectScreen} options={{ title: t('Add Subject') }} />
+    <Stack.Screen name="EditSubject" component={EditSubjectScreen} options={{ title: t('Edit Subject') }} />
     <Stack.Screen name="AddAssignment" component={AddAssignmentScreen} options={({ route }) => ({
-      title: route.params?.edit ? 'Edit Assignment' : 'Add Assignment'
+      title: route.params?.edit ? t('Edit Assignment') : t('Add Assignment')
     })} />
     <Stack.Screen 
       name="AssignmentDetails" 
@@ -138,7 +141,9 @@ const ProfileStack = () => (
       },
     }}
   >
-    <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
+    <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: t('Profile') }} />
+    <Stack.Screen name="ClassMembers" component={ClassMembersScreen} options={{ title: t('Class Members') }} />
+    <Stack.Screen name="LanguageSettings" component={LanguageSettingsScreen} options={{ headerShown: false }} />
   </Stack.Navigator>
 );
 
@@ -173,28 +178,28 @@ const TabNavigator = () => (
       name="HomeTab" 
       component={HomeStack} 
       options={{ 
-        title: 'Home',
+        title: t('Home'),
       }} 
     />
     <Tab.Screen 
       name="AssignmentsTab" 
       component={AssignmentsStack} 
       options={{ 
-        title: 'Assignments',
+        title: t('Assignments'),
       }} 
     />
     <Tab.Screen 
       name="SubjectsTab" 
       component={SubjectsStack} 
       options={{ 
-        title: 'Subjects',
+        title: t('Subjects'),
       }} 
     />
     <Tab.Screen 
       name="ProfileTab" 
       component={ProfileStack} 
       options={{ 
-        title: 'Profile',
+        title: t('Profile'),
       }} 
     />
   </Tab.Navigator>

@@ -22,15 +22,14 @@ import {
   ASSIGNMENT_STATUS,
   ASSIGNMENT_GROUP_TYPE
 } from '../constants/Types';
-import { 
-  addAssignment, 
-  getSubjects, 
-  getAssignments, 
-  updateAssignment,
-  deleteAssignment
-} from '../utils/storage';
+import { getSubjects } from '../utils/storage';
+import { useAssignment } from '../context/AssignmentContext';
+import { useClass } from '../context/ClassContext';
 
 const AddAssignmentScreen = ({ navigation, route }) => {
+  const { currentClass } = useClass();
+  const { addAssignment, updateAssignment, deleteAssignment, assignments, syncedWithCloud } = useAssignment();
+  
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [selectedSubject, setSelectedSubject] = useState(null);
@@ -78,7 +77,6 @@ const AddAssignmentScreen = ({ navigation, route }) => {
   };
 
   const loadAssignment = async (assignmentId) => {
-    const assignments = await getAssignments();
     const assignment = assignments.find(a => a.id === assignmentId);
     
     if (assignment) {
@@ -105,63 +103,85 @@ const AddAssignmentScreen = ({ navigation, route }) => {
     }
   };
 
-  const calculateDeadlineDate = (option) => {
-    const today = new Date();
-    let deadline = new Date(today);
-    
-    switch (option) {
-      case DEADLINE_OPTIONS.ONE_DAY:
-        deadline.setDate(today.getDate() + 1);
-        break;
-      case DEADLINE_OPTIONS.TWO_DAYS:
-        deadline.setDate(today.getDate() + 2);
-        break;
-      case DEADLINE_OPTIONS.FOUR_DAYS:
-        deadline.setDate(today.getDate() + 4);
-        break;
-      case DEADLINE_OPTIONS.ONE_WEEK:
-        deadline.setDate(today.getDate() + 7);
-        break;
-      case DEADLINE_OPTIONS.CUSTOM:
-        deadline = customDeadline;
-        break;
-      default:
-        deadline.setDate(today.getDate() + 1);
-    }
-    
-    return deadline;
-  };
-
   const handleDeadlineOptionSelect = (option) => {
     setSelectedDeadlineOption(option);
     setShowDeadlineModal(false);
     
-    if (option !== DEADLINE_OPTIONS.CUSTOM) {
-      setCustomDeadline(calculateDeadlineDate(option));
-    } else {
-      setDateTimePickerMode('date');
-      setShowDatePicker(true);
+    if (option === DEADLINE_OPTIONS.CUSTOM) {
+      handleShowDatePicker();
     }
   };
 
   const handleDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || customDeadline;
-    
-    if (Platform.OS === 'android') {
+    if (!selectedDate) {
       setShowDatePicker(false);
+      return;
     }
-
-    if (event.type === 'set') {
-      setCustomDeadline(currentDate);
-      if (Platform.OS === 'android' && dateTimePickerMode === 'date') {
+    
+    const currentDate = selectedDate || customDeadline;
+    setShowDatePicker(false);
+    
+    if (dateTimePickerMode === 'date') {
+      // If we were just selecting a date, now show the time picker
+      const updatedDate = new Date(currentDate);
+      setCustomDeadline(updatedDate);
+      
+      // Wait a moment before showing the time picker to prevent UI glitches
+      setTimeout(() => {
         setDateTimePickerMode('time');
         setShowDatePicker(true);
-      }
-    } else if (event.type === 'dismissed') {
-      if (Platform.OS === 'ios') {
-          setShowDatePicker(false);
-      }
+      }, 100);
+    } else {
+      // If we were selecting time, we're done
+      const updatedDateTime = new Date(customDeadline);
+      updatedDateTime.setHours(currentDate.getHours());
+      updatedDateTime.setMinutes(currentDate.getMinutes());
+      setCustomDeadline(updatedDateTime);
     }
+  };
+
+  const handleShowDatePicker = () => {
+    // Start with date picker
+    setDateTimePickerMode('date');
+    setShowDatePicker(true);
+  };
+
+  const calculateDeadlineDate = (option) => {
+    if (option === DEADLINE_OPTIONS.CUSTOM) {
+      return customDeadline;
+    }
+    
+    const today = new Date();
+    const deadline = new Date();
+    
+    switch (option) {
+      case DEADLINE_OPTIONS.TODAY:
+        // End of today
+        deadline.setHours(23, 59, 59, 999);
+        break;
+      case DEADLINE_OPTIONS.ONE_DAY:
+        // Tomorrow
+        deadline.setDate(today.getDate() + 1);
+        deadline.setHours(23, 59, 59, 999);
+        break;
+      case DEADLINE_OPTIONS.THREE_DAYS:
+        deadline.setDate(today.getDate() + 3);
+        deadline.setHours(23, 59, 59, 999);
+        break;
+      case DEADLINE_OPTIONS.ONE_WEEK:
+        deadline.setDate(today.getDate() + 7);
+        deadline.setHours(23, 59, 59, 999);
+        break;
+      case DEADLINE_OPTIONS.TWO_WEEKS:
+        deadline.setDate(today.getDate() + 14);
+        deadline.setHours(23, 59, 59, 999);
+        break;
+      default:
+        deadline.setDate(today.getDate() + 1);
+        deadline.setHours(23, 59, 59, 999);
+    }
+    
+    return deadline;
   };
 
   const handleSave = async () => {
@@ -197,13 +217,14 @@ const AddAssignmentScreen = ({ navigation, route }) => {
       createdAt: new Date().toISOString(),
     };
     
-    let success = false;
+    let result;
     
     if (isEditing && currentAssignment) {
       // Update existing assignment
       assignmentData.status = currentAssignment.status;
       assignmentData.createdAt = currentAssignment.createdAt;
-      success = await updateAssignment(currentAssignment.id, {
+      
+      result = await updateAssignment(currentAssignment.id, {
         ...assignmentData,
         updatedAt: new Date().toISOString(),
       });
@@ -212,43 +233,53 @@ const AddAssignmentScreen = ({ navigation, route }) => {
       assignmentData.id = Date.now().toString();
       assignmentData.status = ASSIGNMENT_STATUS.UNFINISHED;
       assignmentData.createdAt = new Date().toISOString();
-      success = await addAssignment(assignmentData);
+      
+      result = await addAssignment(assignmentData);
     }
     
     setIsLoading(false);
     
-    if (success) {
-      navigation.goBack();
+    if (result.success) {
+      // Show sync status in the alert if needed
+      if (!result.synced && currentClass) {
+        Alert.alert(
+          'Assignment Saved Locally',
+          'The assignment was saved to your device but could not be synced with the cloud. It will sync automatically when connection is restored.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        navigation.goBack();
+      }
     } else {
       Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'save'} assignment. Please try again.`);
     }
   };
 
   const handleDelete = async () => {
-    if (!isEditing || !currentAssignment) return;
-
     Alert.alert(
-      'Delete Assignment',
-      `Are you sure you want to delete "${currentAssignment.title}"? This action cannot be undone.`,
+      'Confirm Delete',
+      'Are you sure you want to delete this assignment? This action cannot be undone.',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
+        { text: 'Cancel' },
+        { 
+          text: 'Delete', 
           style: 'destructive',
           onPress: async () => {
             setIsDeleting(true);
-            const success = await deleteAssignment(currentAssignment.id);
-            setIsDeleting(false);
-            if (success) {
-              navigation.navigate('AssignmentsTab', { screen: 'Assignments' });
-            } else {
-              Alert.alert('Error', 'Failed to delete assignment. Please try again.');
+            
+            if (currentAssignment) {
+              const result = await deleteAssignment(currentAssignment.id);
+              
+              setIsDeleting(false);
+              
+              if (result.success) {
+                navigation.goBack();
+              } else {
+                Alert.alert('Error', 'Failed to delete assignment. Please try again.');
+              }
             }
-          },
-        },
+          } 
+        }
       ]
     );
   };
@@ -332,8 +363,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
         <Text style={styles.label}>Deadline</Text>
         <TouchableOpacity 
           style={styles.selector}
-          onPress={() => handleDeadlineOptionSelect(DEADLINE_OPTIONS.CUSTOM)}
-          disabled={showDatePicker}
+          onPress={() => setShowDeadlineModal(true)}
         >
           <Text style={styles.selectorText}>
             {selectedDeadlineOption === DEADLINE_OPTIONS.CUSTOM 
@@ -343,7 +373,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
                 })
               : selectedDeadlineOption}
           </Text>
-          <Icon name={showDatePicker ? "expand-less" : "expand-more"} size={24} color={Colors.textSecondary} />
+          <Icon name="expand-more" size={24} color={Colors.textSecondary} />
         </TouchableOpacity>
 
         <View style={styles.groupTypeContainer}>

@@ -14,6 +14,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
 import { useClass } from '../context/ClassContext';
 import { useAuth } from '../context/AuthContext';
+import { t } from '../translations';
 
 const ClassSelectionScreen = () => {
   const { classes, loading, switchClass } = useClass();
@@ -48,17 +49,17 @@ const ClassSelectionScreen = () => {
         <View style={styles.classHeader}>
           <Text style={styles.className}>{item.name}</Text>
           <View style={[styles.roleBadge, { backgroundColor: isTeacher ? Colors.accent : Colors.primary }]}>
-            <Text style={styles.roleText}>{isTeacher ? 'Teacher' : 'Student'}</Text>
+            <Text style={styles.roleText}>{isTeacher ? t('Teacher') : t('Student')}</Text>
           </View>
         </View>
         
         <Text style={styles.classDescription} numberOfLines={2}>
-          {item.description || 'No description'}
+          {item.description || t('No description')}
         </Text>
         
         {isTeacher && (
           <View style={styles.codeContainer}>
-            <Text style={styles.codeLabel}>Class Code:</Text>
+            <Text style={styles.codeLabel}>{t('Class Code')}:</Text>
             <Text style={styles.codeValue}>{item.classCode}</Text>
           </View>
         )}
@@ -71,22 +72,22 @@ const ClassSelectionScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Your Classes</Text>
+        <Text style={styles.title}>{t('Your Classes')}</Text>
         <Text style={styles.subtitle}>
-          {user?.displayName ? `Welcome, ${user.displayName}` : 'Select a class to continue'}
+          {user?.displayName ? `${t('Welcome')}, ${user.displayName}` : t('Select a class to continue')}
         </Text>
       </View>
 
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.accent} />
-          <Text style={styles.loadingText}>Loading your classes...</Text>
+          <Text style={styles.loadingText}>{t('Loading your classes...')}</Text>
         </View>
       ) : classes.length === 0 ? (
         <View style={styles.emptyContainer}>
           <MaterialIcons name="school" size={64} color={Colors.textSecondary} />
-          <Text style={styles.emptyText}>You haven't joined any classes yet</Text>
-          <Text style={styles.emptySubText}>Create or join a class to get started</Text>
+          <Text style={styles.emptyText}>{t('You haven\'t joined any classes yet')}</Text>
+          <Text style={styles.emptySubText}>{t('Create or join a class to get started')}</Text>
         </View>
       ) : (
         <FlatList
@@ -105,7 +106,7 @@ const ClassSelectionScreen = () => {
           onPress={() => navigation.navigate('CreateClass')}
         >
           <MaterialIcons name="add" size={24} color="#fff" />
-          <Text style={styles.buttonText}>Create Class</Text>
+          <Text style={styles.buttonText}>{t('Create Class')}</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -113,7 +114,7 @@ const ClassSelectionScreen = () => {
           onPress={() => navigation.navigate('JoinClass')}
         >
           <MaterialIcons name="group-add" size={24} color="#fff" />
-          <Text style={styles.buttonText}>Join Class</Text>
+          <Text style={styles.buttonText}>{t('Join Class')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

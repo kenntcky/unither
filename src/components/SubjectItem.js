@@ -34,7 +34,7 @@ const SubjectItem = ({ subject, onPress, onAddAssignment, onEdit, onDelete }) =>
           <Text style={styles.name}>{subject.name}</Text>
           <View style={styles.countContainer}>
             <Text style={styles.count}>
-              {subject.assignmentCount || 0} {subject.assignmentCount === 1 
+              {subject.assignmentCount || 0} {(subject.assignmentCount === 1) 
                 ? t('assignment') 
                 : t('assignments')}
             </Text>

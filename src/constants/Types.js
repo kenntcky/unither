@@ -7,10 +7,11 @@ export const ASSIGNMENT_TYPES = {
 };
 
 export const DEADLINE_OPTIONS = {
-  ONE_DAY: '1 Hari',
-  TWO_DAYS: '2 Hari',
-  FOUR_DAYS: '4 Hari',
-  ONE_WEEK: '1 Minggu',
+  TODAY: 'Today',
+  ONE_DAY: 'Tomorrow',
+  THREE_DAYS: '3 Days',
+  ONE_WEEK: '1 Week',
+  TWO_WEEKS: '2 Weeks',
   CUSTOM: 'Custom',
 };
 

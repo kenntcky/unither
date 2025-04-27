@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
-import { getAssignments, getSubjects } from '../utils/storage';
+import { getSubjects } from '../utils/storage';
 import { ASSIGNMENT_STATUS } from '../constants/Types';
 import { t, plural } from '../translations';
+import { useAssignment } from '../context/AssignmentContext';
 
 const HomeScreen = ({ navigation }) => {
+  const { assignments, refreshAssignments } = useAssignment();
   const [upcomingAssignments, setUpcomingAssignments] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [stats, setStats] = useState({
@@ -18,40 +20,45 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      loadData();
+      refreshAssignments();
+      loadSubjects();
     });
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, refreshAssignments]);
 
-  const loadData = async () => {
-    // Load subjects and assignments concurrently
-    const [loadedSubjects, loadedAssignments] = await Promise.all([
-      getSubjects(),
-      getAssignments()
-    ]);
+  // Update stats and upcoming assignments whenever assignments change
+  useEffect(() => {
+    processAssignments();
+  }, [assignments]);
 
+  const loadSubjects = async () => {
+    const loadedSubjects = await getSubjects();
+    
     // Calculate assignment count for each subject
     const subjectsWithCounts = loadedSubjects.map(subject => {
-      const count = loadedAssignments.filter(a => a.subjectId === subject.id).length;
+      const count = assignments.filter(a => a.subjectId === subject.id).length;
       return { ...subject, assignmentCount: count };
     });
-    setSubjects(subjectsWithCounts); // Set subjects with counts
     
+    setSubjects(subjectsWithCounts);
+  };
+
+  const processAssignments = () => {
     // Calculate stats
     const now = new Date();
-    const completed = loadedAssignments.filter(a => a.status === ASSIGNMENT_STATUS.FINISHED).length;
-    const upcoming = loadedAssignments.filter(a => {
+    const completed = assignments.filter(a => a.status === ASSIGNMENT_STATUS.FINISHED).length;
+    const upcoming = assignments.filter(a => {
       const deadline = new Date(a.deadline);
       return a.status === ASSIGNMENT_STATUS.UNFINISHED && deadline > now;
     }).length;
-    const overdue = loadedAssignments.filter(a => {
+    const overdue = assignments.filter(a => {
       const deadline = new Date(a.deadline);
       return a.status === ASSIGNMENT_STATUS.UNFINISHED && deadline < now;
     }).length;
 
     setStats({
-      total: loadedAssignments.length,
+      total: assignments.length,
       completed,
       upcoming,
       overdue
@@ -61,17 +68,24 @@ const HomeScreen = ({ navigation }) => {
     const sevenDaysLater = new Date();
     sevenDaysLater.setDate(now.getDate() + 7);
     
-    const upcoming7Days = loadedAssignments.filter(a => {
+    // Filter for unfinished assignments with deadlines in the next 7 days
+    const upcoming7Days = assignments.filter(a => {
+      if (a.status === ASSIGNMENT_STATUS.FINISHED) {
+        return false; // Skip finished assignments
+      }
+      
       const deadline = new Date(a.deadline);
-      return (
-        a.status === ASSIGNMENT_STATUS.UNFINISHED && 
-        deadline > now && 
-        deadline <= sevenDaysLater
-      );
+      return deadline > now && deadline <= sevenDaysLater;
     });
 
     // Sort by deadline (closest first)
     upcoming7Days.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+    
+    // Debug output
+    console.log("Upcoming assignments:", upcoming7Days.length);
+    upcoming7Days.forEach(a => {
+      console.log(`Assignment: ${a.title}, Deadline: ${new Date(a.deadline).toLocaleDateString()}, Status: ${a.status}`);
+    });
     
     setUpcomingAssignments(upcoming7Days.slice(0, 5)); // Show only 5 most urgent
   };
@@ -80,12 +94,38 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('AddAssignment');
   };
 
+  // Format the date in a user-friendly way
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', { 
+    const now = new Date();
+    
+    // Same day
+    if (date.toDateString() === now.toDateString()) {
+      return `${t('Today')}, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    
+    // Tomorrow
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    if (date.toDateString() === tomorrow.toDateString()) {
+      return `${t('Tomorrow')}, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    
+    // Within 7 days
+    const within7Days = new Date(now);
+    within7Days.setDate(now.getDate() + 7);
+    if (date <= within7Days) {
+      const options = { weekday: 'long', hour: '2-digit', minute: '2-digit' };
+      return date.toLocaleString(undefined, options);
+    }
+    
+    // Default format for dates beyond 7 days
+    return date.toLocaleString(undefined, { 
+      year: 'numeric', 
       month: 'short', 
       day: 'numeric',
-      year: 'numeric'
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -117,7 +157,7 @@ const HomeScreen = ({ navigation }) => {
 
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('Upcoming')} {t('Assignments')}</Text>
+          <Text style={styles.sectionTitle}>{t('Upcoming Assignments')}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('AssignmentsTab')}>
             <Text style={styles.seeAllText}>{t('See All')}</Text>
           </TouchableOpacity>
@@ -161,7 +201,7 @@ const HomeScreen = ({ navigation }) => {
 
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('Your')} {t('Subjects')}</Text>
+          <Text style={styles.sectionTitle}>{t('Subjects')}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('SubjectsTab')}>
             <Text style={styles.seeAllText}>{t('See All')}</Text>
           </TouchableOpacity>

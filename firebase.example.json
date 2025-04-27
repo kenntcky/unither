@@ -1,9 +1,9 @@
 {
   "react-native": {
-    "web_client_id": "YOUR_WEB_CLIENT_ID_HERE",
-    "android_client_id": "YOUR_ANDROID_CLIENT_ID_HERE",
-    "project_id": "YOUR_PROJECT_ID_HERE",
-    "storage_bucket": "YOUR_STORAGE_BUCKET_HERE",
-    "api_key": "YOUR_API_KEY_HERE"
+    "web_client_id": "YOUR_WEB_CLIENT_ID",
+    "android_client_id": "YOUR_ANDROID_CLIENT_ID",
+    "project_id": "YOUR_PROJECT_ID",
+    "storage_bucket": "YOUR_STORAGE_BUCKET",
+    "api_key": "YOUR_API_KEY"
   }
 } 

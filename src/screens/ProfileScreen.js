@@ -11,11 +11,15 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../context/AuthContext';
+import { useClass } from '../context/ClassContext';
+import { useLanguage } from '../context/LanguageContext';
 import Colors from '../constants/Colors';
 import { t } from '../translations';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, signOut, loading } = useAuth();
+  const { currentClass } = useClass();
+  const { getCurrentLanguageName } = useLanguage();
 
   const handleLogout = async () => {
     Alert.alert(
@@ -39,6 +43,23 @@ const ProfileScreen = ({ navigation }) => {
       ],
       { cancelable: true }
     );
+  };
+
+  const handleViewClassMembers = () => {
+    if (!currentClass) {
+      Alert.alert(
+        t('No Class Selected'),
+        t('You need to select a class to view its members'),
+        [{ text: t('OK') }]
+      );
+      return;
+    }
+    
+    navigation.navigate('ClassMembers');
+  };
+
+  const handleLanguageSettings = () => {
+    navigation.navigate('LanguageSettings');
   };
 
   if (!user) {
@@ -85,6 +106,29 @@ const ProfileScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('Class')}</Text>
+          
+          <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={handleViewClassMembers}
+          >
+            <Icon name="people" size={24} color={Colors.primaryLight} />
+            <Text style={styles.menuItemText}>{t('Class Members')}</Text>
+            <Icon name="chevron-right" size={24} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.menuItem}>
+            <Icon name="school" size={24} color={Colors.primaryLight} />
+            <Text style={styles.menuItemText}>
+              {currentClass 
+                ? `${t('Current Class')}: ${currentClass.name}` 
+                : t('No Class Selected')}
+            </Text>
+            <Icon name="chevron-right" size={24} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('Preferences')}</Text>
           
           <TouchableOpacity style={styles.menuItem}>
@@ -93,10 +137,16 @@ const ProfileScreen = ({ navigation }) => {
             <Icon name="chevron-right" size={24} color={Colors.textSecondary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={handleLanguageSettings}
+          >
             <Icon name="language" size={24} color={Colors.primaryLight} />
             <Text style={styles.menuItemText}>{t('Language')}</Text>
-            <Icon name="chevron-right" size={24} color={Colors.textSecondary} />
+            <View style={styles.valueContainer}>
+              <Text style={styles.valueText}>{getCurrentLanguageName()}</Text>
+              <Icon name="chevron-right" size={24} color={Colors.textSecondary} />
+            </View>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.menuItem}>
@@ -215,6 +265,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     marginLeft: 15,
+  },
+  valueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  valueText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginRight: 5,
   },
   logoutButton: {
     backgroundColor: Colors.error,

@@ -1,25 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, TouchableOpacity, Text } from 'react-native';
+import { StyleSheet, View, FlatList, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import AssignmentItem from '../components/AssignmentItem';
 import FilterBar from '../components/FilterBar';
 import Colors from '../constants/Colors';
-import { getAssignments, updateAssignment } from '../utils/storage';
+import { useAssignment } from '../context/AssignmentContext';
+import { useClass } from '../context/ClassContext';
 import { ASSIGNMENT_STATUS } from '../constants/Types';
 
 const AssignmentsScreen = ({ navigation, route }) => {
-  const [assignments, setAssignments] = useState([]);
+  const { currentClass } = useClass();
+  const { 
+    assignments, 
+    loading, 
+    toggleAssignmentStatus, 
+    syncedWithCloud, 
+    refreshAssignments 
+  } = useAssignment();
+  
   const [filteredAssignments, setFilteredAssignments] = useState([]);
   const [activeFilters, setActiveFilters] = useState([]);
   const [sortBy, setSortBy] = useState('deadline');
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      loadAssignments();
+      refreshAssignments();
     });
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, refreshAssignments]);
 
   useEffect(() => {
     if (route.params?.subjectId) {
@@ -30,11 +39,6 @@ const AssignmentsScreen = ({ navigation, route }) => {
   useEffect(() => {
     filterAndSortAssignments();
   }, [assignments, activeFilters, sortBy]);
-
-  const loadAssignments = async () => {
-    const loadedAssignments = await getAssignments();
-    setAssignments(loadedAssignments);
-  };
 
   const filterAndSortAssignments = () => {
     let filtered = [...assignments];
@@ -131,46 +135,72 @@ const AssignmentsScreen = ({ navigation, route }) => {
         ? ASSIGNMENT_STATUS.UNFINISHED 
         : ASSIGNMENT_STATUS.FINISHED;
       
-      await updateAssignment(assignmentId, { status: newStatus });
-      loadAssignments();
+      await toggleAssignmentStatus(assignmentId, newStatus);
     }
   };
 
   return (
     <View style={styles.container}>
-      <FilterBar 
-        activeFilters={activeFilters}
+      <FilterBar
         onFilterChange={handleFilterChange}
-        sortBy={sortBy}
         onSortChange={handleSortChange}
+        activeFilters={activeFilters}
+        activeSort={sortBy}
       />
-      
-      <FlatList
-        data={filteredAssignments}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <AssignmentItem
-            assignment={item}
-            onPress={() => handleAssignmentPress(item)}
-            onToggleStatus={handleToggleStatus}
-            onEditPress={() => handleEditPress(item)}
-          />
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="assignment" size={64} color={Colors.primaryLight} />
-            <Text style={styles.emptyText}>No assignments found</Text>
-            <Text style={styles.emptySubText}>
-              {activeFilters.length > 0 
-                ? 'Try changing your filters'
-                : 'Tap the + button to add your first assignment'}
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Loading assignments...</Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.syncStatusContainer}>
+            <Icon 
+              name={syncedWithCloud ? "cloud-done" : "cloud-off"} 
+              size={16} 
+              color={syncedWithCloud ? Colors.success : Colors.warning} 
+            />
+            <Text style={[styles.syncStatusText, { color: syncedWithCloud ? Colors.success : Colors.warning }]}>
+              {currentClass && syncedWithCloud 
+                ? `Synced with ${currentClass.name}` 
+                : "Using local assignments"}
             </Text>
           </View>
-        }
-      />
-      
-      <TouchableOpacity style={styles.fab} onPress={handleAddAssignment}>
-        <Icon name="add" size={24} color={Colors.text} />
+          
+          <FlatList
+            data={filteredAssignments}
+            renderItem={({ item }) => (
+              <AssignmentItem
+                assignment={item}
+                onPress={() => handleAssignmentPress(item)}
+                onToggleStatus={handleToggleStatus}
+                onEditPress={() => handleEditPress(item)}
+              />
+            )}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Icon name="assignment" size={64} color={Colors.lightGray} />
+                <Text style={styles.emptyText}>No assignments found</Text>
+                <Text style={styles.emptySubText}>
+                  {activeFilters.length > 0
+                    ? "Try adjusting your filters"
+                    : "Get started by adding a new assignment"}
+                </Text>
+              </View>
+            }
+          />
+        </>
+      )}
+
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={handleAddAssignment}
+        activeOpacity={0.8}
+      >
+        <Icon name="add" size={24} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );
@@ -179,39 +209,71 @@ const AssignmentsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.background
   },
-  emptyContainer: {
-    flex: 1,
+  listContent: {
+    padding: 16,
+    paddingBottom: 90
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
-    marginTop: 100,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    marginTop: 50
   },
   emptyText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
-    marginTop: 16,
+    marginTop: 12,
+    color: Colors.textSecondary
   },
   emptySubText: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: Colors.textTertiary,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 8
   },
-  fab: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    backgroundColor: Colors.accent,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
+    alignItems: 'center'
   },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: Colors.textSecondary
+  },
+  syncStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    backgroundColor: Colors.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border
+  },
+  syncStatusText: {
+    fontSize: 12,
+    marginLeft: 4
+  }
 });
 
 export default AssignmentsScreen;
