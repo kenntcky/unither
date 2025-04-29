@@ -36,6 +36,8 @@ const AssignmentItem = ({ assignment, onPress, onToggleStatus, onEditPress }) =>
   };
 
   const days = daysLeft();
+  const isGroupAssignment = assignment.groupType === 'Kelompok';
+  const groupCount = isGroupAssignment && assignment.groups ? assignment.groups.length : 0;
   
   return (
     <TouchableOpacity 
@@ -84,11 +86,14 @@ const AssignmentItem = ({ assignment, onPress, onToggleStatus, onEditPress }) =>
       <View style={styles.footer}>
         <View style={styles.groupType}>
           <Icon 
-            name={assignment.groupType === 'Group' ? 'people' : 'person'} 
+            name={isGroupAssignment ? 'people' : 'person'} 
             size={16} 
             color={Colors.textSecondary} 
           />
-          <Text style={styles.groupTypeText}>{t(assignment.groupType)}</Text>
+          <Text style={styles.groupTypeText}>
+            {t(assignment.groupType)}
+            {isGroupAssignment && groupCount > 0 && ` (${groupCount} ${groupCount === 1 ? 'group' : 'groups'})`}
+          </Text>
         </View>
         
         {!isFinished && (
