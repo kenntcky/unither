@@ -20,3 +20,18 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// Set file.encoding to UTF-8
+allprojects {
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+}
+
+// Workaround for Windows path length limitations
+gradle.projectsEvaluated {
+    tasks.withType(JavaCompile) {
+        options.fork = true
+        options.forkOptions.jvmArgs << '-Xmx2048m'
+    }
+}
