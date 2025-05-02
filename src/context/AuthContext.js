@@ -3,6 +3,12 @@ import auth from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeFirebase } from '../utils/firebase';
+import { 
+  createOrUpdateUserProfile, 
+  getUserProfile, 
+  isClassAdmin
+} from '../utils/firestore';
+import { GENDER_TYPES } from '../constants/UserTypes';
 
 const AuthContext = createContext();
 
@@ -12,6 +18,7 @@ export const AuthProvider = ({ children }) => {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
 
   // Initialize Firebase
   useEffect(() => {
@@ -21,9 +28,38 @@ export const AuthProvider = ({ children }) => {
     setup();
   }, []);
 
+  // Check if user profile is complete (has gender)
+  const checkProfileComplete = async (user) => {
+    if (!user) {
+      setNeedsProfileSetup(false);
+      return;
+    }
+    
+    try {
+      const userProfile = await getUserProfile(user.uid);
+      
+      // Check if profile has gender
+      if (!userProfile || !userProfile.gender) {
+        setNeedsProfileSetup(true);
+      } else {
+        setNeedsProfileSetup(false);
+      }
+    } catch (error) {
+      console.error('Error checking profile:', error);
+      // Default to needing setup if we can't check
+      setNeedsProfileSetup(true);
+    }
+  };
+
   // Handle user state changes
   function onAuthStateChanged(user) {
     setUser(user);
+    if (user) {
+      checkProfileComplete(user);
+    } else {
+      setNeedsProfileSetup(false);
+    }
+    
     if (initializing) setInitializing(false);
   }
 
@@ -31,6 +67,14 @@ export const AuthProvider = ({ children }) => {
     const subscriber = auth().onAuthStateChanged(onAuthStateChanged);
     return subscriber; // Unsubscribe on unmount
   }, []);
+
+  // Check if user is an admin for a specific class
+  const checkClassAdminStatus = async (classId) => {
+    if (user) {
+      return await isClassAdmin(classId, user.uid);
+    }
+    return false;
+  };
 
   // Sign in with email and password
   const signIn = async (email, password) => {
@@ -49,11 +93,21 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Sign up with email and password
-  const signUp = async (email, password, displayName) => {
+  const signUp = async (email, password, displayName, gender) => {
     setLoading(true);
     try {
       const response = await auth().createUserWithEmailAndPassword(email, password);
       await response.user.updateProfile({ displayName });
+      
+      // Create user profile in Firestore with gender information
+      await createOrUpdateUserProfile({ 
+        gender,
+        displayName 
+      });
+      
+      // Since we just created a complete profile, set needsProfileSetup to false
+      setNeedsProfileSetup(false);
+      
       return { success: true };
     } catch (error) {
       return {
@@ -111,6 +165,19 @@ export const AuthProvider = ({ children }) => {
 
         // Sign-in the user with the credential
         await auth().signInWithCredential(googleCredential);
+        
+        // Check if user profile exists and has gender
+        const currentUser = auth().currentUser;
+        if (currentUser) {
+          const userProfile = await getUserProfile(currentUser.uid);
+          if (!userProfile || !userProfile.gender) {
+            // We'll need to prompt for gender selection
+            setNeedsProfileSetup(true);
+          } else {
+            setNeedsProfileSetup(false);
+          }
+        }
+        
         return { success: true };
       } catch (signInError) {
         console.error('Detailed Google Sign-In error:', JSON.stringify(signInError, null, 2));
@@ -128,6 +195,31 @@ export const AuthProvider = ({ children }) => {
       return {
         success: false,
         error: errorMessage,
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Set profile complete after gender selection
+  const completeProfile = async (gender) => {
+    setLoading(true);
+    try {
+      if (!gender) {
+        throw new Error('Gender is required');
+      }
+      
+      await createOrUpdateUserProfile({
+        gender,
+        displayName: user?.displayName || ''
+      });
+      
+      setNeedsProfileSetup(false);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
       };
     } finally {
       setLoading(false);
@@ -176,19 +268,67 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Change password function
+  const changePassword = async (currentPassword, newPassword) => {
+    setLoading(true);
+    try {
+      // Ensure the user is logged in
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Get the user's email
+      const email = currentUser.email;
+      if (!email) {
+        throw new Error('User email not available');
+      }
+      
+      // Re-authenticate the user first
+      const credential = auth.EmailAuthProvider.credential(email, currentPassword);
+      await currentUser.reauthenticateWithCredential(credential);
+      
+      // Now change the password
+      await currentUser.updatePassword(newPassword);
+      
+      return { success: true };
+    } catch (error) {
+      let errorMessage = error.message;
+      
+      // Provide more friendly error messages
+      if (error.code === 'auth/wrong-password') {
+        errorMessage = 'The current password is incorrect.';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'The new password is too weak. Please use a stronger password.';
+      }
+      
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Context value
+  const value = {
+    user,
+    initializing,
+    loading,
+    needsProfileSetup,
+    signIn,
+    signUp,
+    signOut,
+    signInWithGoogle,
+    resetPassword,
+    completeProfile,
+    changePassword,
+    checkClassAdminStatus
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        initializing,
-        signIn,
-        signUp,
-        signInWithGoogle,
-        signOut,
-        resetPassword,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

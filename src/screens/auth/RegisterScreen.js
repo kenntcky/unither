@@ -14,6 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../../context/AuthContext';
 import Colors from '../../constants/Colors';
+import { GENDER_TYPES, GENDER_LABELS } from '../../constants/UserTypes';
 import { t } from '../../translations';
 
 const RegisterScreen = ({ navigation }) => {
@@ -21,10 +22,12 @@ const RegisterScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [gender, setGender] = useState('');
   const [nameError, setNameError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [genderError, setGenderError] = useState('');
   const { signUp, loading } = useAuth();
 
   const validateName = () => {
@@ -73,14 +76,24 @@ const RegisterScreen = ({ navigation }) => {
     return true;
   };
 
+  const validateGender = () => {
+    if (!gender) {
+      setGenderError(t('Please select your gender'));
+      return false;
+    }
+    setGenderError('');
+    return true;
+  };
+
   const handleRegister = async () => {
     const isNameValid = validateName();
     const isEmailValid = validateEmail();
     const isPasswordValid = validatePassword();
     const isConfirmPasswordValid = validateConfirmPassword();
+    const isGenderValid = validateGender();
 
-    if (isNameValid && isEmailValid && isPasswordValid && isConfirmPasswordValid) {
-      const result = await signUp(email, password, name);
+    if (isNameValid && isEmailValid && isPasswordValid && isConfirmPasswordValid && isGenderValid) {
+      const result = await signUp(email, password, name, gender);
       if (!result.success) {
         Alert.alert(t('Registration Failed'), result.error);
       } else {
@@ -96,6 +109,18 @@ const RegisterScreen = ({ navigation }) => {
   const handleLogin = () => {
     navigation.navigate('Login');
   };
+
+  const RadioButton = ({ label, value, selected, onSelect }) => (
+    <TouchableOpacity
+      style={styles.radioContainer}
+      onPress={() => onSelect(value)}
+    >
+      <View style={[styles.radioCircle, selected === value && styles.radioSelected]}>
+        {selected === value && <View style={styles.radioDot} />}
+      </View>
+      <Text style={styles.radioLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <KeyboardAvoidingView
@@ -169,6 +194,25 @@ const RegisterScreen = ({ navigation }) => {
             />
           </View>
           {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
+          
+          <View style={styles.genderContainer}>
+            <Text style={styles.genderLabel}>{t('Gender')}</Text>
+            <View style={styles.radioGroup}>
+              <RadioButton 
+                label={t('Male')} 
+                value={GENDER_TYPES.MALE} 
+                selected={gender} 
+                onSelect={setGender} 
+              />
+              <RadioButton 
+                label={t('Female')} 
+                value={GENDER_TYPES.FEMALE}
+                selected={gender} 
+                onSelect={setGender} 
+              />
+            </View>
+          </View>
+          {genderError ? <Text style={styles.errorText}>{genderError}</Text> : null}
           
           <TouchableOpacity
             style={styles.registerButton}
@@ -248,24 +292,22 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    height: 50,
     color: Colors.text,
+    paddingVertical: 12,
     fontSize: 16,
   },
   errorText: {
     color: Colors.error,
-    fontSize: 14,
+    fontSize: 12,
     marginBottom: 10,
-    marginTop: -8,
+    marginTop: -5,
   },
   registerButton: {
     backgroundColor: Colors.accent,
     borderRadius: 8,
-    height: 50,
-    justifyContent: 'center',
+    paddingVertical: 14,
+    marginTop: 10,
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
   },
   buttonText: {
     color: Colors.text,
@@ -275,16 +317,55 @@ const styles = StyleSheet.create({
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
+    marginTop: 20,
   },
   loginText: {
     color: Colors.textSecondary,
-    fontSize: 14,
+    marginRight: 5,
   },
   loginLink: {
     color: Colors.accent,
-    fontSize: 14,
     fontWeight: 'bold',
-    marginLeft: 5,
+  },
+  genderContainer: {
+    marginBottom: 15,
+  },
+  genderLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 10,
+  },
+  radioGroup: {
+    marginBottom: 10,
+  },
+  radioContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  radioCircle: {
+    height: 20,
+    width: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  radioSelected: {
+    borderColor: Colors.accent,
+  },
+  radioDot: {
+    height: 10,
+    width: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.accent,
+  },
+  radioLabel: {
+    fontSize: 16,
+    color: Colors.text,
   },
 });
 

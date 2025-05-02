@@ -6,19 +6,24 @@ import {
   TextInput, 
   TouchableOpacity, 
   ScrollView,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
-import { addSubject } from '../utils/storage';
+import { useSubject } from '../context/SubjectContext';
+import { useClass } from '../context/ClassContext';
+import { t } from '../translations';
 
 const AddSubjectScreen = ({ navigation }) => {
+  const { addSubject } = useSubject();
+  const { currentClass } = useClass();
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter a subject name');
+      Alert.alert('Error', t('Please enter a subject name'));
       return;
     }
 
@@ -27,30 +32,38 @@ const AddSubjectScreen = ({ navigation }) => {
     const newSubject = {
       id: Date.now().toString(),
       name: name.trim(),
-      createdAt: new Date().toISOString(),
-      assignmentCount: 0
+      createdAt: new Date().toISOString()
     };
 
-    const success = await addSubject(newSubject);
+    const result = await addSubject(newSubject);
     
     setIsLoading(false);
     
-    if (success) {
-      navigation.goBack();
+    if (result.success) {
+      // Show sync status in the alert if needed
+      if (!result.synced && currentClass) {
+        Alert.alert(
+          t('Subject Saved Locally'),
+          t('The subject was saved to your device but could not be synced with the cloud. It will sync automatically when connection is restored.'),
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        navigation.goBack();
+      }
     } else {
-      Alert.alert('Error', 'Failed to save subject. Please try again.');
+      Alert.alert('Error', t('Failed to save subject. Please try again.'));
     }
   };
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.formContainer}>
-        <Text style={styles.label}>Subject Name</Text>
+        <Text style={styles.label}>{t('Subject Name')}</Text>
         <TextInput
           style={styles.input}
           value={name}
           onChangeText={setName}
-          placeholder="Enter subject name"
+          placeholder={t('Enter subject name')}
           placeholderTextColor={Colors.textSecondary}
         />
 
@@ -60,11 +73,11 @@ const AddSubjectScreen = ({ navigation }) => {
           disabled={isLoading || !name.trim()}
         >
           {isLoading ? (
-            <Text style={styles.buttonText}>Saving...</Text>
+            <ActivityIndicator size="small" color={Colors.text} />
           ) : (
             <>
               <Icon name="save" size={20} color={Colors.text} />
-              <Text style={styles.buttonText}>Save Subject</Text>
+              <Text style={styles.buttonText}>{t('Save Subject')}</Text>
             </>
           )}
         </TouchableOpacity>

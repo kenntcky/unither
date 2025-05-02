@@ -7,7 +7,11 @@ import {
   updateClassAssignment, 
   deleteClassAssignment,
   getClassAssignments,
-  subscribeToClassAssignments
+  subscribeToClassAssignments,
+  CLASSES_COLLECTION,
+  ASSIGNMENTS_COLLECTION,
+  findAssignmentByInternalId,
+  getAssignmentByDocumentId
 } from '../utils/firestore';
 import { 
   getAssignments as getLocalAssignments,
@@ -16,6 +20,7 @@ import {
   updateAssignment as updateLocalAssignment,
   deleteAssignment as deleteLocalAssignment
 } from '../utils/storage';
+import firestore from '@react-native-firebase/firestore';
 
 // Create the context
 const AssignmentContext = createContext();
@@ -26,10 +31,75 @@ export const useAssignment = () => useContext(AssignmentContext);
 // Provider component
 export const AssignmentProvider = ({ children }) => {
   const { user } = useAuth();
-  const { currentClass } = useClass();
+  const { currentClass, isClassSwitching, getRefreshTimestamp } = useClass();
   const [assignments, setAssignments] = useState([]);
+  const [assignmentsByClass, setAssignmentsByClass] = useState({});
   const [loading, setLoading] = useState(false);
   const [syncedWithCloud, setSyncedWithCloud] = useState(false);
+  const [activeClassId, setActiveClassId] = useState(null);
+  const refreshTimestamp = getRefreshTimestamp();
+
+  // Add this new effect to trigger refreshes based on the timestamp
+  useEffect(() => {
+    if (!currentClass) return;
+    
+    // Clear cache and reload when refresh timestamp changes
+    if (refreshTimestamp) {
+      console.log(`AssignmentContext: Detected refresh trigger for class ${currentClass.id}`);
+      
+      // Clear the cached assignments for this class
+      setAssignmentsByClass(prev => {
+        const newState = { ...prev };
+        if (currentClass.id) {
+          delete newState[currentClass.id];
+        }
+        return newState;
+      });
+      
+      // Load fresh assignments
+      loadAssignments();
+    }
+  }, [currentClass, refreshTimestamp]);
+
+  // Update the original effect to handle class changes
+  useEffect(() => {
+    // Don't perform updates while a class switch is in progress
+    if (isClassSwitching) {
+      console.log('AssignmentContext: Class switch in progress, deferring updates');
+      return;
+    }
+    
+    if (currentClass?.id !== activeClassId) {
+      console.log(`AssignmentContext: Class ID changed from ${activeClassId || 'none'} to ${currentClass?.id || 'none'}`);
+      
+      // First, clear all cached assignments for the old class if applicable
+      if (activeClassId && assignmentsByClass[activeClassId]) {
+        console.log(`AssignmentContext: Clearing cached assignments for previous class ${activeClassId}`);
+        setAssignmentsByClass(prev => {
+          const newState = { ...prev };
+          delete newState[activeClassId];
+          return newState;
+        });
+      }
+      
+      // Update active class ID
+      setActiveClassId(currentClass?.id);
+      
+      // Reset assignments when switching classes
+      if (currentClass?.id) {
+        // Always load fresh data when switching classes
+        console.log(`AssignmentContext: Loading fresh assignments for class ${currentClass.id}`);
+        setAssignments([]);
+        setSyncedWithCloud(false);
+        loadAssignments();
+      } else {
+        // No class selected
+        console.log('AssignmentContext: No class selected, using local assignments');
+        setAssignments([]);
+        loadLocalAssignments();
+      }
+    }
+  }, [currentClass, isClassSwitching, activeClassId]);
 
   // Load assignments when the current class changes
   useEffect(() => {
@@ -53,8 +123,20 @@ export const AssignmentProvider = ({ children }) => {
 
   // Handle updates from Firestore
   const handleAssignmentUpdate = (updatedAssignments) => {
+    if (!currentClass) return;
+    
     setAssignments(updatedAssignments);
+    
+    // Store assignments by class ID
+    setAssignmentsByClass(prev => ({
+      ...prev,
+      [currentClass.id]: updatedAssignments
+    }));
+    
     setSyncedWithCloud(true);
+    
+    // Also update local storage for offline access
+    saveLocalAssignments(updatedAssignments, currentClass.id);
   };
 
   // Load assignments from Firestore
@@ -64,10 +146,17 @@ export const AssignmentProvider = ({ children }) => {
       return;
     }
     
+    // Check if we already have loaded the assignments for this class
+    if (assignmentsByClass[currentClass.id]) {
+      setAssignments(assignmentsByClass[currentClass.id]);
+      setSyncedWithCloud(true);
+      return;
+    }
+    
     setLoading(true);
     try {
       // First load local assignments to preserve completion status
-      const localAssignments = await getLocalAssignments();
+      const localAssignments = await getLocalAssignments(currentClass.id);
       
       // Then load assignments from Firebase
       const classAssignments = await getClassAssignments(currentClass.id);
@@ -100,13 +189,19 @@ export const AssignmentProvider = ({ children }) => {
       
       const allAssignments = [...mergedAssignments, ...localOnlyAssignments];
       
+      // Store assignments by class ID
+      setAssignmentsByClass(prev => ({
+        ...prev,
+        [currentClass.id]: allAssignments
+      }));
+      
       setAssignments(allAssignments);
       
       // Save the merged result to local storage to persist statuses
-      await saveLocalAssignments(allAssignments);
+      await saveLocalAssignments(allAssignments, currentClass.id);
       
       setSyncedWithCloud(true);
-      console.log("Loaded assignments:", allAssignments.length);
+      console.log("Loaded assignments for class:", currentClass.id, allAssignments.length);
     } catch (error) {
       console.error('Error loading class assignments:', error);
       Alert.alert('Error', 'Failed to load assignments. Loading from local storage.');
@@ -120,8 +215,18 @@ export const AssignmentProvider = ({ children }) => {
   const loadLocalAssignments = async () => {
     setLoading(true);
     try {
-      const localAssignments = await getLocalAssignments();
+      const classId = currentClass?.id || 'local';
+      const localAssignments = await getLocalAssignments(classId);
       setAssignments(localAssignments);
+      
+      // Update the assignments by class map
+      if (currentClass) {
+        setAssignmentsByClass(prev => ({
+          ...prev,
+          [currentClass.id]: localAssignments
+        }));
+      }
+      
       setSyncedWithCloud(false);
     } catch (error) {
       console.error('Error loading local assignments:', error);
@@ -135,15 +240,22 @@ export const AssignmentProvider = ({ children }) => {
   const addAssignment = async (assignmentData) => {
     setLoading(true);
     try {
+      // Ensure we're using the current class ID at the time of the operation
+      const targetClassId = currentClass?.id;
+      
+      if (!targetClassId) {
+        throw new Error('No class selected. Cannot add assignment.');
+      }
+      
       // If we have a current class, save to Firestore
-      if (currentClass && user) {
-        const result = await createAssignment(currentClass.id, assignmentData);
+      if (user) {
+        const result = await createAssignment(targetClassId, assignmentData);
         if (result.success) {
           // No need to manually update state as the listener will update it
           return { ...result, synced: true };
         } else {
           // If saving to cloud fails, save locally
-          const success = await addLocalAssignment(assignmentData);
+          const success = await addLocalAssignment(assignmentData, targetClassId);
           if (success) {
             setSyncedWithCloud(false);
             await loadLocalAssignments();
@@ -152,7 +264,7 @@ export const AssignmentProvider = ({ children }) => {
         }
       } else {
         // Store locally
-        const success = await addLocalAssignment(assignmentData);
+        const success = await addLocalAssignment(assignmentData, targetClassId);
         if (success) {
           setSyncedWithCloud(false);
           await loadLocalAssignments();
@@ -173,15 +285,22 @@ export const AssignmentProvider = ({ children }) => {
   const updateAssignment = async (assignmentId, updatedData) => {
     setLoading(true);
     try {
+      // Ensure we're using the current class ID at the time of the operation
+      const targetClassId = currentClass?.id;
+      
+      if (!targetClassId) {
+        throw new Error('No class selected. Cannot update assignment.');
+      }
+      
       // If we have a current class, update in Firestore
-      if (currentClass && user && syncedWithCloud) {
-        const result = await updateClassAssignment(currentClass.id, assignmentId, updatedData);
+      if (user && syncedWithCloud) {
+        const result = await updateClassAssignment(targetClassId, assignmentId, updatedData);
         if (result.success) {
           // No need to manually update state as the listener will update it
           return { ...result, synced: true };
         } else {
           // If updating on cloud fails, update locally
-          const success = await updateLocalAssignment(assignmentId, updatedData);
+          const success = await updateLocalAssignment(assignmentId, updatedData, targetClassId);
           if (success) {
             setSyncedWithCloud(false);
             await loadLocalAssignments();
@@ -190,7 +309,7 @@ export const AssignmentProvider = ({ children }) => {
         }
       } else {
         // Update locally
-        const success = await updateLocalAssignment(assignmentId, updatedData);
+        const success = await updateLocalAssignment(assignmentId, updatedData, targetClassId);
         if (success) {
           setSyncedWithCloud(false);
           await loadLocalAssignments();
@@ -211,15 +330,22 @@ export const AssignmentProvider = ({ children }) => {
   const deleteAssignment = async (assignmentId) => {
     setLoading(true);
     try {
+      // Ensure we're using the current class ID at the time of the operation
+      const targetClassId = currentClass?.id;
+      
+      if (!targetClassId) {
+        throw new Error('No class selected. Cannot delete assignment.');
+      }
+      
       // If we have a current class, delete from Firestore
-      if (currentClass && user && syncedWithCloud) {
-        const result = await deleteClassAssignment(currentClass.id, assignmentId);
+      if (user && syncedWithCloud) {
+        const result = await deleteClassAssignment(targetClassId, assignmentId);
         if (result.success) {
           // No need to manually update state as the listener will update it
           return { ...result, synced: true };
         } else {
           // If deleting from cloud fails, delete locally
-          const success = await deleteLocalAssignment(assignmentId);
+          const success = await deleteLocalAssignment(assignmentId, targetClassId);
           if (success) {
             setSyncedWithCloud(false);
             await loadLocalAssignments();
@@ -228,7 +354,7 @@ export const AssignmentProvider = ({ children }) => {
         }
       } else {
         // Delete locally
-        const success = await deleteLocalAssignment(assignmentId);
+        const success = await deleteLocalAssignment(assignmentId, targetClassId);
         if (success) {
           setSyncedWithCloud(false);
           await loadLocalAssignments();
@@ -248,32 +374,199 @@ export const AssignmentProvider = ({ children }) => {
   // Toggle an assignment status
   const toggleAssignmentStatus = async (assignmentId, newStatus) => {
     // First, find the assignment in current state
-    const assignment = assignments.find(a => a.id === assignmentId);
+    const assignment = assignments.find(a => 
+      a.id === assignmentId || 
+      a.documentId === assignmentId
+    );
+    
     if (!assignment) {
-      console.error('Assignment not found, ID:', assignmentId);
-      return { success: false, error: 'Assignment not found' };
+      console.error(`Assignment not found: ${assignmentId}. Available IDs: ${assignments.map(a => `id:${a.id}, docId:${a.documentId||'unknown'}`).join(', ')}`);
+      console.log(`Looking for assignment with ID: ${assignmentId}`);
+      
+      // Try to retrieve it again from storage or Firestore
+      try {
+        const targetClassId = currentClass?.id;
+        if (targetClassId && user) {
+          console.log(`Attempting to directly fetch assignment from Firestore with ID: ${assignmentId}`);
+          
+          // Use our new helper function to find the assignment
+          const result = await findAssignmentByInternalId(targetClassId, assignmentId);
+          
+          if (result.success) {
+            const firestoreAssignment = result.assignment;
+            console.log(`Found assignment with lookup: ${firestoreAssignment.documentId}`);
+            
+            const updatedAssignment = {
+              ...firestoreAssignment,
+              status: newStatus,
+              updatedAt: new Date().toISOString()
+            };
+            
+            // Update in Firestore
+            const updateResult = await updateClassAssignment(
+              targetClassId,
+              firestoreAssignment.documentId, 
+              { status: newStatus, updatedAt: new Date().toISOString() }
+            );
+            
+            // Also update locally
+            await updateLocalAssignment(assignmentId, updatedAssignment, targetClassId);
+            
+            // Refresh assignments from Firestore
+            await refreshAssignments();
+            
+            return { success: true, synced: updateResult.success, recovered: true };
+          }
+          
+          // If Firestore lookup failed, try local storage
+          const storedAssignments = await getLocalAssignments(targetClassId);
+          const storedAssignment = storedAssignments.find(a => 
+            a.id === assignmentId || a.documentId === assignmentId
+          );
+          
+          if (storedAssignment) {
+            // If we found it in storage, update it there
+            const updatedAssignment = {
+              ...storedAssignment,
+              status: newStatus,
+              updatedAt: new Date().toISOString()
+            };
+            
+            await updateLocalAssignment(assignmentId, updatedAssignment, targetClassId);
+            
+            // Refresh assignments from storage
+            await loadLocalAssignments();
+            
+            return { success: true, synced: false, recovered: true };
+          }
+        }
+      } catch (error) {
+        console.error('Error recovering assignment:', error);
+      }
+      
+      return { success: false, error: `Assignment not found: ${assignmentId}` };
     }
     
-    // Store the completion status locally only - don't update in Firestore
     try {
-      console.log(`Toggling assignment status: ${assignmentId} to ${newStatus}`);
+      // Ensure we're using the current class ID at the time of the operation
+      const targetClassId = currentClass?.id;
       
-      // Create a local copy of assignments with the updated status
-      const updatedAssignments = assignments.map(a => 
-        a.id === assignmentId ? { ...a, status: newStatus } : a
-      );
+      if (!targetClassId) {
+        throw new Error('No class selected. Cannot update assignment status.');
+      }
       
-      // Update local state
-      setAssignments(updatedAssignments);
+      // Update the assignment with new status
+      const updatedAssignment = {
+        ...assignment,
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      };
       
-      // Save changes to AsyncStorage regardless of sync status
-      // This ensures status persists across app restarts
-      await saveLocalAssignments(updatedAssignments);
-      
-      return { success: true };
+      // If we have a class and are synced with cloud, update on Firestore
+      if (user && syncedWithCloud) {
+        // Use documentId for Firestore operations if available, otherwise use the id
+        const documentIdToUse = assignment.documentId || assignmentId;
+        console.log(`Updating assignment in Firestore with documentId: ${documentIdToUse}`);
+        
+        const result = await updateClassAssignment(
+          targetClassId,
+          documentIdToUse,
+          { status: newStatus, updatedAt: new Date().toISOString() }
+        );
+        
+        // Even if cloud update fails, still update locally
+        await updateLocalAssignment(assignmentId, updatedAssignment, targetClassId);
+        
+        // Update the assignments state
+        setAssignments(prevAssignments => 
+          prevAssignments.map(a => 
+            a.id === assignmentId ? updatedAssignment : a
+          )
+        );
+        
+        // Update the assignments by class state
+        setAssignmentsByClass(prev => ({
+          ...prev,
+          [targetClassId]: prev[targetClassId]?.map(a => 
+            a.id === assignmentId ? updatedAssignment : a
+          ) || []
+        }));
+        
+        return { success: true, synced: result.success };
+      } else {
+        // Update locally only
+        await updateLocalAssignment(assignmentId, updatedAssignment, targetClassId);
+        
+        // Update the assignments state
+        setAssignments(prevAssignments => 
+          prevAssignments.map(a => 
+            a.id === assignmentId ? updatedAssignment : a
+          )
+        );
+        
+        // Update the assignments by class state
+        setAssignmentsByClass(prev => ({
+          ...prev,
+          [targetClassId]: prev[targetClassId]?.map(a => 
+            a.id === assignmentId ? updatedAssignment : a
+          ) || []
+        }));
+        
+        return { success: true, synced: false };
+      }
     } catch (error) {
       console.error('Error toggling assignment status:', error);
       return { success: false, error: error.message };
+    }
+  };
+
+  // Force refresh of assignments
+  const refreshAssignments = async () => {
+    if (currentClass && user) {
+      // Clear the cached assignments for this class
+      console.log(`AssignmentContext: Forcing refresh for class ${currentClass.id}`);
+      setAssignmentsByClass(prev => {
+        const newState = { ...prev };
+        if (currentClass.id) {
+          delete newState[currentClass.id];
+        }
+        return newState;
+      });
+      
+      // Reset assignments
+      setAssignments([]);
+      
+      // Load fresh data
+      setLoading(true);
+      try {
+        // First, check if the class exists and is valid
+        const classAssignments = await getClassAssignments(currentClass.id, true);
+        console.log(`AssignmentContext: Loaded ${classAssignments.length} assignments from Firestore`);
+        
+        // Store into context state
+        setAssignments(classAssignments);
+        setAssignmentsByClass(prev => ({
+          ...prev,
+          [currentClass.id]: classAssignments
+        }));
+        
+        // Also update local storage with the fresh data
+        await saveLocalAssignments(classAssignments, currentClass.id);
+        
+        setSyncedWithCloud(true);
+      } catch (error) {
+        console.error('Error refreshing assignments:', error);
+        
+        // If cloud refresh fails, try loading from local storage
+        console.log('AssignmentContext: Falling back to local storage');
+        await loadLocalAssignments();
+        setSyncedWithCloud(false);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // No class selected or user not logged in
+      await loadLocalAssignments();
     }
   };
 
@@ -286,7 +579,84 @@ export const AssignmentProvider = ({ children }) => {
     updateAssignment,
     deleteAssignment,
     toggleAssignmentStatus,
-    refreshAssignments: loadAssignments
+    refreshAssignments: refreshAssignments,
+    // Utility to diagnose ID issues with a specific assignment
+    diagnoseAssignmentById: async (assignmentId) => {
+      if (!currentClass) {
+        return { success: false, error: "No class selected" };
+      }
+      
+      console.log(`Diagnosing assignment with ID: ${assignmentId}`);
+      
+      try {
+        // 1. Check if it exists in current assignments list
+        const memoryAssignment = assignments.find(a => 
+          a.id === assignmentId || a.documentId === assignmentId
+        );
+        
+        if (memoryAssignment) {
+          console.log(`Found in memory: ${JSON.stringify(memoryAssignment)}`);
+        } else {
+          console.log(`Not found in memory. Current IDs: ${assignments.map(a => `id:${a.id},docId:${a.documentId||'n/a'}`).join(', ')}`);
+        }
+        
+        // 2. Try to find in Firestore
+        if (user) {
+          const result = await findAssignmentByInternalId(currentClass.id, assignmentId);
+          if (result.success) {
+            console.log(`Found in Firestore: ${JSON.stringify(result.assignment)}`);
+            
+            // If found in Firestore but not in memory, there's a sync issue
+            if (!memoryAssignment) {
+              console.log("Assignment exists in Firestore but not in local memory. Refreshing...");
+              await refreshAssignments();
+            }
+          } else {
+            console.log(`Not found in Firestore: ${result.error}`);
+          }
+        }
+        
+        // 3. Check local storage
+        const storedAssignments = await getLocalAssignments(currentClass.id);
+        const storedAssignment = storedAssignments.find(a => 
+          a.id === assignmentId || a.documentId === assignmentId
+        );
+        
+        if (storedAssignment) {
+          console.log(`Found in local storage: ${JSON.stringify(storedAssignment)}`);
+          
+          // If found in storage but not in memory, there's a storage issue
+          if (!memoryAssignment) {
+            console.log("Assignment exists in storage but not in memory. Loading from storage...");
+            await loadLocalAssignments();
+          }
+        } else {
+          console.log(`Not found in local storage`);
+        }
+        
+        // 4. Check if the assignment exists with the document ID directly
+        if (user && assignmentId.match(/^[a-zA-Z0-9]{20,}$/)) {
+          try {
+            const docResult = await getAssignmentByDocumentId(currentClass.id, assignmentId);
+            if (docResult.success) {
+              console.log(`Found direct document: ${JSON.stringify(docResult.assignment)}`);
+            } else {
+              console.log(`Not found as direct document: ${docResult.error}`);
+            }
+          } catch (error) {
+            console.log(`Error checking direct document: ${error.message}`);
+          }
+        }
+        
+        return { 
+          success: true, 
+          message: "Diagnosis complete. Check console logs for details." 
+        };
+      } catch (error) {
+        console.error("Error in diagnosis:", error);
+        return { success: false, error: error.message };
+      }
+    }
   };
 
   return (

@@ -20,7 +20,8 @@ import {
   ASSIGNMENT_TYPES, 
   DEADLINE_OPTIONS, 
   ASSIGNMENT_STATUS,
-  ASSIGNMENT_GROUP_TYPE
+  ASSIGNMENT_GROUP_TYPE,
+  RANDOMIZATION_MODE
 } from '../constants/Types';
 import { getSubjects } from '../utils/storage';
 import { useAssignment } from '../context/AssignmentContext';
@@ -58,6 +59,9 @@ const AddAssignmentScreen = ({ navigation, route }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentAssignment, setCurrentAssignment] = useState(null);
+  const [isRandomizing, setIsRandomizing] = useState(false);
+  const [randomizationMode, setRandomizationMode] = useState(RANDOMIZATION_MODE.ABSOLUTE_RANDOM);
+  const [showRandomizationModeModal, setShowRandomizationModeModal] = useState(false);
 
   useEffect(() => {
     loadSubjects();
@@ -136,6 +140,58 @@ const AddAssignmentScreen = ({ navigation, route }) => {
       setLoadingMembers(false);
     }
   };
+
+  // Function to randomly assign members to groups
+  const randomizeGroupMembers = () => {
+    if (classMembers.length === 0 || groupCount === 0) {
+      Alert.alert('Error', 'No class members or groups to randomize');
+      return;
+    }
+
+    setIsRandomizing(true);
+    
+    try {
+      if (randomizationMode === RANDOMIZATION_MODE.ABSOLUTE_RANDOM) {
+        performAbsoluteRandomization();
+      } else if (randomizationMode === RANDOMIZATION_MODE.FAIR_GENDER) {
+        Alert.alert(
+          'Feature Not Available',
+          'Fair gender distribution is not yet available as gender data is not stored. This feature will be available in a future update.',
+          [{ text: 'OK', onPress: () => performAbsoluteRandomization() }]
+        );
+      }
+    } catch (error) {
+      console.error('Error randomizing group members:', error);
+      Alert.alert('Error', 'Failed to randomize group members');
+      setIsRandomizing(false);
+    }
+  };
+  
+  const performAbsoluteRandomization = () => {
+    // Create a shuffled copy of the class members
+    const shuffledMembers = [...classMembers].sort(() => Math.random() - 0.5);
+    
+    // Initialize empty groups
+    const randomizedGroups = [];
+    for (let i = 0; i < groupCount; i++) {
+      randomizedGroups.push({
+        id: `group_${Date.now()}_${i}`,
+        name: `Group ${i + 1}`,
+        members: []
+      });
+    }
+    
+    // Distribute members evenly across groups
+    shuffledMembers.forEach((member, index) => {
+      const groupIndex = index % groupCount;
+      randomizedGroups[groupIndex].members.push(member);
+    });
+    
+    setGroups(randomizedGroups);
+    
+    Alert.alert('Success', 'Group members have been randomized');
+    setIsRandomizing(false);
+  };
   
   const loadSubjects = async () => {
     const loadedSubjects = await getSubjects();
@@ -143,9 +199,16 @@ const AddAssignmentScreen = ({ navigation, route }) => {
   };
 
   const loadAssignment = async (assignmentId) => {
-    const assignment = assignments.find(a => a.id === assignmentId);
+    console.log(`Loading assignment for editing: ${assignmentId}`);
+    
+    // Find assignment with either ID or documentId
+    const assignment = assignments.find(a => 
+      a.id === assignmentId || a.documentId === assignmentId
+    );
     
     if (assignment) {
+      console.log(`Found assignment for editing: id=${assignment.id}, documentId=${assignment.documentId || 'N/A'}`);
+      
       setCurrentAssignment(assignment);
       setTitle(assignment.title);
       setDescription(assignment.description || '');
@@ -172,6 +235,10 @@ const AddAssignmentScreen = ({ navigation, route }) => {
       if (assignment.attachments) {
         setAttachments(assignment.attachments);
       }
+    } else {
+      console.error(`Assignment not found for editing: ${assignmentId}`);
+      Alert.alert('Error', 'Could not find the assignment to edit. It may have been deleted.');
+      navigation.goBack();
     }
   };
 
@@ -509,6 +576,21 @@ const AddAssignmentScreen = ({ navigation, route }) => {
     </View>
   );
 
+  const renderRandomizationModeItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.modalItem}
+      onPress={() => {
+        setRandomizationMode(item);
+        setShowRandomizationModeModal(false);
+      }}
+    >
+      <Text style={styles.modalItemText}>{item}</Text>
+      {randomizationMode === item && (
+        <Icon name="check" size={20} color={Colors.accent} />
+      )}
+    </TouchableOpacity>
+  );
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.formContainer}>
@@ -597,6 +679,34 @@ const AddAssignmentScreen = ({ navigation, route }) => {
                 <Icon name="edit" size={16} color={Colors.text} />
               </TouchableOpacity>
             </View>
+            
+            {classMembers.length > 0 && (
+              <View style={styles.randomizationContainer}>
+                <TouchableOpacity 
+                  style={styles.randomizationModeButton}
+                  onPress={() => setShowRandomizationModeModal(true)}
+                >
+                  <Icon name="tune" size={20} color={Colors.text} />
+                  <Text style={styles.randomizationModeText}>{randomizationMode}</Text>
+                  <Icon name="arrow-drop-down" size={24} color={Colors.text} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.randomizeButton}
+                  onPress={randomizeGroupMembers}
+                  disabled={isRandomizing || classMembers.length === 0}
+                >
+                  {isRandomizing ? (
+                    <ActivityIndicator size="small" color={Colors.text} />
+                  ) : (
+                    <>
+                      <Icon name="shuffle" size={20} color={Colors.text} />
+                      <Text style={styles.randomizeButtonText}>Randomize Groups</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
             
             {groups.map((group, index) => renderGroupItem(group, index))}
           </View>
@@ -762,7 +872,9 @@ const AddAssignmentScreen = ({ navigation, route }) => {
                   style={styles.addButton}
                   onPress={() => {
                     setShowSubjectModal(false);
-                    navigation.navigate('AddSubject');
+                    navigation.navigate('SubjectsTab', {
+                      screen: 'AddSubject'
+                    });
                   }}
                 >
                   <Text style={styles.addButtonText}>Add Subject</Text>
@@ -826,6 +938,38 @@ const AddAssignmentScreen = ({ navigation, route }) => {
               renderItem={renderDeadlineItem}
               style={styles.modalList}
             />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add the new Randomization Mode Modal */}
+      <Modal
+        visible={showRandomizationModeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRandomizationModeModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Randomization Mode</Text>
+              <TouchableOpacity onPress={() => setShowRandomizationModeModal(false)}>
+                <Icon name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={Object.values(RANDOMIZATION_MODE)}
+              keyExtractor={(item) => item}
+              renderItem={renderRandomizationModeItem}
+              style={styles.modalList}
+            />
+            
+            <View style={styles.modalFooterInfo}>
+              <Text style={styles.modalFooterInfoText}>
+                Note: Fair gender distribution will be fully supported in a future update.
+              </Text>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1082,6 +1226,49 @@ const styles = StyleSheet.create({
   modalButtonText: {
     color: Colors.text,
     fontWeight: 'bold',
+  },
+  randomizationContainer: {
+    marginBottom: 16,
+  },
+  randomizationModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  randomizationModeText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+    marginLeft: 8,
+  },
+  randomizeButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  randomizeButtonText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  modalFooterInfo: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.surface,
+  },
+  modalFooterInfoText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 });
 

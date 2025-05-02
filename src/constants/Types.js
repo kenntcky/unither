@@ -24,3 +24,8 @@ export const ASSIGNMENT_GROUP_TYPE = {
   INDIVIDUAL: 'Individu',
   GROUP: 'Kelompok',
 };
+
+export const RANDOMIZATION_MODE = {
+  ABSOLUTE_RANDOM: 'Absolute Random',
+  FAIR_GENDER: 'Fair Gender Distribution',
+};

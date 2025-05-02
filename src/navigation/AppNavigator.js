@@ -15,14 +15,19 @@ import ProfileScreen from '../screens/ProfileScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import GenderSelectionScreen from '../screens/auth/GenderSelectionScreen';
 import ClassSelectionScreen from '../screens/ClassSelectionScreen';
 import CreateClassScreen from '../screens/CreateClassScreen';
 import JoinClassScreen from '../screens/JoinClassScreen';
 import ClassMembersScreen from '../screens/ClassMembersScreen';
 import LanguageSettingsScreen from '../screens/LanguageSettingsScreen';
+import PendingApprovalsScreen from '../screens/PendingApprovalsScreen';
 import Colors from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
-import { ClassProvider } from '../context/ClassContext';
+import { ClassProvider, useClass } from '../context/ClassContext';
+import { SubjectProvider } from '../context/SubjectContext';
+import { AssignmentProvider } from '../context/AssignmentContext';
+import ClassDataProvider from '../providers/ClassDataProvider';
 import { t } from '../translations';
 
 const Tab = createBottomTabNavigator();
@@ -43,6 +48,76 @@ const AuthNavigator = () => (
   </AuthStack.Navigator>
 );
 
+// Main TabNavigator wrapped with all context providers
+const MainNavigator = () => {
+  const { currentClass } = useClass();
+  
+  return (
+    <ClassDataProvider currentClass={currentClass}>
+      <SubjectProvider>
+        <AssignmentProvider>
+          <Tab.Navigator
+            screenOptions={({ route }) => ({
+              tabBarIcon: ({ focused, color, size }) => {
+                let iconName;
+
+                if (route.name === 'HomeTab') {
+                  iconName = 'home';
+                } else if (route.name === 'AssignmentsTab') {
+                  iconName = 'assignment';
+                } else if (route.name === 'SubjectsTab') {
+                  iconName = 'book';
+                } else if (route.name === 'ProfileTab') {
+                  iconName = 'person';
+                }
+
+                return <MaterialIcons name={iconName} size={size} color={color} />;
+              },
+              tabBarActiveTintColor: Colors.accent,
+              tabBarInactiveTintColor: Colors.textSecondary,
+              tabBarStyle: {
+                backgroundColor: Colors.primary,
+                borderTopWidth: 0,
+                position: 'bottom',
+              },
+              headerShown: false,
+            })}
+          >
+            <Tab.Screen 
+              name="HomeTab" 
+              component={HomeStack} 
+              options={{ 
+                title: t('Home'),
+              }} 
+            />
+            <Tab.Screen 
+              name="AssignmentsTab" 
+              component={AssignmentsStack} 
+              options={{ 
+                title: t('Assignments'),
+              }} 
+            />
+            <Tab.Screen 
+              name="SubjectsTab" 
+              component={SubjectsStack} 
+              options={{ 
+                title: t('Subjects'),
+              }} 
+            />
+            <Tab.Screen 
+              name="ProfileTab" 
+              component={ProfileStack} 
+              options={{ 
+                title: t('Profile'),
+              }} 
+            />
+          </Tab.Navigator>
+        </AssignmentProvider>
+      </SubjectProvider>
+    </ClassDataProvider>
+  );
+};
+
 // New ClassNavigator for handling class selection
 const ClassNavigator = () => (
   <ClassStack.Navigator
@@ -51,10 +126,24 @@ const ClassNavigator = () => (
       cardStyle: { backgroundColor: Colors.background },
     }}
   >
-    <ClassStack.Screen name="ClassSelection" component={ClassSelectionScreen} />
-    <ClassStack.Screen name="CreateClass" component={CreateClassScreen} />
-    <ClassStack.Screen name="JoinClass" component={JoinClassScreen} />
-    <ClassStack.Screen name="Main" component={TabNavigator} />
+    <ClassStack.Screen 
+      name="ClassSelection" 
+      component={ClassSelectionScreen}
+      options={{ animationEnabled: true }} 
+    />
+    <ClassStack.Screen 
+      name="CreateClass" 
+      component={CreateClassScreen} 
+    />
+    <ClassStack.Screen 
+      name="JoinClass" 
+      component={JoinClassScreen} 
+    />
+    <ClassStack.Screen 
+      name="Main" 
+      component={MainNavigator}
+      options={{ gestureEnabled: false }} 
+    />
   </ClassStack.Navigator>
 );
 
@@ -144,69 +233,24 @@ const ProfileStack = () => (
     <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: t('Profile') }} />
     <Stack.Screen name="ClassMembers" component={ClassMembersScreen} options={{ title: t('Class Members') }} />
     <Stack.Screen name="LanguageSettings" component={LanguageSettingsScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} options={{ headerShown: false }} />
   </Stack.Navigator>
 );
 
-const TabNavigator = () => (
-  <Tab.Navigator
-    screenOptions={({ route }) => ({
-      tabBarIcon: ({ focused, color, size }) => {
-        let iconName;
-
-        if (route.name === 'HomeTab') {
-          iconName = 'home';
-        } else if (route.name === 'AssignmentsTab') {
-          iconName = 'assignment';
-        } else if (route.name === 'SubjectsTab') {
-          iconName = 'book';
-        } else if (route.name === 'ProfileTab') {
-          iconName = 'person';
-        }
-
-        return <MaterialIcons name={iconName} size={size} color={color} />;
-      },
-      tabBarActiveTintColor: Colors.accent,
-      tabBarInactiveTintColor: Colors.textSecondary,
-      tabBarStyle: {
-        backgroundColor: Colors.primary,
-        borderTopWidth: 0,
-      },
+// New ProfileSetupNavigator for completing user profile
+const ProfileSetupNavigator = () => (
+  <Stack.Navigator
+    screenOptions={{
       headerShown: false,
-    })}
+      cardStyle: { backgroundColor: Colors.background },
+    }}
   >
-    <Tab.Screen 
-      name="HomeTab" 
-      component={HomeStack} 
-      options={{ 
-        title: t('Home'),
-      }} 
-    />
-    <Tab.Screen 
-      name="AssignmentsTab" 
-      component={AssignmentsStack} 
-      options={{ 
-        title: t('Assignments'),
-      }} 
-    />
-    <Tab.Screen 
-      name="SubjectsTab" 
-      component={SubjectsStack} 
-      options={{ 
-        title: t('Subjects'),
-      }} 
-    />
-    <Tab.Screen 
-      name="ProfileTab" 
-      component={ProfileStack} 
-      options={{ 
-        title: t('Profile'),
-      }} 
-    />
-  </Tab.Navigator>
+    <Stack.Screen name="GenderSelection" component={GenderSelectionScreen} />
+  </Stack.Navigator>
 );
 
 const AppNavigator = () => {
-  const { user, initializing } = useAuth();
+  const { user, initializing, needsProfileSetup } = useAuth();
 
   if (initializing) {
     return null; // Or a loading screen
@@ -216,6 +260,8 @@ const AppNavigator = () => {
     <NavigationContainer>
       {!user ? (
         <AuthNavigator />
+      ) : needsProfileSetup ? (
+        <ProfileSetupNavigator />
       ) : (
         <ClassProvider>
           <ClassNavigator />

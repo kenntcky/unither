@@ -3,47 +3,39 @@ import { StyleSheet, View, FlatList, TouchableOpacity, Text, Alert } from 'react
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import SubjectItem from '../components/SubjectItem';
 import Colors from '../constants/Colors';
-import { getSubjects, deleteSubject } from '../utils/storage';
+import { useSubject } from '../context/SubjectContext';
 import { useAssignment } from '../context/AssignmentContext';
+import { useClass } from '../context/ClassContext';
 import { t } from '../translations';
 
 const SubjectsScreen = ({ navigation }) => {
   const { assignments, refreshAssignments } = useAssignment();
-  const [subjects, setSubjects] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { subjects, loading, deleteSubject, refreshSubjects, syncedWithCloud } = useSubject();
+  const { currentClass } = useClass();
+  const [subjectsWithCounts, setSubjectsWithCounts] = useState([]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       refreshAssignments();
-      loadSubjects();
+      refreshSubjects();
     });
 
     return unsubscribe;
-  }, [navigation, refreshAssignments]);
+  }, [navigation, refreshAssignments, refreshSubjects]);
 
-  // Update subjects when assignments change
+  // Update subjects when assignments or subjects change
   useEffect(() => {
     updateSubjectsWithCounts();
-  }, [assignments]);
+  }, [assignments, subjects]);
 
-  const loadSubjects = async () => {
-    setIsLoading(true);
-    const loadedSubjects = await getSubjects();
-    updateSubjectsWithCounts(loadedSubjects);
-    setIsLoading(false);
-  };
-
-  const updateSubjectsWithCounts = (loadedSubjects) => {
-    // Use the cached subjects if no new ones are provided
-    const subjectsToUpdate = loadedSubjects || subjects;
-    
+  const updateSubjectsWithCounts = () => {
     // Calculate assignment count for each subject
-    const subjectsWithCounts = subjectsToUpdate.map(subject => {
+    const updatedSubjects = subjects.map(subject => {
       const count = assignments.filter(a => a.subjectId === subject.id).length;
       return { ...subject, assignmentCount: count };
     });
     
-    setSubjects(subjectsWithCounts);
+    setSubjectsWithCounts(updatedSubjects);
   };
 
   const handleAddSubject = () => {
@@ -67,22 +59,32 @@ const SubjectsScreen = ({ navigation }) => {
   };
   
   const handleDeleteSubject = async (subjectId) => {
-    setIsLoading(true);
-    const success = await deleteSubject(subjectId);
+    const result = await deleteSubject(subjectId);
     
-    if (success) {
-      // Update the subjects list after deletion
-      loadSubjects();
-    } else {
+    if (!result.success) {
       Alert.alert('Error', t('Failed to delete subject. Please try again.'));
-      setIsLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
+      {currentClass && (
+        <View style={styles.syncStatusContainer}>
+          <Icon 
+            name={syncedWithCloud ? "cloud-done" : "cloud-off"} 
+            size={16} 
+            color={syncedWithCloud ? Colors.success : Colors.warning} 
+          />
+          <Text style={[styles.syncStatusText, { color: syncedWithCloud ? Colors.success : Colors.warning }]}>
+            {syncedWithCloud 
+              ? `${t('Synced with')} ${currentClass.name}` 
+              : t('Using local subjects')}
+          </Text>
+        </View>
+      )}
+      
       <FlatList
-        data={subjects}
+        data={subjectsWithCounts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <SubjectItem
@@ -102,8 +104,8 @@ const SubjectsScreen = ({ navigation }) => {
             </Text>
           </View>
         }
-        refreshing={isLoading}
-        onRefresh={loadSubjects}
+        refreshing={loading}
+        onRefresh={refreshSubjects}
       />
       <TouchableOpacity style={styles.fab} onPress={handleAddSubject}>
         <Icon name="add" size={24} color={Colors.text} />
@@ -116,6 +118,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  syncStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+    backgroundColor: Colors.surface,
+  },
+  syncStatusText: {
+    fontSize: 12,
+    marginLeft: 4,
   },
   emptyContainer: {
     flex: 1,

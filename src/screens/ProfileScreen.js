@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,6 +13,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../context/AuthContext';
 import { useClass } from '../context/ClassContext';
 import { useLanguage } from '../context/LanguageContext';
+import { isClassAdmin } from '../utils/firestore';
 import Colors from '../constants/Colors';
 import { t } from '../translations';
 
@@ -20,6 +21,21 @@ const ProfileScreen = ({ navigation }) => {
   const { user, signOut, loading } = useAuth();
   const { currentClass } = useClass();
   const { getCurrentLanguageName } = useLanguage();
+  const [isCurrentClassAdmin, setIsCurrentClassAdmin] = useState(false);
+
+  // Check if the user is an admin for the current class
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user && currentClass) {
+        const adminStatus = await isClassAdmin(currentClass.id, user.uid);
+        setIsCurrentClassAdmin(adminStatus);
+      } else {
+        setIsCurrentClassAdmin(false);
+      }
+    };
+    
+    checkAdminStatus();
+  }, [user, currentClass]);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -62,6 +78,19 @@ const ProfileScreen = ({ navigation }) => {
     navigation.navigate('LanguageSettings');
   };
 
+  const handlePendingApprovals = () => {
+    if (!currentClass) {
+      Alert.alert(
+        t('No Class Selected'),
+        t('You need to select a class to view pending approvals'),
+        [{ text: t('OK') }]
+      );
+      return;
+    }
+    
+    navigation.navigate('PendingApprovals');
+  };
+
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
@@ -86,9 +115,44 @@ const ProfileScreen = ({ navigation }) => {
         </View>
         <Text style={styles.name}>{user.displayName || t('User')}</Text>
         <Text style={styles.email}>{user.email}</Text>
+        {currentClass && isCurrentClassAdmin && (
+          <View style={styles.adminBadge}>
+            <Icon name="school" size={16} color="#fff" />
+            <Text style={styles.adminBadgeText}>
+              {t('Class Admin: {className}', { className: currentClass.name })}
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.content}>
+        {/* Class Admin section - only visible to class admins */}
+        {currentClass && isCurrentClassAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {t('Admin Controls for {className}', { className: currentClass.name })}
+            </Text>
+            
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={handlePendingApprovals}
+            >
+              <Icon name="approval" size={24} color={Colors.accent} />
+              <Text style={styles.menuItemText}>{t('Pending Approvals')}</Text>
+              <Icon name="chevron-right" size={24} color={Colors.textSecondary} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={handleViewClassMembers}
+            >
+              <Icon name="manage-accounts" size={24} color={Colors.accent} />
+              <Text style={styles.menuItemText}>{t('Manage Class Members')}</Text>
+              <Icon name="chevron-right" size={24} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('Account')}</Text>
           
@@ -290,6 +354,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 10,
+  },
+  adminBadge: {
+    backgroundColor: Colors.accent,
+    borderRadius: 8,
+    padding: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  adminBadgeText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
 });
 

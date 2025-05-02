@@ -114,13 +114,20 @@ const AssignmentsScreen = ({ navigation, route }) => {
   };
 
   const handleAssignmentPress = (assignment) => {
-    // Navigate to assignment detail screen
+    // Log the assignment data for debugging
+    console.log(`Navigating to assignment details: id=${assignment.id}, documentId=${assignment.documentId || 'N/A'}`);
+    
+    // Navigate to assignment detail screen with both IDs
     navigation.navigate('AssignmentDetails', { 
-      assignmentId: assignment.id
+      assignmentId: assignment.id,
+      documentId: assignment.documentId  // Include document ID as well
     });
   };
 
   const handleEditPress = (assignment) => {
+    // Log the assignment data for debugging
+    console.log(`Navigating to edit assignment: id=${assignment.id}, documentId=${assignment.documentId || 'N/A'}`);
+    
     // Navigate to edit screen
     navigation.navigate('AddAssignment', { 
       assignmentId: assignment.id,
@@ -129,13 +136,21 @@ const AssignmentsScreen = ({ navigation, route }) => {
   };
 
   const handleToggleStatus = async (assignmentId) => {
-    const assignment = assignments.find(a => a.id === assignmentId);
+    // Find assignment using both ID types
+    const assignment = assignments.find(a => 
+      a.id === assignmentId || a.documentId === assignmentId
+    );
+    
     if (assignment) {
+      console.log(`Toggling status for assignment: id=${assignment.id}, documentId=${assignment.documentId || 'N/A'}`);
+      
       const newStatus = assignment.status === ASSIGNMENT_STATUS.FINISHED 
         ? ASSIGNMENT_STATUS.UNFINISHED 
         : ASSIGNMENT_STATUS.FINISHED;
       
-      await toggleAssignmentStatus(assignmentId, newStatus);
+      await toggleAssignmentStatus(assignment.id, newStatus);
+    } else {
+      console.error(`Assignment not found when toggling status: ${assignmentId}`);
     }
   };
 

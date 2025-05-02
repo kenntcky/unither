@@ -7,7 +7,8 @@ import {
   FlatList,
   ActivityIndicator,
   SafeAreaView,
-  Alert
+  Alert,
+  Modal
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -17,10 +18,29 @@ import { useAuth } from '../context/AuthContext';
 import { t } from '../translations';
 
 const ClassSelectionScreen = () => {
-  const { classes, loading, switchClass } = useClass();
+  const { classes, loading, switchClass, forceRefresh, isClassSwitching } = useClass();
   const { user } = useAuth();
   const navigation = useNavigation();
   const [refreshing, setRefreshing] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [switchingToClass, setSwitchingToClass] = useState(null);
+
+  // Show loading indicator when class is switching
+  useEffect(() => {
+    if (isClassSwitching) {
+      setIsSwitching(true);
+    } else {
+      // When class switching is complete, navigate if we were switching
+      if (isSwitching && switchingToClass) {
+        // Navigate to main after a brief delay
+        setTimeout(() => {
+          setIsSwitching(false);
+          setSwitchingToClass(null);
+          navigation.replace('Main');
+        }, 500);
+      }
+    }
+  }, [isClassSwitching, isSwitching, switchingToClass]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -32,9 +52,36 @@ const ClassSelectionScreen = () => {
     }
   };
 
-  const handleClassSelect = (classItem) => {
-    switchClass(classItem.id);
-    navigation.replace('Main');
+  const handleClassSelect = async (classItem) => {
+    try {
+      // Start switching indicator
+      setIsSwitching(true);
+      setSwitchingToClass(classItem.name);
+      
+      // Switch to the new class
+      const success = await switchClass(classItem.id);
+      
+      if (!success) {
+        setIsSwitching(false);
+        setSwitchingToClass(null);
+        Alert.alert(
+          'Error',
+          'Failed to switch class. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+      // The navigation will happen in the useEffect when isClassSwitching changes to false
+      
+    } catch (error) {
+      console.error('Error switching class:', error);
+      setIsSwitching(false);
+      setSwitchingToClass(null);
+      Alert.alert(
+        'Error',
+        'There was a problem switching to this class. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const renderClassItem = ({ item }) => {
@@ -71,6 +118,25 @@ const ClassSelectionScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Class switching modal */}
+      <Modal
+        transparent={true}
+        visible={isSwitching}
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ActivityIndicator size="large" color={Colors.accent} />
+            <Text style={styles.modalText}>
+              {switchingToClass ? 
+                `${t('Switching to')} ${switchingToClass}...` : 
+                t('Switching class...')}
+            </Text>
+          </View>
+        </View>
+      </Modal>
+      
       <View style={styles.header}>
         <Text style={styles.title}>{t('Your Classes')}</Text>
         <Text style={styles.subtitle}>
@@ -125,6 +191,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: Colors.cardBackground,
+    padding: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 250,
+  },
+  modalText: {
+    marginTop: 16,
+    fontSize: 18,
+    color: Colors.text,
+    textAlign: 'center',
   },
   header: {
     padding: 20,

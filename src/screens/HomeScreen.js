@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
 import { getSubjects } from '../utils/storage';
 import { ASSIGNMENT_STATUS } from '../constants/Types';
 import { t, plural } from '../translations';
 import { useAssignment } from '../context/AssignmentContext';
+import { useClass } from '../context/ClassContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const HomeScreen = ({ navigation }) => {
-  const { assignments, refreshAssignments } = useAssignment();
+  const { assignments, refreshAssignments, loading: assignmentsLoading } = useAssignment();
+  const { currentClass, isClassSwitching } = useClass();
   const [upcomingAssignments, setUpcomingAssignments] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -26,6 +30,20 @@ const HomeScreen = ({ navigation }) => {
 
     return unsubscribe;
   }, [navigation, refreshAssignments]);
+
+  // Set initial loading to false after first data load
+  useEffect(() => {
+    if (assignments.length > 0 || subjects.length > 0) {
+      setIsInitialLoading(false);
+    }
+    
+    // Also set initial loading false after 2 seconds even if no data
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [assignments, subjects]);
 
   // Update stats and upcoming assignments whenever assignments change
   useEffect(() => {
@@ -94,6 +112,27 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('AddAssignment');
   };
 
+  // Go back to class selection screen
+  const handleGoBackToClassSelection = () => {
+    Alert.alert(
+      'Confirm',
+      'Go back to class selection screen?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'OK', 
+          onPress: () => {
+            // Use the navigation.reset method to go back to ClassSelection
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'ClassSelection' }],
+            });
+          }
+        }
+      ]
+    );
+  };
+
   // Format the date in a user-friendly way
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -129,12 +168,51 @@ const HomeScreen = ({ navigation }) => {
     });
   };
 
+  // Current class indicator component (simplified without debug info)
+  const CurrentClassInfo = ({ currentClass }) => {
+    return (
+      <View style={styles.currentClassBanner}>
+        <Text style={styles.currentClassText}>
+          {t('Current Class')}: {currentClass?.name || "None"}
+        </Text>
+      </View>
+    );
+  };
+
+  // If we're switching classes or initial loading, show loading screen
+  if (isClassSwitching || isInitialLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>
+          {isClassSwitching ? 'Switching class...' : 'Loading class data...'}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('Task Master')}</Text>
-        <Text style={styles.headerSubtitle}>{t('Your School Assignment Tracker')}</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>{t('Task Master')}</Text>
+          <Text style={styles.headerSubtitle}>{t('Your School Assignment Tracker')}</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={handleGoBackToClassSelection}
+        >
+          <Icon name="arrow-back" size={24} color="#fff" />
+          <Text style={styles.backButtonText}>{t('Change Class')}</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Current class indicator */}
+      {currentClass && (
+        <CurrentClassInfo 
+          currentClass={currentClass}
+        />
+      )}
 
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
@@ -201,21 +279,21 @@ const HomeScreen = ({ navigation }) => {
 
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('Subjects')}</Text>
+          <Text style={styles.sectionTitle}>{t('Your Subjects')}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('SubjectsTab')}>
             <Text style={styles.seeAllText}>{t('See All')}</Text>
           </TouchableOpacity>
         </View>
-
+        
         {subjects.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Icon name="book" size={48} color={Colors.primaryLight} />
             <Text style={styles.emptyText}>{t('No subjects added yet')}</Text>
             <TouchableOpacity 
               style={styles.addButton}
-              onPress={() => navigation.navigate('SubjectsTab', { screen: 'AddSubject' })}
+              onPress={() => navigation.navigate('SubjectsTab')}
             >
-              <Text style={styles.addButtonText}>{t('Add Subject')}</Text>
+              <Text style={styles.addButtonText}>{t('Manage Subjects')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -223,18 +301,18 @@ const HomeScreen = ({ navigation }) => {
             <TouchableOpacity 
               key={subject.id}
               style={styles.subjectCard}
-              onPress={() => navigation.navigate('AssignmentsTab', { 
-                screen: 'Assignments',
-                params: { subjectId: subject.id }
-              })}
+              onPress={() => navigation.navigate('SubjectsTab')}
             >
-              <View style={styles.subjectIcon}>
-                <Icon name="book" size={24} color={Colors.text} />
+              <View style={[styles.subjectIcon, { backgroundColor: subject.color || Colors.primary }]}>
+                <Icon name="book" size={24} color="#fff" />
               </View>
               <View style={styles.subjectInfo}>
                 <Text style={styles.subjectName}>{subject.name}</Text>
-                <Text style={styles.subjectCount}>
-                  {plural('assignment', 'assignments', subject.assignmentCount || 0)}
+                <Text style={styles.subjectAssignmentCount}>
+                  {plural(subject.assignmentCount, {
+                    one: '1 assignment',
+                    other: '{count} assignments'
+                  })}
                 </Text>
               </View>
               <Icon name="chevron-right" size={24} color={Colors.textSecondary} />
@@ -242,6 +320,13 @@ const HomeScreen = ({ navigation }) => {
           ))
         )}
       </View>
+
+      <TouchableOpacity 
+        style={styles.floatingButton}
+        onPress={handleAddAssignment}
+      >
+        <Icon name="add" size={24} color="#fff" />
+      </TouchableOpacity>
     </ScrollView>
   );
 };
@@ -255,39 +340,78 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     padding: 20,
     paddingTop: 40,
-    paddingBottom: 30,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerContent: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: Colors.text,
-    marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
     color: Colors.textSecondary,
   },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    padding: 8,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    fontSize: 14,
+    color: '#fff',
+    marginLeft: 8,
+  },
+  currentClassBanner: {
+    backgroundColor: Colors.accent,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: -10,
+    marginBottom: 16,
+    borderRadius: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
+  },
+  currentClassText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+  },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 16,
-    marginTop: -20,
   },
   statCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
+    flex: 1,
+    backgroundColor: Colors.cardBackground,
     padding: 12,
-    width: '23%',
+    borderRadius: 8,
     alignItems: 'center',
-    elevation: 2,
+    marginHorizontal: 4,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 1.0,
   },
   overdueCard: {
     backgroundColor: Colors.error,
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: Colors.text,
   },
@@ -298,7 +422,7 @@ const styles = StyleSheet.create({
   },
   sectionContainer: {
     padding: 16,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -317,32 +441,37 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 24,
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 8,
   },
   emptyText: {
     fontSize: 16,
     color: Colors.textSecondary,
-    marginTop: 12,
+    marginTop: 16,
     marginBottom: 16,
   },
   addButton: {
-    backgroundColor: Colors.primaryLight,
-    borderRadius: 8,
-    paddingVertical: 8,
+    backgroundColor: Colors.accent,
     paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 4,
   },
   addButtonText: {
-    color: Colors.text,
+    color: '#fff',
     fontWeight: 'bold',
   },
   assignmentCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 8,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 8,
     elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 1.0,
   },
   assignmentHeader: {
     flexDirection: 'row',
@@ -359,7 +488,7 @@ const styles = StyleSheet.create({
   assignmentType: {
     fontSize: 12,
     color: Colors.textSecondary,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: Colors.lightBackground,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -383,22 +512,25 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   subjectCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 8,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 1.0,
   },
   subjectIcon: {
-    backgroundColor: Colors.primaryLight,
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   subjectInfo: {
     flex: 1,
@@ -408,9 +540,36 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.text,
   },
-  subjectCount: {
-    fontSize: 14,
+  subjectAssignmentCount: {
+    fontSize: 12,
     color: Colors.textSecondary,
+  },
+  floatingButton: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: Colors.textPrimary,
   },
 });
 

@@ -16,7 +16,7 @@ import { getAssignments, updateAssignment as updateLocalAssignment } from '../ut
 import { ASSIGNMENT_STATUS, ASSIGNMENT_GROUP_TYPE } from '../constants/Types';
 import { useAuth } from '../context/AuthContext';
 import { useAssignment } from '../context/AssignmentContext';
-import { updateClassAssignment } from '../utils/firestore';
+import { findAssignmentByInternalId, updateClassAssignment } from '../utils/firestore';
 import { useClass } from '../context/ClassContext';
 
 const AssignmentDetailsScreen = ({ route, navigation }) => {
@@ -24,14 +24,14 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [showJoinGroupModal, setShowJoinGroupModal] = useState(false);
-  const { assignmentId } = route.params;
+  const { assignmentId, documentId } = route.params;
   const { user } = useAuth();
   const { currentClass } = useClass();
-  const { assignments, updateAssignment } = useAssignment();
+  const { assignments, updateAssignment, diagnoseAssignmentById } = useAssignment();
 
   useEffect(() => {
     loadAssignmentDetails();
-  }, [assignmentId]);
+  }, [assignmentId, documentId, assignments]);
 
   useEffect(() => {
     if (assignment) {
@@ -42,20 +42,71 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   const loadAssignmentDetails = async () => {
     setIsLoading(true);
     try {
-      // TODO: Ideally, have a function like getAssignmentById(id) in storage.js
-      // For now, get all and filter
-      const allAssignments = await getAssignments();
-      const foundAssignment = allAssignments.find(a => a.id === assignmentId);
+      console.log(`Loading assignment details: id=${assignmentId}, documentId=${documentId || 'N/A'}`);
+      
+      // First check if the assignment is in the context's assignments array
+      let foundAssignment = assignments.find(a => 
+        a.id === assignmentId || 
+        a.documentId === assignmentId ||
+        (documentId && a.documentId === documentId)
+      );
+      
       if (foundAssignment) {
+        console.log(`Found assignment in context: ${foundAssignment.id}, documentId: ${foundAssignment.documentId || 'N/A'}`);
         setAssignment(foundAssignment);
-      } else {
-        // Handle assignment not found
-        console.error("Assignment not found:", assignmentId);
-        // Optionally navigate back or show an error message
+        setIsLoading(false);
+        return;
       }
+      
+      // If not found in the context, check local storage
+      console.log(`Assignment not found in context. Trying local storage: ${assignmentId}`);
+      const allAssignments = await getAssignments(currentClass?.id || 'local');
+      foundAssignment = allAssignments.find(a => 
+        a.id === assignmentId || a.documentId === assignmentId
+      );
+      
+      if (foundAssignment) {
+        console.log(`Found assignment in local storage: ${foundAssignment.id}`);
+        setAssignment(foundAssignment);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If we have a current class, try to find it in Firestore directly
+      if (user && currentClass) {
+        console.log(`Assignment not found locally. Trying Firestore lookup: ${assignmentId}`);
+        
+        // Run diagnosis to find the assignment
+        const diagnosisResult = await diagnoseAssignmentById(assignmentId);
+        console.log(`Diagnosis result: ${JSON.stringify(diagnosisResult)}`);
+        
+        // Retry finding the assignment in the context after diagnosis
+        foundAssignment = assignments.find(a => 
+          a.id === assignmentId || a.documentId === assignmentId
+        );
+        
+        if (foundAssignment) {
+          console.log(`Found assignment after diagnosis: ${foundAssignment.id}`);
+          setAssignment(foundAssignment);
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      // If we still haven't found it, show an error
+      console.error(`Assignment not found: ${assignmentId}`);
+      Alert.alert(
+        'Assignment Not Found',
+        'This assignment could not be found. It may have been deleted or you may not have access to it.',
+        [{ text: 'Go Back', onPress: () => navigation.goBack() }]
+      );
     } catch (error) {
       console.error("Error loading assignment details:", error);
-      // Handle error loading data
+      Alert.alert(
+        'Error',
+        'There was a problem loading the assignment details. Please try again later.',
+        [{ text: 'Go Back', onPress: () => navigation.goBack() }]
+      );
     } finally {
       setIsLoading(false);
     }

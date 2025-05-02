@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SUBJECTS_KEY = 'taskmaster_subjects';
-const ASSIGNMENTS_KEY = 'taskmaster_assignments';
+const ASSIGNMENTS_KEY_PREFIX = 'taskmaster_assignments_';
 
 // Subject functions
 export const saveSubjects = async (subjects) => {
@@ -36,10 +36,11 @@ export const addSubject = async (subject) => {
   }
 };
 
-// Assignment functions
-export const saveAssignments = async (assignments) => {
+// Assignment functions - now with class-specific storage
+export const saveAssignments = async (assignments, classId = 'local') => {
   try {
-    await AsyncStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(assignments));
+    const storageKey = ASSIGNMENTS_KEY_PREFIX + classId;
+    await AsyncStorage.setItem(storageKey, JSON.stringify(assignments));
     return true;
   } catch (error) {
     console.error('Error saving assignments:', error);
@@ -47,9 +48,10 @@ export const saveAssignments = async (assignments) => {
   }
 };
 
-export const getAssignments = async () => {
+export const getAssignments = async (classId = 'local') => {
   try {
-    const assignments = await AsyncStorage.getItem(ASSIGNMENTS_KEY);
+    const storageKey = ASSIGNMENTS_KEY_PREFIX + classId;
+    const assignments = await AsyncStorage.getItem(storageKey);
     return assignments ? JSON.parse(assignments) : [];
   } catch (error) {
     console.error('Error getting assignments:', error);
@@ -57,11 +59,11 @@ export const getAssignments = async () => {
   }
 };
 
-export const addAssignment = async (assignment) => {
+export const addAssignment = async (assignment, classId = 'local') => {
   try {
-    const assignments = await getAssignments();
+    const assignments = await getAssignments(classId);
     const newAssignments = [...assignments, assignment];
-    await saveAssignments(newAssignments);
+    await saveAssignments(newAssignments, classId);
     return true;
   } catch (error) {
     console.error('Error adding assignment:', error);
@@ -69,13 +71,13 @@ export const addAssignment = async (assignment) => {
   }
 };
 
-export const updateAssignment = async (id, updatedAssignment) => {
+export const updateAssignment = async (id, updatedAssignment, classId = 'local') => {
   try {
-    const assignments = await getAssignments();
+    const assignments = await getAssignments(classId);
     const newAssignments = assignments.map(assignment => 
       assignment.id === id ? { ...assignment, ...updatedAssignment } : assignment
     );
-    await saveAssignments(newAssignments);
+    await saveAssignments(newAssignments, classId);
     return true;
   } catch (error) {
     console.error('Error updating assignment:', error);
@@ -83,11 +85,11 @@ export const updateAssignment = async (id, updatedAssignment) => {
   }
 };
 
-export const deleteAssignment = async (id) => {
+export const deleteAssignment = async (id, classId = 'local') => {
   try {
-    const assignments = await getAssignments();
+    const assignments = await getAssignments(classId);
     const newAssignments = assignments.filter(assignment => assignment.id !== id);
-    await saveAssignments(newAssignments);
+    await saveAssignments(newAssignments, classId);
     return true;
   } catch (error) {
     console.error('Error deleting assignment:', error);
@@ -102,11 +104,8 @@ export const deleteSubject = async (id) => {
     const newSubjects = subjects.filter(subject => subject.id !== id);
     await saveSubjects(newSubjects);
     
-    // Also delete or update all assignments associated with this subject
-    const assignments = await getAssignments();
-    const newAssignments = assignments.filter(assignment => assignment.subjectId !== id);
-    await saveAssignments(newAssignments);
-    
+    // In the new architecture, subjects are class-specific and don't 
+    // need to be deleted from every class storage
     return true;
   } catch (error) {
     console.error('Error deleting subject:', error);

@@ -5,6 +5,7 @@ import Colors from './src/constants/Colors';
 import { AuthProvider } from './src/context/AuthContext';
 import { ClassProvider } from './src/context/ClassContext';
 import { AssignmentProvider } from './src/context/AssignmentContext';
+import { SubjectProvider } from './src/context/SubjectContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 
 // Ignore specific warnings if needed
@@ -19,10 +20,12 @@ const App = () => {
     <LanguageProvider>
       <AuthProvider>
         <ClassProvider>
-          <AssignmentProvider>
-            <StatusBar backgroundColor={Colors.primary} barStyle="light-content" />
-            <AppNavigator />
-          </AssignmentProvider>
+          <SubjectProvider>
+            <AssignmentProvider>
+              <StatusBar backgroundColor={Colors.primary} barStyle="light-content" />
+              <AppNavigator />
+            </AssignmentProvider>
+          </SubjectProvider>
         </ClassProvider>
       </AuthProvider>
     </LanguageProvider>

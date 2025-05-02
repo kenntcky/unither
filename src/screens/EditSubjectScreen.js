@@ -6,30 +6,35 @@ import {
   TextInput, 
   TouchableOpacity, 
   ScrollView,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
-import { getSubjects, updateSubject } from '../utils/storage';
+import { useSubject } from '../context/SubjectContext';
+import { useClass } from '../context/ClassContext';
 import { t } from '../translations';
 
 const EditSubjectScreen = ({ navigation, route }) => {
   const { subjectId } = route.params;
+  const { subjects, updateSubject, loading } = useSubject();
+  const { currentClass } = useClass();
   const [name, setName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [originalSubject, setOriginalSubject] = useState(null);
 
   useEffect(() => {
     loadSubject();
-  }, []);
+  }, [subjects]);
 
-  const loadSubject = async () => {
-    const subjects = await getSubjects();
+  const loadSubject = () => {
     const subject = subjects.find((s) => s.id === subjectId);
     
     if (!subject) {
-      Alert.alert('Error', 'Subject not found');
-      navigation.goBack();
+      if (!loading) {
+        Alert.alert('Error', t('Subject not found'));
+        navigation.goBack();
+      }
       return;
     }
     
@@ -43,27 +48,37 @@ const EditSubjectScreen = ({ navigation, route }) => {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
     
     const updatedSubject = {
       name: name.trim(),
       updatedAt: new Date().toISOString(),
     };
 
-    const success = await updateSubject(subjectId, updatedSubject);
+    const result = await updateSubject(subjectId, updatedSubject);
     
-    setIsLoading(false);
+    setIsSubmitting(false);
     
-    if (success) {
-      navigation.goBack();
+    if (result.success) {
+      // Show sync status in the alert if needed
+      if (!result.synced && currentClass) {
+        Alert.alert(
+          t('Subject Updated Locally'),
+          t('The subject was updated on your device but could not be synced with the cloud. It will sync automatically when connection is restored.'),
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        navigation.goBack();
+      }
     } else {
-      Alert.alert('Error', t('Failed to save subject. Please try again.'));
+      Alert.alert('Error', t('Failed to update subject. Please try again.'));
     }
   };
 
-  if (!originalSubject) {
+  if (loading || !originalSubject) {
     return (
       <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={styles.loadingText}>{t('Loading...')}</Text>
       </View>
     );
@@ -84,10 +99,10 @@ const EditSubjectScreen = ({ navigation, route }) => {
         <TouchableOpacity 
           style={[styles.saveButton, !name.trim() ? styles.disabledButton : null]}
           onPress={handleSave}
-          disabled={isLoading || !name.trim()}
+          disabled={isSubmitting || !name.trim()}
         >
-          {isLoading ? (
-            <Text style={styles.buttonText}>{t('Saving...')}</Text>
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color={Colors.text} />
           ) : (
             <>
               <Icon name="save" size={20} color={Colors.text} />
