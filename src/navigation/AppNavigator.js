@@ -60,7 +60,7 @@ const MainNavigator = () => {
             screenOptions={({ route }) => ({
               tabBarIcon: ({ focused, color, size }) => {
                 let iconName;
-
+            
                 if (route.name === 'HomeTab') {
                   iconName = 'home';
                 } else if (route.name === 'AssignmentsTab') {
@@ -70,18 +70,44 @@ const MainNavigator = () => {
                 } else if (route.name === 'ProfileTab') {
                   iconName = 'person';
                 }
-
-                return <MaterialIcons name={iconName} size={size} color={color} />;
+            
+                return (
+                  <MaterialIcons 
+                    name={iconName} 
+                    size={focused ? size + 4 : size} 
+                    color={color} 
+                    style={{
+                      transform: [{ scale: focused ? 1.1 : 1 }],
+                      transitionDuration: '150ms',
+                    }}
+                  />
+                );
+              },
+              tabBarLabelStyle: {
+                fontSize: 12,
+                fontWeight: focused ? 'bold' : 'normal',
+                paddingBottom: 4,
               },
               tabBarActiveTintColor: Colors.accent,
               tabBarInactiveTintColor: Colors.textSecondary,
               tabBarStyle: {
                 backgroundColor: Colors.primary,
-                borderTopWidth: 0,
-                position: 'bottom',
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                position: 'absolute',
+                left: 10,
+                right: 10,
+                bottom: 10,
+                height: 65,
+                elevation: 5,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -3 },
+                shadowOpacity: 0.1,
+                shadowRadius: 6,
               },
               headerShown: false,
             })}
+            
           >
             <Tab.Screen 
               name="HomeTab" 
