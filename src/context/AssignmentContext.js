@@ -11,7 +11,10 @@ import {
   CLASSES_COLLECTION,
   ASSIGNMENTS_COLLECTION,
   findAssignmentByInternalId,
-  getAssignmentByDocumentId
+  getAssignmentByDocumentId,
+  isClassAdmin,
+  approveClassAssignment,
+  rejectClassAssignment
 } from '../utils/firestore';
 import { 
   getAssignments as getLocalAssignments,
@@ -155,14 +158,22 @@ export const AssignmentProvider = ({ children }) => {
     
     setLoading(true);
     try {
+      // First check if user is class admin
+      const isAdmin = await isClassAdmin(currentClass.id, user.uid);
+      
       // First load local assignments to preserve completion status
       const localAssignments = await getLocalAssignments(currentClass.id);
       
-      // Then load assignments from Firebase
-      const classAssignments = await getClassAssignments(currentClass.id);
+      // Then load assignments from Firebase - pass true for includePending if admin
+      const classAssignments = await getClassAssignments(currentClass.id, isAdmin);
       
       // Merge the assignments, preserving local status
       const mergedAssignments = classAssignments.map(onlineAssignment => {
+        // For non-admins, filter out pending assignments that aren't created by the current user
+        if (!isAdmin && onlineAssignment.pending && onlineAssignment.createdBy !== user.uid) {
+          return null; // Will filter out later
+        }
+        
         // Try to find a matching local assignment
         const localMatch = localAssignments.find(
           localAssignment => localAssignment.id === onlineAssignment.id
@@ -178,7 +189,7 @@ export const AssignmentProvider = ({ children }) => {
         
         // Otherwise just use the online assignment as is
         return onlineAssignment;
-      });
+      }).filter(Boolean); // Remove null values
       
       // Also include local assignments that don't exist online
       // (like ones created while offline)
@@ -383,42 +394,11 @@ export const AssignmentProvider = ({ children }) => {
       console.error(`Assignment not found: ${assignmentId}. Available IDs: ${assignments.map(a => `id:${a.id}, docId:${a.documentId||'unknown'}`).join(', ')}`);
       console.log(`Looking for assignment with ID: ${assignmentId}`);
       
-      // Try to retrieve it again from storage or Firestore
+      // Try to retrieve it from local storage
       try {
         const targetClassId = currentClass?.id;
-        if (targetClassId && user) {
-          console.log(`Attempting to directly fetch assignment from Firestore with ID: ${assignmentId}`);
-          
-          // Use our new helper function to find the assignment
-          const result = await findAssignmentByInternalId(targetClassId, assignmentId);
-          
-          if (result.success) {
-            const firestoreAssignment = result.assignment;
-            console.log(`Found assignment with lookup: ${firestoreAssignment.documentId}`);
-            
-            const updatedAssignment = {
-              ...firestoreAssignment,
-              status: newStatus,
-              updatedAt: new Date().toISOString()
-            };
-            
-            // Update in Firestore
-            const updateResult = await updateClassAssignment(
-              targetClassId,
-              firestoreAssignment.documentId, 
-              { status: newStatus, updatedAt: new Date().toISOString() }
-            );
-            
-            // Also update locally
-            await updateLocalAssignment(assignmentId, updatedAssignment, targetClassId);
-            
-            // Refresh assignments from Firestore
-            await refreshAssignments();
-            
-            return { success: true, synced: updateResult.success, recovered: true };
-          }
-          
-          // If Firestore lookup failed, try local storage
+        if (targetClassId) {
+          // Try to get from local storage
           const storedAssignments = await getLocalAssignments(targetClassId);
           const storedAssignment = storedAssignments.find(a => 
             a.id === assignmentId || a.documentId === assignmentId
@@ -447,6 +427,14 @@ export const AssignmentProvider = ({ children }) => {
       return { success: false, error: `Assignment not found: ${assignmentId}` };
     }
     
+    // Check if assignment is pending - don't allow status change for pending assignments
+    if (assignment.pending && !assignment.approved) {
+      return { 
+        success: false, 
+        error: 'This assignment is pending approval and cannot be completed yet' 
+      };
+    }
+    
     try {
       // Ensure we're using the current class ID at the time of the operation
       const targetClassId = currentClass?.id;
@@ -462,58 +450,53 @@ export const AssignmentProvider = ({ children }) => {
         updatedAt: new Date().toISOString()
       };
       
-      // If we have a class and are synced with cloud, update on Firestore
-      if (user && syncedWithCloud) {
-        // Use documentId for Firestore operations if available, otherwise use the id
-        const documentIdToUse = assignment.documentId || assignmentId;
-        console.log(`Updating assignment in Firestore with documentId: ${documentIdToUse}`);
-        
-        const result = await updateClassAssignment(
-          targetClassId,
-          documentIdToUse,
-          { status: newStatus, updatedAt: new Date().toISOString() }
-        );
-        
-        // Even if cloud update fails, still update locally
-        await updateLocalAssignment(assignmentId, updatedAssignment, targetClassId);
-        
-        // Update the assignments state
-        setAssignments(prevAssignments => 
-          prevAssignments.map(a => 
-            a.id === assignmentId ? updatedAssignment : a
-          )
-        );
-        
-        // Update the assignments by class state
-        setAssignmentsByClass(prev => ({
-          ...prev,
-          [targetClassId]: prev[targetClassId]?.map(a => 
-            a.id === assignmentId ? updatedAssignment : a
-          ) || []
-        }));
-        
-        return { success: true, synced: result.success };
-      } else {
-        // Update locally only
-        await updateLocalAssignment(assignmentId, updatedAssignment, targetClassId);
-        
-        // Update the assignments state
-        setAssignments(prevAssignments => 
-          prevAssignments.map(a => 
-            a.id === assignmentId ? updatedAssignment : a
-          )
-        );
-        
-        // Update the assignments by class state
-        setAssignmentsByClass(prev => ({
-          ...prev,
-          [targetClassId]: prev[targetClassId]?.map(a => 
-            a.id === assignmentId ? updatedAssignment : a
-          ) || []
-        }));
-        
-        return { success: true, synced: false };
+      // Update locally only - assignment status is maintained per-user and not synced to Firestore
+      await updateLocalAssignment(assignmentId, updatedAssignment, targetClassId);
+      
+      // Update the assignments state
+      setAssignments(prevAssignments => 
+        prevAssignments.map(a => 
+          a.id === assignmentId ? updatedAssignment : a
+        )
+      );
+      
+      // Update the assignments by class state
+      setAssignmentsByClass(prev => ({
+        ...prev,
+        [targetClassId]: prev[targetClassId]?.map(a => 
+          a.id === assignmentId ? updatedAssignment : a
+        ) || []
+      }));
+      
+      // Handle experience points for the assignment only if approved
+      if (!assignment.pending && assignment.approved) {
+        try {
+          // Get the assignment type for calculating exp points
+          const assignmentType = assignment.type || 'DEFAULT';
+          
+          // Import required constants and functions directly here to avoid circular dependencies
+          const { EXP_CONSTANTS } = require('../constants/UserTypes');
+          const { addExperiencePoints, removeExperiencePoints } = require('../utils/firestore');
+          
+          // Determine base exp points based on assignment type
+          const baseExp = EXP_CONSTANTS.BASE_EXP[assignmentType] || EXP_CONSTANTS.BASE_EXP.DEFAULT;
+          
+          if (newStatus === 'Selesai') {
+            // Add experience when completing assignment
+            await addExperiencePoints(targetClassId, assignmentId, baseExp);
+            console.log(`Added ${baseExp} EXP for completing assignment ${assignmentId}`);
+          } else {
+            // Remove experience when uncompleting assignment
+            await removeExperiencePoints(targetClassId, assignmentId, baseExp);
+            console.log(`Removed ${baseExp} EXP for uncompleting assignment ${assignmentId}`);
+          }
+        } catch (expError) {
+          // Log but don't fail the assignment status change if exp update fails
+          console.error('Error updating experience points:', expError);
+        }
       }
+      
+      return { success: true, synced: false };
     } catch (error) {
       console.error('Error toggling assignment status:', error);
       return { success: false, error: error.message };
@@ -570,6 +553,76 @@ export const AssignmentProvider = ({ children }) => {
     }
   };
 
+  // Approve an assignment
+  const approveAssignment = async (assignmentId) => {
+    setLoading(true);
+    try {
+      // Ensure we're using the current class ID
+      const targetClassId = currentClass?.id;
+      
+      if (!targetClassId) {
+        throw new Error('No class selected. Cannot approve assignment.');
+      }
+      
+      // Check if user is class admin
+      const isAdmin = await isClassAdmin(targetClassId, user.uid);
+      if (!isAdmin) {
+        throw new Error('Only class admins can approve assignments');
+      }
+      
+      // Call the Firestore function to approve the assignment
+      const result = await approveClassAssignment(targetClassId, assignmentId);
+      
+      if (result.success) {
+        // Refresh assignments to get the updated approval status
+        await refreshAssignments();
+        return { success: true };
+      } else {
+        throw new Error(result.error || 'Failed to approve assignment');
+      }
+    } catch (error) {
+      console.error('Error approving assignment:', error);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reject an assignment
+  const rejectAssignment = async (assignmentId) => {
+    setLoading(true);
+    try {
+      // Ensure we're using the current class ID
+      const targetClassId = currentClass?.id;
+      
+      if (!targetClassId) {
+        throw new Error('No class selected. Cannot reject assignment.');
+      }
+      
+      // Check if user is class admin
+      const isAdmin = await isClassAdmin(targetClassId, user.uid);
+      if (!isAdmin) {
+        throw new Error('Only class admins can reject assignments');
+      }
+      
+      // Call the Firestore function to reject the assignment
+      const result = await rejectClassAssignment(targetClassId, assignmentId);
+      
+      if (result.success) {
+        // Refresh assignments to get the updated state
+        await refreshAssignments();
+        return { success: true, action: result.action };
+      } else {
+        throw new Error(result.error || 'Failed to reject assignment');
+      }
+    } catch (error) {
+      console.error('Error rejecting assignment:', error);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Context value
   const value = {
     assignments,
@@ -579,6 +632,8 @@ export const AssignmentProvider = ({ children }) => {
     updateAssignment,
     deleteAssignment,
     toggleAssignmentStatus,
+    approveAssignment,
+    rejectAssignment,
     refreshAssignments: refreshAssignments,
     // Utility to diagnose ID issues with a specific assignment
     diagnoseAssignmentById: async (assignmentId) => {

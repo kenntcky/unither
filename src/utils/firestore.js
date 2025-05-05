@@ -7,6 +7,7 @@ export const USERS_COLLECTION = 'users';
 export const MEMBERS_SUBCOLLECTION = 'members';
 export const ASSIGNMENTS_COLLECTION = 'assignments';
 export const SUBJECTS_COLLECTION = 'subjects';
+export const EXPERIENCE_SUBCOLLECTION = 'experience';
 
 // Generate a unique class code (6 characters alphanumeric)
 export const generateClassCode = async () => {
@@ -275,7 +276,7 @@ export const createAssignment = async (classId, assignmentData) => {
         createdAt: firestore.FieldValue.serverTimestamp(),
         updatedAt: firestore.FieldValue.serverTimestamp(),
         pending: !isAdmin, // Set to pending if not admin
-        approved: isAdmin // Auto-approve if admin
+        approved: isAdmin  // Auto-approve if admin
       });
 
     return {
@@ -399,6 +400,9 @@ export const updateClassAssignment = async (classId, assignmentId, updatedData) 
       throw new Error('User not authenticated');
     }
 
+    // Check if user is admin for this class
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+
     // First, try to find the document with a query if needed
     let docId = assignmentId;
     
@@ -418,6 +422,25 @@ export const updateClassAssignment = async (classId, assignmentId, updatedData) 
       }
     }
 
+    // Get the existing assignment if this is an edit and user is not admin
+    let originalState = null;
+    if (!isAdmin) {
+      const assignmentRef = firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(ASSIGNMENTS_COLLECTION)
+        .doc(docId);
+
+      const assignmentDoc = await assignmentRef.get();
+      if (assignmentDoc.exists) {
+        // Save original state for potential rejection
+        originalState = assignmentDoc.data();
+        // Remove any sensitive fields that shouldn't be restored
+        delete originalState.originalState;
+      }
+    }
+
+    // If user is admin, update directly; otherwise, mark as pending for approval
     await firestore()
       .collection(CLASSES_COLLECTION)
       .doc(classId)
@@ -426,11 +449,16 @@ export const updateClassAssignment = async (classId, assignmentId, updatedData) 
       .update({
         ...updatedData,
         updatedAt: firestore.FieldValue.serverTimestamp(),
-        updatedBy: currentUser.uid
+        updatedBy: currentUser.uid,
+        pending: !isAdmin, // Set to pending if not admin
+        approved: isAdmin,  // Auto-approve if admin
+        // Store the original state if this is a non-admin edit
+        originalState: !isAdmin && originalState ? originalState : firestore.FieldValue.delete()
       });
 
     return {
-      success: true
+      success: true,
+      pending: !isAdmin
     };
   } catch (error) {
     console.error('Error updating assignment:', error);
@@ -1305,6 +1333,382 @@ export const getAssignmentByDocumentId = async (classId, docId) => {
     };
   } catch (error) {
     console.error('Error fetching assignment document:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// EXPERIENCE TRACKING FUNCTIONS
+
+// Get user's experience for a specific class
+export const getUserExperience = async (classId, userId = null) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser && !userId) {
+      throw new Error('User not authenticated');
+    }
+    
+    const targetUserId = userId || currentUser.uid;
+    
+    // First check if the user is a member of this class
+    const membersSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(MEMBERS_SUBCOLLECTION)
+      .where('userId', '==', targetUserId)
+      .limit(1)
+      .get();
+      
+    if (membersSnapshot.empty) {
+      throw new Error('User is not a member of this class');
+    }
+    
+    // Get user's experience record for this class
+    const experienceSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(EXPERIENCE_SUBCOLLECTION)
+      .doc(targetUserId)
+      .get();
+      
+    if (experienceSnapshot.exists) {
+      return {
+        success: true,
+        experience: experienceSnapshot.data()
+      };
+    } else {
+      // Create a new experience record if it doesn't exist
+      const initialExperience = {
+        userId: targetUserId,
+        totalExp: 0,
+        completedAssignments: [],
+        lastUpdated: firestore.FieldValue.serverTimestamp()
+      };
+      
+      await firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(EXPERIENCE_SUBCOLLECTION)
+        .doc(targetUserId)
+        .set(initialExperience);
+        
+      return {
+        success: true,
+        experience: initialExperience
+      };
+    }
+  } catch (error) {
+    console.error('Error getting user experience:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Add experience points for completing an assignment
+export const addExperiencePoints = async (classId, assignmentId, expPoints, userId = null) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser && !userId) {
+      throw new Error('User not authenticated');
+    }
+    
+    const targetUserId = userId || currentUser.uid;
+    
+    // Get the user's current experience
+    const userExpResult = await getUserExperience(classId, targetUserId);
+    if (!userExpResult.success) {
+      throw new Error(userExpResult.error);
+    }
+    
+    const userExp = userExpResult.experience;
+    
+    // Check if assignment is already completed to prevent duplicate EXP
+    if (userExp.completedAssignments && userExp.completedAssignments.includes(assignmentId)) {
+      return {
+        success: false,
+        error: 'Assignment already completed'
+      };
+    }
+    
+    // Update experience
+    const updatedExp = {
+      totalExp: (userExp.totalExp || 0) + expPoints,
+      completedAssignments: [...(userExp.completedAssignments || []), assignmentId],
+      lastUpdated: firestore.FieldValue.serverTimestamp()
+    };
+    
+    await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(EXPERIENCE_SUBCOLLECTION)
+      .doc(targetUserId)
+      .update(updatedExp);
+      
+    return {
+      success: true,
+      experience: {
+        ...userExp,
+        ...updatedExp
+      }
+    };
+  } catch (error) {
+    console.error('Error adding experience points:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Remove experience points when uncompleting an assignment
+export const removeExperiencePoints = async (classId, assignmentId, expPoints, userId = null) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser && !userId) {
+      throw new Error('User not authenticated');
+    }
+    
+    const targetUserId = userId || currentUser.uid;
+    
+    // Get the user's current experience
+    const userExpResult = await getUserExperience(classId, targetUserId);
+    if (!userExpResult.success) {
+      throw new Error(userExpResult.error);
+    }
+    
+    const userExp = userExpResult.experience;
+    
+    // Check if assignment is in completed list
+    if (!userExp.completedAssignments || !userExp.completedAssignments.includes(assignmentId)) {
+      return {
+        success: false,
+        error: 'Assignment not previously completed'
+      };
+    }
+    
+    // Update experience (ensure totalExp doesn't go below 0)
+    const updatedExp = {
+      totalExp: Math.max(0, (userExp.totalExp || 0) - expPoints),
+      completedAssignments: (userExp.completedAssignments || []).filter(id => id !== assignmentId),
+      lastUpdated: firestore.FieldValue.serverTimestamp()
+    };
+    
+    await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(EXPERIENCE_SUBCOLLECTION)
+      .doc(targetUserId)
+      .update(updatedExp);
+      
+    return {
+      success: true,
+      experience: {
+        ...userExp,
+        ...updatedExp
+      }
+    };
+  } catch (error) {
+    console.error('Error removing experience points:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Get experience data for all members in a class
+export const getClassMembersExperience = async (classId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // First get all class members
+    const membersSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(MEMBERS_SUBCOLLECTION)
+      .get();
+      
+    if (membersSnapshot.empty) {
+      return {
+        success: true,
+        members: []
+      };
+    }
+    
+    // Get all experience data
+    const experienceSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(EXPERIENCE_SUBCOLLECTION)
+      .get();
+      
+    // Map of userId to experience data
+    const experienceMap = {};
+    experienceSnapshot.forEach(doc => {
+      experienceMap[doc.id] = doc.data();
+    });
+    
+    // Combine member data with experience data
+    const membersWithExperience = membersSnapshot.docs.map(doc => {
+      const memberData = doc.data();
+      const userId = memberData.userId;
+      const experienceData = experienceMap[userId] || { totalExp: 0, completedAssignments: [] };
+      
+      return {
+        id: doc.id,
+        ...memberData,
+        experience: experienceData
+      };
+    });
+    
+    return {
+      success: true,
+      members: membersWithExperience
+    };
+  } catch (error) {
+    console.error('Error getting class members experience:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Add this function to approve a pending assignment
+export const approveClassAssignment = async (classId, assignmentId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Check if user is admin for this class
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+    if (!isAdmin) {
+      throw new Error('Only class admins can approve assignments');
+    }
+
+    // First, try to find the document with a query if needed
+    let docId = assignmentId;
+    
+    // Check if this looks like a Firestore document ID (contains alphanumeric + special chars)
+    if (!assignmentId.match(/^[a-zA-Z0-9]{20,}$/)) {
+      // Might be using an internal ID - need to find the actual document ID
+      const querySnapshot = await firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(ASSIGNMENTS_COLLECTION)
+        .where('id', '==', assignmentId)
+        .limit(1)
+        .get();
+        
+      if (!querySnapshot.empty) {
+        docId = querySnapshot.docs[0].id;
+      }
+    }
+
+    // Update the assignment to approved status
+    await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .doc(docId)
+      .update({
+        pending: false,
+        approved: true,
+        approvedBy: currentUser.uid,
+        approvedAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp()
+      });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error approving assignment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Add this function to reject a pending assignment
+export const rejectClassAssignment = async (classId, assignmentId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Check if user is admin for this class
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+    if (!isAdmin) {
+      throw new Error('Only class admins can reject assignments');
+    }
+
+    // First, try to find the document with a query if needed
+    let docId = assignmentId;
+    
+    // Check if this looks like a Firestore document ID (contains alphanumeric + special chars)
+    if (!assignmentId.match(/^[a-zA-Z0-9]{20,}$/)) {
+      // Might be using an internal ID - need to find the actual document ID
+      const querySnapshot = await firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(ASSIGNMENTS_COLLECTION)
+        .where('id', '==', assignmentId)
+        .limit(1)
+        .get();
+        
+      if (!querySnapshot.empty) {
+        docId = querySnapshot.docs[0].id;
+      }
+    }
+
+    // Get the assignment to check if it's a new assignment or an edit
+    const assignmentRef = firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .doc(docId);
+
+    const assignmentDoc = await assignmentRef.get();
+    if (!assignmentDoc.exists) {
+      throw new Error('Assignment not found');
+    }
+
+    const assignmentData = assignmentDoc.data();
+
+    // Check if this is a new assignment (never been approved) or an edited assignment
+    if (assignmentData.originalState) {
+      // This is an edited assignment - revert to original state
+      await assignmentRef.update({
+        ...assignmentData.originalState,
+        pending: false,
+        approved: true,
+        rejectedBy: currentUser.uid,
+        rejectedAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+        originalState: firestore.FieldValue.delete() // Remove the original state field
+      });
+      
+      return { success: true, action: 'reverted' };
+    } else if (assignmentData.pending && !assignmentData.approved) {
+      // This is a new assignment - delete it
+      await assignmentRef.delete();
+      return { success: true, action: 'deleted' };
+    } else {
+      // Not a pending assignment
+      throw new Error('Only pending assignments can be rejected');
+    }
+  } catch (error) {
+    console.error('Error rejecting assignment:', error);
     return {
       success: false,
       error: error.message

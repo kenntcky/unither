@@ -7,6 +7,7 @@ import { useSubject } from '../context/SubjectContext';
 import { useAssignment } from '../context/AssignmentContext';
 import { useClass } from '../context/ClassContext';
 import { t } from '../translations';
+import ScreenContainer from '../components/ScreenContainer';
 
 const SubjectsScreen = ({ navigation }) => {
   const { assignments, refreshAssignments } = useAssignment();
@@ -67,7 +68,7 @@ const SubjectsScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer style={styles.container} withTabBarSpacing={false}>
       {currentClass && (
         <View style={styles.syncStatusContainer}>
           <Icon 
@@ -104,13 +105,14 @@ const SubjectsScreen = ({ navigation }) => {
             </Text>
           </View>
         }
+        contentContainerStyle={styles.listContent}
         refreshing={loading}
         onRefresh={refreshSubjects}
       />
       <TouchableOpacity style={styles.fab} onPress={handleAddSubject}>
         <Icon name="add" size={24} color={Colors.text} />
       </TouchableOpacity>
-    </View>
+    </ScreenContainer>
   );
 };
 
@@ -149,10 +151,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
+  listContent: {
+    paddingBottom: 90,
+  },
   fab: {
     position: 'absolute',
     right: 16,
-    bottom: 16,
+    bottom: 85,
     backgroundColor: Colors.accent,
     width: 56,
     height: 56,
@@ -160,6 +165,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
+    zIndex: 5,
   },
 });
 

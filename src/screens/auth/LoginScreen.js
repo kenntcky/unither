@@ -97,8 +97,8 @@ const LoginScreen = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>TaskMaster</Text>
-          <Text style={styles.tagline}>{t('Organize your tasks with ease')}</Text>
+          <Text style={styles.logoText}>unither.</Text>
+          <Text style={styles.tagline}>{t('Unite your class to be better together.')}</Text>
         </View>
         
         <View style={styles.formContainer}>

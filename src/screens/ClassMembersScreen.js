@@ -13,8 +13,16 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
 import { useClass } from '../context/ClassContext';
 import { useAuth } from '../context/AuthContext';
-import { getClassMembers, isClassAdmin, setClassRole, removeClassMember } from '../utils/firestore';
+import { 
+  getClassMembers, 
+  isClassAdmin, 
+  setClassRole, 
+  removeClassMember,
+  getClassMembersExperience
+} from '../utils/firestore';
+import { calculateLevelFromExp } from '../constants/UserTypes';
 import { t } from '../translations';
+import LevelProgressBar from '../components/LevelProgressBar';
 
 const ClassMembersScreen = ({ navigation }) => {
   const { currentClass } = useClass();
@@ -25,6 +33,7 @@ const ClassMembersScreen = ({ navigation }) => {
   const [isUserClassAdmin, setIsUserClassAdmin] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberActions, setShowMemberActions] = useState(false);
+  const [sortOrder, setSortOrder] = useState('level'); // 'level', 'name', 'role'
 
   useEffect(() => {
     loadMembers();
@@ -46,8 +55,30 @@ const ClassMembersScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      const classMembers = await getClassMembers(currentClass.id);
-      setMembers(classMembers);
+      // Get members with experience data
+      const result = await getClassMembersExperience(currentClass.id);
+      if (result.success) {
+        // Process member data to include level information
+        const membersWithLevels = result.members.map(member => {
+          const expData = member.experience || { totalExp: 0 };
+          const levelData = calculateLevelFromExp(expData.totalExp || 0);
+          
+          return {
+            ...member,
+            level: levelData.level,
+            currentExp: levelData.currentExp,
+            expToNextLevel: levelData.expToNextLevel,
+            totalExp: expData.totalExp || 0,
+            completedAssignments: expData.completedAssignments || [],
+            isCurrentUser: member.userId === user?.uid
+          };
+        });
+        
+        setMembers(membersWithLevels);
+      } else {
+        console.error('Error loading class members:', result.error);
+        Alert.alert(t('Error'), t('Failed to load class members. Please try again.'));
+      }
     } catch (error) {
       console.error('Error loading class members:', error);
       Alert.alert(t('Error'), t('Failed to load class members. Please try again.'));
@@ -68,6 +99,33 @@ const ClassMembersScreen = ({ navigation }) => {
       setSelectedMember(member);
       setShowMemberActions(true);
     }
+  };
+
+  const sortMembers = () => {
+    const sortedMembers = [...members];
+    switch (sortOrder) {
+      case 'level':
+        sortedMembers.sort((a, b) => b.totalExp - a.totalExp);
+        break;
+      case 'name':
+        sortedMembers.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
+        break;
+      case 'role':
+        sortedMembers.sort((a, b) => {
+          // Sort by role importance: teacher > student
+          if (a.role === 'teacher' && b.role !== 'teacher') return -1;
+          if (a.role !== 'teacher' && b.role === 'teacher') return 1;
+          return 0;
+        });
+        break;
+    }
+    return sortedMembers;
+  };
+
+  const toggleSortOrder = () => {
+    if (sortOrder === 'level') setSortOrder('name');
+    else if (sortOrder === 'name') setSortOrder('role');
+    else setSortOrder('level');
   };
 
   const handlePromoteToTeacher = async () => {
@@ -146,7 +204,7 @@ const ClassMembersScreen = ({ navigation }) => {
     );
   };
 
-  const renderMemberItem = ({ item }) => {
+  const renderMemberItem = ({ item, index }) => {
     // Customize role colors
     let roleColor;
     let roleBgColor;
@@ -171,25 +229,43 @@ const ClassMembersScreen = ({ navigation }) => {
         onPress={() => handleMemberPress(item)}
         disabled={!isUserClassAdmin || item.isCurrentUser}
       >
-        <View style={styles.avatarContainer}>
-          <MaterialIcons 
-            name="person" 
-            size={24} 
-            color={Colors.text} 
-          />
+        <View style={styles.rankContainer}>
+          <Text style={styles.rankText}>{index + 1}</Text>
         </View>
+        
         <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>
-            {item.displayName}
-            {item.isCurrentUser && <Text style={styles.currentUser}> ({t('You')})</Text>}
-          </Text>
-          <Text style={styles.memberEmail}>{item.email}</Text>
+          <View style={styles.nameContainer}>
+            <Text style={styles.memberName}>
+              {item.displayName}
+              {item.isCurrentUser && <Text style={styles.currentUser}> ({t('You')})</Text>}
+            </Text>
+            <View style={[styles.levelBadge]}>
+              <Text style={styles.levelText}>Lvl {item.level}</Text>
+            </View>
+          </View>
+          
+          <LevelProgressBar 
+            totalExp={item.totalExp} 
+            style={styles.progressBar}
+            showDetails={false}
+          />
+          
+          <View style={styles.statsContainer}>
+            <Text style={styles.statText}>
+              {t('{exp} XP', { exp: item.totalExp.toLocaleString() })}
+            </Text>
+            <Text style={styles.statText}>
+              {t('{count} completed', { count: item.completedAssignments.length })}
+            </Text>
+          </View>
         </View>
+        
         <View style={[styles.roleBadge, { backgroundColor: roleBgColor }]}>
           <Text style={[styles.roleText, { color: roleColor }]}>
             {item.role.toLowerCase() === 'teacher' ? t('Admin') : t(item.role.charAt(0).toUpperCase() + item.role.slice(1))}
           </Text>
         </View>
+        
         {isUserClassAdmin && !item.isCurrentUser && (
           <MaterialIcons 
             name="more-vert" 
@@ -210,17 +286,33 @@ const ClassMembersScreen = ({ navigation }) => {
     );
   }
 
+  const sortedMembers = sortMembers();
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.classTitle}>{currentClass?.name}</Text>
-        <Text style={styles.memberCount}>
-          {members.length} {members.length === 1 ? t('Member') : t('Members')}
-        </Text>
+        <View style={styles.headerInfo}>
+          <Text style={styles.memberCount}>
+            {members.length} {members.length === 1 ? t('Member') : t('Members')}
+          </Text>
+          
+          <TouchableOpacity 
+            style={styles.sortButton}
+            onPress={toggleSortOrder}
+          >
+            <MaterialIcons name="sort" size={20} color={Colors.text} />
+            <Text style={styles.sortText}>
+              {sortOrder === 'level' ? t('Sort by: Level') : 
+               sortOrder === 'name' ? t('Sort by: Name') : 
+               t('Sort by: Role')}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
-        data={members}
+        data={sortedMembers}
         keyExtractor={(item) => item.id}
         renderItem={renderMemberItem}
         refreshing={refreshing}
@@ -309,10 +401,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.text,
   },
+  headerInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   memberCount: {
     fontSize: 16,
     color: Colors.textSecondary,
-    marginTop: 4,
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  sortText: {
+    fontSize: 12,
+    color: Colors.text,
+    marginLeft: 4,
   },
   memberItem: {
     flexDirection: 'row',
@@ -324,29 +434,61 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     elevation: 2,
   },
-  avatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primaryLight,
+  rankContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
+  rankText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
   memberInfo: {
     flex: 1,
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   memberName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: Colors.text,
+    flex: 1,
   },
   currentUser: {
     fontStyle: 'italic',
     fontWeight: 'normal',
   },
-  memberEmail: {
-    fontSize: 14,
+  levelBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: Colors.accent,
+    marginLeft: 8,
+  },
+  levelText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  progressBar: {
+    marginVertical: 4,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  statText: {
+    fontSize: 11,
     color: Colors.textSecondary,
   },
   roleBadge: {

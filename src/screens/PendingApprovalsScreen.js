@@ -16,14 +16,20 @@ import {
   getPendingItems, 
   approveAssignment, 
   approveSubject,
-  isClassAdmin
+  isClassAdmin,
+  getClassAssignments,
+  approveClassAssignment,
+  rejectClassAssignment
 } from '../utils/firestore';
 import { t } from '../translations';
 import { format } from 'date-fns';
+import ScreenContainer from '../components/ScreenContainer';
+import { useAssignment } from '../context/AssignmentContext';
 
 const PendingApprovalsScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { currentClass } = useClass();
+  const { refreshAssignments } = useAssignment();
   const [isClassTeacher, setIsClassTeacher] = useState(false);
   const [pendingItems, setPendingItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,19 +65,24 @@ const PendingApprovalsScreen = ({ navigation }) => {
 
   const loadPendingItems = async () => {
     if (!currentClass) {
+      navigation.goBack();
       return;
     }
 
     setLoading(true);
     try {
-      const items = await getPendingItems(currentClass.id);
-      setPendingItems(items);
+      // Get pending assignments (true means include pending)
+      const assignments = await getClassAssignments(currentClass.id, true);
+      
+      // Filter to only get pending items
+      const pendingAssignments = assignments.filter(a => a.pending && !a.approved);
+      
+      setPendingItems(pendingAssignments);
     } catch (error) {
       console.error('Error loading pending items:', error);
-      Alert.alert(t('Error'), t('Failed to load pending items. Please try again.'));
+      Alert.alert(t('Error'), t('Failed to load pending items'));
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
@@ -81,31 +92,44 @@ const PendingApprovalsScreen = ({ navigation }) => {
   };
 
   const handleApprove = async (item) => {
-    if (!currentClass || !isClassTeacher) return;
-
     setLoading(true);
     try {
-      let result;
-
-      if (item.type === 'assignment') {
-        result = await approveAssignment(currentClass.id, item.id);
-      } else if (item.type === 'subject') {
-        result = await approveSubject(currentClass.id, item.id);
-      }
-
+      const result = await approveClassAssignment(currentClass.id, item.documentId || item.id);
+      
       if (result.success) {
-        Alert.alert(
-          t('Success'),
-          t('The item has been approved successfully.')
-        );
-        // Refresh the list
+        Alert.alert(t('Success'), t('Item approved successfully'));
         loadPendingItems();
+        refreshAssignments(); // Refresh main assignment list
       } else {
-        Alert.alert(t('Error'), result.error || t('Failed to approve item.'));
+        Alert.alert(t('Error'), result.error || t('Failed to approve item'));
       }
     } catch (error) {
       console.error('Error approving item:', error);
-      Alert.alert(t('Error'), t('An unexpected error occurred.'));
+      Alert.alert(t('Error'), t('An error occurred'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async (item) => {
+    setLoading(true);
+    try {
+      const result = await rejectClassAssignment(currentClass.id, item.documentId || item.id);
+      
+      if (result.success) {
+        const message = result.action === 'deleted' 
+          ? t('Item has been rejected and deleted.')
+          : t('Item has been rejected and reverted to its original state.');
+          
+        Alert.alert(t('Success'), message);
+        loadPendingItems();
+        refreshAssignments(); // Refresh main assignment list
+      } else {
+        Alert.alert(t('Error'), result.error || t('Failed to reject item'));
+      }
+    } catch (error) {
+      console.error('Error rejecting item:', error);
+      Alert.alert(t('Error'), t('An error occurred'));
     } finally {
       setLoading(false);
     }
@@ -156,36 +180,40 @@ const PendingApprovalsScreen = ({ navigation }) => {
     }
   };
 
-  const renderPendingItem = ({ item }) => {
-    return (
-      <View style={styles.itemCard}>
-        <View style={styles.itemContent}>
-          <View style={styles.itemTypeIndicator}>
-            <Icon 
-              name={item.type === 'assignment' ? 'assignment' : 'book'} 
-              size={24} 
-              color={Colors.text} 
-            />
-          </View>
-          <View style={styles.itemDetails}>
-            {renderItemDetails(item)}
-            <Text style={styles.itemDate}>
-              {t('Submitted')}: {formatDate(item.createdAt)}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.itemActions}>
-          <TouchableOpacity 
-            style={styles.approveButton}
-            onPress={() => handleApprove(item)}
-          >
-            <Icon name="check" size={20} color="#fff" />
-            <Text style={styles.approveButtonText}>{t('Approve')}</Text>
-          </TouchableOpacity>
+  const renderItem = ({ item }) => (
+    <View style={styles.itemContainer}>
+      <View style={styles.itemDetails}>
+        {renderItemDetails(item)}
+        
+        <View style={styles.creatorInfo}>
+          <Icon name="person" size={16} color={Colors.textSecondary} />
+          <Text style={styles.creatorText}>
+            {item.creatorName || t('Unknown user')}
+          </Text>
         </View>
       </View>
-    );
-  };
+      
+      <View style={styles.itemActions}>
+        <TouchableOpacity 
+          style={styles.approveButton}
+          onPress={() => handleApprove(item)}
+          disabled={loading}
+        >
+          <Icon name="check" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>{t('Approve')}</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.rejectButton}
+          onPress={() => handleReject(item)}
+          disabled={loading}
+        >
+          <Icon name="close" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>{t('Reject')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   if (loading && !refreshing) {
     return (
@@ -196,7 +224,7 @@ const PendingApprovalsScreen = ({ navigation }) => {
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer>
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -211,20 +239,20 @@ const PendingApprovalsScreen = ({ navigation }) => {
 
       {pendingItems.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Icon name="done-all" size={64} color={Colors.textSecondary} />
+          <Icon name="check-circle" size={64} color={Colors.textSecondary} />
           <Text style={styles.emptyText}>{t('No pending items to approve')}</Text>
         </View>
       ) : (
         <FlatList
           data={pendingItems}
-          keyExtractor={(item) => `${item.type}-${item.id}`}
-          renderItem={renderPendingItem}
+          keyExtractor={(item) => item.id || item.documentId}
+          renderItem={renderItem}
           refreshing={refreshing}
           onRefresh={handleRefresh}
           contentContainerStyle={styles.listContent}
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 };
 
@@ -263,7 +291,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
-  itemCard: {
+  itemContainer: {
     backgroundColor: Colors.cardBackground,
     borderRadius: 8,
     marginBottom: 16,
@@ -273,22 +301,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.22,
     shadowRadius: 2.22,
-  },
-  itemContent: {
-    padding: 16,
     flexDirection: 'row',
-  },
-  itemTypeIndicator: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.accentLight,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
   itemDetails: {
     flex: 1,
+    padding: 16,
   },
   itemTitle: {
     fontSize: 16,
@@ -302,37 +320,50 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   itemDeadline: {
-    fontSize: 14,
-    color: Colors.accent,
-    marginBottom: 2,
-  },
-  itemTeacher: {
-    fontSize: 14,
-    color: Colors.primary,
-    marginBottom: 2,
-  },
-  itemDate: {
     fontSize: 12,
     color: Colors.textTertiary,
     marginTop: 4,
   },
-  itemActions: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    padding: 12,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  itemTeacher: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
-  approveButton: {
-    backgroundColor: Colors.success,
-    borderRadius: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  creatorInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 8,
   },
-  approveButtonText: {
+  creatorText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  itemActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  approveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.success,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginLeft: 8,
+  },
+  rejectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.error,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginLeft: 8,
+  },
+  actionButtonText: {
     color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
     marginLeft: 4,
   },

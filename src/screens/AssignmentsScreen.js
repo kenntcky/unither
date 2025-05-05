@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, FlatList, TouchableOpacity, Text, ActivityIndicator, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import AssignmentItem from '../components/AssignmentItem';
 import FilterBar from '../components/FilterBar';
@@ -7,20 +7,27 @@ import Colors from '../constants/Colors';
 import { useAssignment } from '../context/AssignmentContext';
 import { useClass } from '../context/ClassContext';
 import { ASSIGNMENT_STATUS } from '../constants/Types';
+import ScreenContainer from '../components/ScreenContainer';
+import { useAuth } from '../context/AuthContext';
+import { isClassAdmin } from '../utils/firestore';
 
 const AssignmentsScreen = ({ navigation, route }) => {
   const { currentClass } = useClass();
+  const { user } = useAuth();
   const { 
     assignments, 
     loading, 
     toggleAssignmentStatus, 
     syncedWithCloud, 
-    refreshAssignments 
+    refreshAssignments,
+    approveAssignment,
+    rejectAssignment 
   } = useAssignment();
   
   const [filteredAssignments, setFilteredAssignments] = useState([]);
   const [activeFilters, setActiveFilters] = useState([]);
   const [sortBy, setSortBy] = useState('deadline');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -39,6 +46,19 @@ const AssignmentsScreen = ({ navigation, route }) => {
   useEffect(() => {
     filterAndSortAssignments();
   }, [assignments, activeFilters, sortBy]);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (currentClass && user) {
+        const adminStatus = await isClassAdmin(currentClass.id, user.uid);
+        setIsAdmin(adminStatus);
+      } else {
+        setIsAdmin(false);
+      }
+    };
+    
+    checkAdminStatus();
+  }, [currentClass, user]);
 
   const filterAndSortAssignments = () => {
     let filtered = [...assignments];
@@ -154,8 +174,36 @@ const AssignmentsScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleApprove = async (assignmentId) => {
+    try {
+      const result = await approveAssignment(assignmentId);
+      if (result.success) {
+        // Success is handled by the context refreshing assignments
+      }
+    } catch (error) {
+      console.error('Error approving assignment:', error);
+    }
+  };
+
+  const handleReject = async (assignmentId) => {
+    try {
+      const result = await rejectAssignment(assignmentId);
+      if (result.success) {
+        // Show different messages based on the action taken
+        const message = result.action === 'deleted' 
+          ? 'Assignment has been rejected and deleted.'
+          : 'Assignment has been rejected and reverted to its original state.';
+        
+        Alert.alert('Rejected', message);
+      }
+    } catch (error) {
+      console.error('Error rejecting assignment:', error);
+      Alert.alert('Error', 'Failed to reject assignment');
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <ScreenContainer style={styles.container} withTabBarSpacing={false}>
       <FilterBar
         onFilterChange={handleFilterChange}
         onSortChange={handleSortChange}
@@ -191,6 +239,9 @@ const AssignmentsScreen = ({ navigation, route }) => {
                 onPress={() => handleAssignmentPress(item)}
                 onToggleStatus={handleToggleStatus}
                 onEditPress={() => handleEditPress(item)}
+                onApprove={(id) => handleApprove(id)}
+                onReject={(id) => handleReject(id)}
+                isAdmin={isAdmin}
               />
             )}
             keyExtractor={item => item.id}
@@ -217,7 +268,7 @@ const AssignmentsScreen = ({ navigation, route }) => {
       >
         <Icon name="add" size={24} color="#FFFFFF" />
       </TouchableOpacity>
-    </View>
+    </ScreenContainer>
   );
 };
 
@@ -228,11 +279,11 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 90
+    paddingBottom: 100  // Keep this to account for FAB and tab bar
   },
   fab: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 85,  // Positioned above the tab bar
     right: 20,
     width: 56,
     height: 56,
@@ -248,6 +299,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    zIndex: 5,  // Ensure it's above other content
   },
   emptyContainer: {
     alignItems: 'center',

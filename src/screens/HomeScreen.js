@@ -17,6 +17,7 @@ import { ASSIGNMENT_STATUS } from '../constants/Types';
 import { t, plural } from '../translations';
 import { useAssignment } from '../context/AssignmentContext';
 import { useClass } from '../context/ClassContext';
+import ScreenContainer from '../components/ScreenContainer';
 
 const HomeScreen = ({ navigation }) => {
   const { assignments, refreshAssignments, loading: assignmentsLoading } = useAssignment();
@@ -229,9 +230,9 @@ const HomeScreen = ({ navigation }) => {
         </TouchableOpacity>
       </Animated.View>
 
-      <ScrollView 
+      <ScreenContainer
+        scroll
         style={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
       >
         {/* Current class indicator */}
         {currentClass && (
@@ -406,7 +407,7 @@ const HomeScreen = ({ navigation }) => {
             </View>
           )}
         </Animated.View>
-      </ScrollView>
+      </ScreenContainer>
 
       <Animated.View 
         style={[
@@ -767,7 +768,7 @@ const styles = StyleSheet.create({
   },
   floatingButtonContainer: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 90,
     right: 30,
   },
   floatingButton: {

@@ -27,10 +27,13 @@ import { getSubjects } from '../utils/storage';
 import { useAssignment } from '../context/AssignmentContext';
 import { useClass } from '../context/ClassContext';
 import { getClassMembers } from '../utils/firestore';
+import ScreenContainer from '../components/ScreenContainer';
+import { useTranslation } from 'react-i18next';
 
 const AddAssignmentScreen = ({ navigation, route }) => {
   const { currentClass } = useClass();
   const { addAssignment, updateAssignment, deleteAssignment, assignments, syncedWithCloud } = useAssignment();
+  const { t } = useTranslation();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -390,18 +393,26 @@ const AddAssignmentScreen = ({ navigation, route }) => {
     setIsLoading(false);
     
     if (result.success) {
-      // Show sync status in the alert if needed
-      if (!result.synced && currentClass) {
+      if (result.pending) {
+        // If the edit/creation is pending approval
         Alert.alert(
-          'Assignment Saved Locally',
-          'The assignment was saved to your device but could not be synced with the cloud. It will sync automatically when connection is restored.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
+          t('Pending Approval'),
+          t('Your changes have been submitted and are waiting for administrator approval.'),
+          [{ text: t('OK'), onPress: () => navigation.goBack() }]
         );
       } else {
-        navigation.goBack();
+        // If the edit/creation was automatically approved
+        Alert.alert(
+          t('Success'),
+          isEditing ? t('Assignment updated successfully') : t('Assignment created successfully'),
+          [{ text: t('OK'), onPress: () => navigation.goBack() }]
+        );
       }
     } else {
-      Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'save'} assignment. Please try again.`);
+      Alert.alert(
+        t('Error'),
+        result.error || t('Failed to save assignment')
+      );
     }
   };
 
@@ -592,7 +603,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
   );
 
   return (
-    <ScrollView style={styles.container}>
+    <ScreenContainer scroll style={styles.container}>
       <View style={styles.formContainer}>
         <Text style={styles.label}>Title</Text>
         <TextInput
@@ -765,47 +776,106 @@ const AddAssignmentScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Group Count Modal */}
+      {/* Subject Modal */}
       <Modal
-        visible={showGroupCountModal}
-        transparent
         animationType="slide"
-        onRequestClose={() => setShowGroupCountModal(false)}
+        transparent={true}
+        visible={showSubjectModal}
+        onRequestClose={() => setShowSubjectModal(false)}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Number of Groups</Text>
-              <TouchableOpacity onPress={() => setShowGroupCountModal(false)}>
+              <Text style={styles.modalTitle}>Select Subject</Text>
+              <TouchableOpacity onPress={() => setShowSubjectModal(false)}>
+                <Icon name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            {subjects.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No subjects available</Text>
+                <TouchableOpacity 
+                  style={styles.addButton}
+                  onPress={() => {
+                    setShowSubjectModal(false);
+                    navigation.navigate('SubjectsTab', {
+                      screen: 'AddSubject'
+                    });
+                  }}
+                >
+                  <Text style={styles.addButtonText}>Add Subject</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <FlatList
+                data={subjects}
+                keyExtractor={(item) => item.id}
+                renderItem={renderSubjectItem}
+                style={styles.modalList}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Type Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showTypeModal}
+        onRequestClose={() => setShowTypeModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Assignment Type</Text>
+              <TouchableOpacity onPress={() => setShowTypeModal(false)}>
                 <Icon name="close" size={24} color={Colors.text} />
               </TouchableOpacity>
             </View>
             
             <FlatList
-              data={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-              keyExtractor={(item) => item.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalItem}
-                  onPress={() => handleSetGroupCount(item)}
-                >
-                  <Text style={styles.modalItemText}>{item} Group{item !== 1 ? 's' : ''}</Text>
-                  {groupCount === item && (
-                    <Icon name="check" size={20} color={Colors.accent} />
-                  )}
-                </TouchableOpacity>
-              )}
+              data={Object.values(ASSIGNMENT_TYPES)}
+              keyExtractor={(item) => item}
+              renderItem={renderTypeItem}
               style={styles.modalList}
             />
           </View>
         </View>
       </Modal>
-
-      {/* Group members selection modal */}
+      
+      {/* Deadline Modal */}
       <Modal
-        visible={showMembersModal}
-        transparent
         animationType="slide"
+        transparent={true}
+        visible={showDeadlineModal}
+        onRequestClose={() => setShowDeadlineModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Deadline</Text>
+              <TouchableOpacity onPress={() => setShowDeadlineModal(false)}>
+                <Icon name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={Object.values(DEADLINE_OPTIONS)}
+              keyExtractor={(item) => item}
+              renderItem={renderDeadlineItem}
+              style={styles.modalList}
+            />
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Group Member Selection Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showMembersModal}
         onRequestClose={() => setShowMembersModal(false)}
       >
         <View style={styles.modalContainer}>
@@ -849,104 +919,48 @@ const AddAssignmentScreen = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
-
+      
+      {/* Group Count Modal */}
       <Modal
-        visible={showSubjectModal}
-        transparent
         animationType="slide"
-        onRequestClose={() => setShowSubjectModal(false)}
+        transparent={true}
+        visible={showGroupCountModal}
+        onRequestClose={() => setShowGroupCountModal(false)}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Subject</Text>
-              <TouchableOpacity onPress={() => setShowSubjectModal(false)}>
+              <Text style={styles.modalTitle}>Select Number of Groups</Text>
+              <TouchableOpacity onPress={() => setShowGroupCountModal(false)}>
                 <Icon name="close" size={24} color={Colors.text} />
               </TouchableOpacity>
             </View>
             
-            {subjects.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No subjects available</Text>
-                <TouchableOpacity 
-                  style={styles.addButton}
-                  onPress={() => {
-                    setShowSubjectModal(false);
-                    navigation.navigate('SubjectsTab', {
-                      screen: 'AddSubject'
-                    });
-                  }}
+            <FlatList
+              data={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+              keyExtractor={(item) => item.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => handleSetGroupCount(item)}
                 >
-                  <Text style={styles.addButtonText}>Add Subject</Text>
+                  <Text style={styles.modalItemText}>{item} Group{item !== 1 ? 's' : ''}</Text>
+                  {groupCount === item && (
+                    <Icon name="check" size={20} color={Colors.accent} />
+                  )}
                 </TouchableOpacity>
-              </View>
-            ) : (
-              <FlatList
-                data={subjects}
-                keyExtractor={(item) => item.id}
-                renderItem={renderSubjectItem}
-                style={styles.modalList}
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={showTypeModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowTypeModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Assignment Type</Text>
-              <TouchableOpacity onPress={() => setShowTypeModal(false)}>
-                <Icon name="close" size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={Object.values(ASSIGNMENT_TYPES)}
-              keyExtractor={(item) => item}
-              renderItem={renderTypeItem}
+              )}
               style={styles.modalList}
             />
           </View>
         </View>
       </Modal>
-
+      
+      {/* Randomization Mode Modal */}
       <Modal
-        visible={showDeadlineModal}
-        transparent
         animationType="slide"
-        onRequestClose={() => setShowDeadlineModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Deadline</Text>
-              <TouchableOpacity onPress={() => setShowDeadlineModal(false)}>
-                <Icon name="close" size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={Object.values(DEADLINE_OPTIONS)}
-              keyExtractor={(item) => item}
-              renderItem={renderDeadlineItem}
-              style={styles.modalList}
-            />
-          </View>
-        </View>
-      </Modal>
-
-      {/* Add the new Randomization Mode Modal */}
-      <Modal
+        transparent={true}
         visible={showRandomizationModeModal}
-        transparent
-        animationType="slide"
         onRequestClose={() => setShowRandomizationModeModal(false)}
       >
         <View style={styles.modalContainer}>
@@ -973,19 +987,17 @@ const AddAssignmentScreen = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
-
+      
       {showDatePicker && (
         <DateTimePicker
-            testID="dateTimePicker"
-            value={customDeadline}
-            mode={dateTimePickerMode}
-            is24Hour={false}
-            display="default"
-            onChange={handleDateChange}
-            minimumDate={new Date()}
-          />
+          value={customDeadline}
+          mode={dateTimePickerMode}
+          is24Hour={true}
+          display="default"
+          onChange={handleDateChange}
+        />
       )}
-    </ScrollView>
+    </ScreenContainer>
   );
 };
 

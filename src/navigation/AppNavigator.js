@@ -85,7 +85,6 @@ const MainNavigator = () => {
               },
               tabBarLabelStyle: {
                 fontSize: 12,
-                fontWeight: focused ? 'bold' : 'normal',
                 paddingBottom: 4,
               },
               tabBarActiveTintColor: Colors.accent,
@@ -104,10 +103,20 @@ const MainNavigator = () => {
                 shadowOffset: { width: 0, height: -3 },
                 shadowOpacity: 0.1,
                 shadowRadius: 6,
+                zIndex: 8,
               },
               headerShown: false,
+              tabBarHideOnKeyboard: true,
+              safeAreaInsets: { bottom: 0 },
+              tabBarItemStyle: {
+                paddingBottom: 0,
+              },
+              contentStyle: {
+                paddingBottom: 0,
+              },
             })}
-            
+            safeAreaInsets={{ bottom: 0 }}
+            detachInactiveScreens={false}
           >
             <Tab.Screen 
               name="HomeTab" 

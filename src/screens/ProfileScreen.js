@@ -20,9 +20,11 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../context/AuthContext';
 import { useClass } from '../context/ClassContext';
 import { useLanguage } from '../context/LanguageContext';
-import { isClassAdmin } from '../utils/firestore';
+import { isClassAdmin, getUserExperience } from '../utils/firestore';
 import Colors from '../constants/Colors';
 import { t } from '../translations';
+import ScreenContainer from '../components/ScreenContainer';
+import LevelProgressBar from '../components/LevelProgressBar';
 
 // Custom color theme
 const CustomColors = {
@@ -136,6 +138,13 @@ const Toast = ({ visible, message, type, onDismiss }) => {
 const LogoutConfirmationModal = ({ visible, onCancel, onConfirm, loading }) => {
   const [animation] = useState(new Animated.Value(0));
   
+  // Import the translation function at the top level
+  // This ensures the useContext hook (used by t) is called in a consistent order
+  const confirmText = t('Confirm Logout');
+  const logoutMessage = t('Are you sure you want to logout from your account?');
+  const cancelText = t('Cancel');
+  const logoutText = t('Logout');
+  
   useEffect(() => {
     if (visible) {
       Animated.spring(animation, {
@@ -188,9 +197,9 @@ const LogoutConfirmationModal = ({ visible, onCancel, onConfirm, loading }) => {
                 <Icon name="logout" size={40} color={CustomColors.primary} />
               </View>
               
-              <Text style={styles.modalTitle}>{t('Confirm Logout')}</Text>
+              <Text style={styles.modalTitle}>{confirmText}</Text>
               <Text style={styles.modalMessage}>
-                {t('Are you sure you want to logout from your account?')}
+                {logoutMessage}
               </Text>
               
               <View style={styles.modalButtons}>
@@ -199,7 +208,7 @@ const LogoutConfirmationModal = ({ visible, onCancel, onConfirm, loading }) => {
                   onPress={onCancel}
                   disabled={loading}
                 >
-                  <Text style={styles.cancelButtonText}>{t('Cancel')}</Text>
+                  <Text style={styles.cancelButtonText}>{cancelText}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
@@ -210,7 +219,7 @@ const LogoutConfirmationModal = ({ visible, onCancel, onConfirm, loading }) => {
                   {loading ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.logoutModalButtonText}>{t('Logout')}</Text>
+                    <Text style={styles.logoutModalButtonText}>{logoutText}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -227,6 +236,8 @@ const ProfileScreen = ({ navigation }) => {
   const { currentClass } = useClass();
   const { getCurrentLanguageName } = useLanguage();
   const [isCurrentClassAdmin, setIsCurrentClassAdmin] = useState(false);
+  const [userExperience, setUserExperience] = useState(null);
+  const [loadingExperience, setLoadingExperience] = useState(false);
   
   // Toast state
   const [toast, setToast] = useState({
@@ -294,6 +305,33 @@ const ProfileScreen = ({ navigation }) => {
     };
     
     checkAdminStatus();
+  }, [user, currentClass]);
+
+  // Check user's level and experience for current class
+  useEffect(() => {
+    const loadUserExperience = async () => {
+      if (user && currentClass) {
+        setLoadingExperience(true);
+        try {
+          const expResult = await getUserExperience(currentClass.id);
+          if (expResult.success) {
+            setUserExperience(expResult.experience);
+          } else {
+            console.error("Error loading experience data:", expResult.error);
+            showToast('Failed to load experience data', 'error');
+          }
+        } catch (error) {
+          console.error("Error fetching experience:", error);
+          showToast('Failed to load experience data', 'error');
+        } finally {
+          setLoadingExperience(false);
+        }
+      } else {
+        setUserExperience(null);
+      }
+    };
+    
+    loadUserExperience();
   }, [user, currentClass]);
 
   const handleAvatarPress = () => {
@@ -445,7 +483,11 @@ const ProfileScreen = ({ navigation }) => {
 
   return (
     <View style={styles.mainContainer}>
-      <ScrollView style={styles.container}>
+      <ScreenContainer
+        scroll
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+      >
         <Animated.View style={[styles.header]}>
           <View style={styles.headerContent}>
             <Pressable onPress={handleAvatarPress} style={styles.avatarSection}>
@@ -465,8 +507,32 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.userInfoContainer}>
               <Text style={styles.name}>{user.displayName || t('User')}</Text>
               <Text style={styles.email}>{user.email}</Text>
+              
+              {/* Show level info for current class */}
+              {currentClass && (
+                <View style={styles.classLevelInfo}>
+                  {loadingExperience ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : userExperience ? (
+                    <Text style={styles.classLevelText}>
+                      {t('Class: {className}', { className: currentClass.name })}
+                    </Text>
+                  ) : (
+                    <Text style={styles.classLevelText}>
+                      {t('No class selected')}
+                    </Text>
+                  )}
+                </View>
+              )}
             </View>
           </View>
+          
+          {/* Show level progress bar */}
+          {currentClass && userExperience && (
+            <View style={styles.levelProgressContainer}>
+              <LevelProgressBar totalExp={userExperience.totalExp || 0} />
+            </View>
+          )}
           
           {currentClass && isCurrentClassAdmin && (
             <View style={styles.adminBadge}>
@@ -695,6 +761,69 @@ const ProfileScreen = ({ navigation }) => {
             )}
           </View>
 
+          <View style={styles.sectionContainer}>
+            <Pressable 
+              style={styles.sectionHeader} 
+              onPress={() => toggleSection('experience')}
+            >
+              <View style={styles.sectionTitleContainer}>
+                <Icon name="emoji-events" size={24} color={CustomColors.primaryLight} />
+                <Text style={styles.sectionTitle}>{t('Experience & Achievements')}</Text>
+              </View>
+              <Icon 
+                name={expandedSection === 'experience' ? 'expand-less' : 'expand-more'} 
+                size={24} 
+                color={CustomColors.textSecondary} 
+              />
+            </Pressable>
+            
+            {expandedSection === 'experience' && (
+              <View style={styles.expandedSection}>
+                {currentClass ? (
+                  <>
+                    <View style={styles.experienceCard}>
+                      <Text style={styles.experienceTitle}>
+                        {t('Experience in {className}', { className: currentClass.name })}
+                      </Text>
+                      
+                      {loadingExperience ? (
+                        <ActivityIndicator size="small" color={CustomColors.primary} />
+                      ) : userExperience ? (
+                        <>
+                          <LevelProgressBar totalExp={userExperience.totalExp || 0} />
+                          <Text style={styles.completedAssignmentsText}>
+                            {t('Completed Assignments: {count}', { 
+                              count: userExperience.completedAssignments?.length || 0 
+                            })}
+                          </Text>
+                        </>
+                      ) : (
+                        <Text style={styles.noDataText}>
+                          {t('No experience data available')}
+                        </Text>
+                      )}
+                    </View>
+                    
+                    <TouchableOpacity 
+                      style={styles.menuItem}
+                      onPress={handleViewClassMembers}
+                    >
+                      <Icon name="leaderboard" size={24} color={CustomColors.primaryLight} />
+                      <Text style={styles.menuItemText}>{t('View Class Leaderboard')}</Text>
+                      <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={styles.experienceCard}>
+                    <Text style={styles.noDataText}>
+                      {t('Select a class to view your experience and achievements')}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+
           <TouchableOpacity 
             style={styles.logoutButton} 
             onPress={handleLogoutPress}
@@ -710,7 +839,7 @@ const ProfileScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </ScreenContainer>
       
       <Toast
         visible={toast.visible}
@@ -734,7 +863,7 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  container: {
+  scrollContainer: {
     flex: 1,
     backgroundColor: CustomColors.background,
   },
@@ -988,6 +1117,49 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  classLevelInfo: {
+    marginTop: 5,
+  },
+  classLevelText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  levelProgressContainer: {
+    marginTop: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+    padding: 10,
+  },
+  experienceCard: {
+    backgroundColor: CustomColors.cardBackground,
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+  },
+  experienceTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: CustomColors.text,
+    marginBottom: 10,
+  },
+  completedAssignmentsText: {
+    fontSize: 14,
+    color: CustomColors.text,
+    marginTop: 5,
+  },
+  noDataText: {
+    fontSize: 14,
+    color: CustomColors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 10,
   },
 });
 

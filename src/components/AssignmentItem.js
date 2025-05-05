@@ -4,6 +4,8 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
 import { ASSIGNMENT_STATUS } from '../constants/Types';
 import { t } from '../translations';
+// import { auth } from '../utils/firebase';
+import auth from '@react-native-firebase/auth';
 
 const getTypeIcon = (type) => {
   switch (type) {
@@ -25,7 +27,7 @@ const getTypeIcon = (type) => {
   }
 };
 
-const AssignmentItem = ({ assignment, onPress, onToggleStatus, onEditPress }) => {
+const AssignmentItem = ({ assignment, onPress, onToggleStatus, onEditPress, onApprove, onReject, isAdmin = false }) => {
   const isFinished = assignment.status === ASSIGNMENT_STATUS.FINISHED;
   const daysLeft = () => {
     const today = new Date();
@@ -39,21 +41,37 @@ const AssignmentItem = ({ assignment, onPress, onToggleStatus, onEditPress }) =>
   const isGroupAssignment = assignment.groupType === 'Kelompok';
   const groupCount = isGroupAssignment && assignment.groups ? assignment.groups.length : 0;
   
+  // Determine if the assignment is pending approval
+  const isPending = assignment.pending && !assignment.approved;
+  
   return (
     <TouchableOpacity 
       style={[
         styles.container, 
-        isFinished ? styles.finishedContainer : null
+        isFinished ? styles.finishedContainer : null,
+        isPending && styles.pendingContainer
       ]} 
       onPress={onPress}
     >
+      {/* Add a pending badge for non-approved assignments */}
+      {isPending && (
+        <View style={styles.pendingBadge}>
+          <Icon name="pending" size={16} color="#fff" />
+          <Text style={styles.pendingText}>
+            {assignment.createdBy === auth().currentUser?.uid 
+              ? t('Waiting Approval') 
+              : t('Pending')}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.header}>
         <View style={styles.typeContainer}>
           <Icon name={getTypeIcon(assignment.type)} size={20} color={Colors.text} />
           <Text style={styles.type}>{t(assignment.type)}</Text>
         </View>
         <View style={styles.actionsContainer}>
-          {onEditPress && (
+          {onEditPress && !isPending && (
             <TouchableOpacity 
               style={styles.actionButton} 
               onPress={(e) => { 
@@ -64,19 +82,18 @@ const AssignmentItem = ({ assignment, onPress, onToggleStatus, onEditPress }) =>
               <Icon name="edit" size={24} color={Colors.accent} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={(e) => { 
-              e.stopPropagation();
-              onToggleStatus(assignment.id);
-            }}
-          >
-            <Icon 
-              name={isFinished ? "check-circle" : "radio-button-unchecked"} 
-              size={24} 
-              color={isFinished ? Colors.success : Colors.warning} 
-            />
-          </TouchableOpacity>
+          {!isPending && (
+            <TouchableOpacity 
+              style={styles.statusButton} 
+              onPress={() => onToggleStatus(assignment.id)}
+            >
+              <Icon
+                name={assignment.status === ASSIGNMENT_STATUS.FINISHED ? 'check-circle' : 'radio-button-unchecked'}
+                size={24}
+                color={assignment.status === ASSIGNMENT_STATUS.FINISHED ? Colors.success : Colors.textSecondary}
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       
@@ -113,6 +130,27 @@ const AssignmentItem = ({ assignment, onPress, onToggleStatus, onEditPress }) =>
           </View>
         )}
       </View>
+
+      {/* Admin action buttons for pending items */}
+      {isAdmin && isPending && (
+        <View style={styles.adminActionContainer}>
+          <TouchableOpacity 
+            style={styles.approveButton}
+            onPress={() => onApprove(assignment.id)}
+          >
+            <Icon name="thumb-up" size={16} color="#fff" />
+            <Text style={styles.approveText}>{t('Approve')}</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.rejectButton}
+            onPress={() => onReject(assignment.id)}
+          >
+            <Icon name="thumb-down" size={16} color="#fff" />
+            <Text style={styles.rejectText}>{t('Reject')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
@@ -202,6 +240,64 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginLeft: 4,
     fontWeight: 'bold',
+  },
+  pendingContainer: {
+    borderLeftColor: Colors.warning,
+    opacity: 0.8,
+  },
+  pendingBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: Colors.warning,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pendingText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  adminActionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  approveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.success,
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8,
+  },
+  approveText: {
+    color: '#fff',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  rejectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.error,
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8,
+  },
+  rejectText: {
+    color: '#fff',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  statusButton: {
+    padding: 4,
+    marginLeft: 8,
   },
 });
 
