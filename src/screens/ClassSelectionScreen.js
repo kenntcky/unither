@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Alert,
-  Modal
+  Modal,
+  Dimensions
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -16,6 +17,8 @@ import Colors from '../constants/Colors';
 import { useClass } from '../context/ClassContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../translations';
+
+const { width } = Dimensions.get('window');
 
 const ClassSelectionScreen = () => {
   const { classes, loading, switchClass, forceRefresh, isClassSwitching } = useClass();
@@ -25,14 +28,11 @@ const ClassSelectionScreen = () => {
   const [isSwitching, setIsSwitching] = useState(false);
   const [switchingToClass, setSwitchingToClass] = useState(null);
 
-  // Show loading indicator when class is switching
   useEffect(() => {
     if (isClassSwitching) {
       setIsSwitching(true);
     } else {
-      // When class switching is complete, navigate if we were switching
       if (isSwitching && switchingToClass) {
-        // Navigate to main after a brief delay
         setTimeout(() => {
           setIsSwitching(false);
           setSwitchingToClass(null);
@@ -45,7 +45,6 @@ const ClassSelectionScreen = () => {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      // Trigger a refresh of classes
       useClass().refreshClasses();
     } finally {
       setRefreshing(false);
@@ -54,11 +53,9 @@ const ClassSelectionScreen = () => {
 
   const handleClassSelect = async (classItem) => {
     try {
-      // Start switching indicator
       setIsSwitching(true);
       setSwitchingToClass(classItem.name);
       
-      // Switch to the new class
       const success = await switchClass(classItem.id);
       
       if (!success) {
@@ -70,8 +67,6 @@ const ClassSelectionScreen = () => {
           [{ text: 'OK' }]
         );
       }
-      // The navigation will happen in the useEffect when isClassSwitching changes to false
-      
     } catch (error) {
       console.error('Error switching class:', error);
       setIsSwitching(false);
@@ -85,19 +80,29 @@ const ClassSelectionScreen = () => {
   };
 
   const renderClassItem = ({ item }) => {
-    // Determine if user is teacher or student
     const isTeacher = item.role === 'teacher';
     
     return (
       <TouchableOpacity
-        style={styles.classCard}
+        style={[
+          styles.classCard,
+          isTeacher ? styles.teacherCard : styles.studentCard
+        ]}
         onPress={() => handleClassSelect(item)}
       >
         <View style={styles.classHeader}>
-          <Text style={styles.className}>{item.name}</Text>
-          <View style={[styles.roleBadge, { backgroundColor: isTeacher ? Colors.accent : Colors.primary }]}>
-            <Text style={styles.roleText}>{isTeacher ? t('Teacher') : t('Student')}</Text>
+          <View style={styles.classInfo}>
+            <Text style={styles.className} numberOfLines={1}>{item.name}</Text>
+            <View style={[styles.roleBadge, { backgroundColor: isTeacher ? '#6a1b9a' : '#9c27b0' }]}>
+              <Text style={styles.roleText}>{isTeacher ? t('Teacher') : t('Student')}</Text>
+            </View>
           </View>
+          <MaterialIcons 
+            name="chevron-right" 
+            size={24} 
+            color={isTeacher ? '#6a1b9a' : '#9c27b0'} 
+            style={styles.icon} 
+          />
         </View>
         
         <Text style={styles.classDescription} numberOfLines={2}>
@@ -110,15 +115,12 @@ const ClassSelectionScreen = () => {
             <Text style={styles.codeValue}>{item.classCode}</Text>
           </View>
         )}
-        
-        <MaterialIcons name="chevron-right" size={24} color={Colors.textSecondary} style={styles.icon} />
       </TouchableOpacity>
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Class switching modal */}
       <Modal
         transparent={true}
         visible={isSwitching}
@@ -127,7 +129,7 @@ const ClassSelectionScreen = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <ActivityIndicator size="large" color={Colors.accent} />
+            <ActivityIndicator size="large" color="#9c27b0" />
             <Text style={styles.modalText}>
               {switchingToClass ? 
                 `${t('Switching to')} ${switchingToClass}...` : 
@@ -138,20 +140,25 @@ const ClassSelectionScreen = () => {
       </Modal>
       
       <View style={styles.header}>
-        <Text style={styles.title}>{t('Your Classes')}</Text>
-        <Text style={styles.subtitle}>
-          {user?.displayName ? `${t('Welcome')}, ${user.displayName}` : t('Select a class to continue')}
-        </Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>{t('Your Classes')}</Text>
+          <Text style={styles.subtitle}>
+            {user?.displayName ? `${t('Welcome')}, ${user.displayName}` : t('Select a class to continue')}
+          </Text>
+        </View>
+        <View style={styles.headerDecoration} />
       </View>
 
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.accent} />
+          <ActivityIndicator size="large" color="#9c27b0" />
           <Text style={styles.loadingText}>{t('Loading your classes...')}</Text>
         </View>
       ) : classes.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <MaterialIcons name="school" size={64} color={Colors.textSecondary} />
+          <View style={styles.emptyIllustration}>
+            <MaterialIcons name="school" size={80} color="#9c27b0" />
+          </View>
           <Text style={styles.emptyText}>{t('You haven\'t joined any classes yet')}</Text>
           <Text style={styles.emptySubText}>{t('Create or join a class to get started')}</Text>
         </View>
@@ -163,6 +170,7 @@ const ClassSelectionScreen = () => {
           contentContainerStyle={styles.listContent}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+          showsVerticalScrollIndicator={false}
         />
       )}
 
@@ -190,76 +198,117 @@ const ClassSelectionScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f5f5f5',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: '#fff',
     padding: 24,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 250,
+    width: width * 0.8,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   modalText: {
     marginTop: 16,
     fontSize: 18,
-    color: Colors.text,
+    color: '#333',
+    fontWeight: '500',
     textAlign: 'center',
   },
   header: {
-    padding: 20,
-    backgroundColor: Colors.primary,
+    position: 'relative',
+    marginBottom: 8,
+  },
+  headerContent: {
+    padding: 24,
+    paddingTop: 50,
+    paddingBottom: 22,
+    backgroundColor: '#6a1b9a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerDecoration: {
+    position: 'absolute',
+    bottom: -20,
+    left: 0,
+    right: 0,
+    height: 40,
+    backgroundColor: '#6a1b9a',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 4,
+    color: '#fff',
+    marginBottom: 12,
+    textShadowColor: '#000',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 12,
+    elevation: 8,
+    fontFamily: 'Arial',
   },
   subtitle: {
-    fontSize: 16,
-    color: Colors.textSecondary,
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.9)',
+    fontFamily: 'Arial',
   },
   listContent: {
     padding: 16,
+    paddingBottom: 24,
   },
   classCard: {
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  teacherCard: {
+    borderLeftWidth: 6,
+    borderLeftColor: '#6a1b9a',
+  },
+  studentCard: {
+    borderLeftWidth: 6,
+    borderLeftColor: '#9c27b0',
   },
   classHeader: {
-    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  classInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    flex: 1,
   },
   className: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text,
+    fontWeight: '600',
+    color: '#333',
     flex: 1,
+    marginRight: 8,
   },
   roleBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
-    marginLeft: 8,
+    borderRadius: 12,
   },
   roleText: {
     color: '#fff',
@@ -268,41 +317,44 @@ const styles = StyleSheet.create({
   },
   classDescription: {
     fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 8,
-    flex: 1,
+    color: '#666',
+    marginBottom: 12,
+    lineHeight: 20,
   },
   codeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.lightBackground,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    backgroundColor: '#f3e5f5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   codeLabel: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: '#6a1b9a',
     marginRight: 4,
+    fontWeight: '500',
   },
   codeValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: Colors.accent,
+    color: '#6a1b9a',
   },
   icon: {
-    position: 'absolute',
-    right: 16,
+    marginLeft: 8,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: '#666',
+    fontWeight: '500',
   },
   emptyContainer: {
     flex: 1,
@@ -310,47 +362,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
+  emptyIllustration: {
+    backgroundColor: 'rgba(156, 39, 176, 0.1)',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   emptyText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginTop: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
     textAlign: 'center',
   },
   emptySubText: {
     fontSize: 16,
-    color: Colors.textSecondary,
-    marginTop: 8,
+    color: '#666',
     textAlign: 'center',
+    maxWidth: '80%',
   },
   buttonContainer: {
     flexDirection: 'row',
     padding: 16,
+    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   button: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     elevation: 2,
   },
   createButton: {
-    backgroundColor: Colors.accent,
+    backgroundColor: '#6a1b9a',
     marginRight: 8,
   },
   joinButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: '#9c27b0',
     marginLeft: 8,
   },
   buttonText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginLeft: 8,
+    fontSize: 16,
   },
 });
 
-export default ClassSelectionScreen; 
+export default ClassSelectionScreen;
