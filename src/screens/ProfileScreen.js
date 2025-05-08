@@ -473,6 +473,15 @@ const ProfileScreen = ({ navigation }) => {
     // Additional functionality can be added here
   };
 
+  const handleClassSettings = () => {
+    if (!currentClass) {
+      showToast(t('Please select a class first'), 'error');
+      return;
+    }
+    
+    navigation.navigate('ClassSettings');
+  };
+
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
@@ -582,6 +591,15 @@ const ProfileScreen = ({ navigation }) => {
                   >
                     <Icon name="manage-accounts" size={24} color={CustomColors.accent} />
                     <Text style={styles.menuItemText}>{t('Manage Class Members')}</Text>
+                    <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.menuItem}
+                    onPress={handleClassSettings}
+                  >
+                    <Icon name="settings" size={24} color={CustomColors.accent} />
+                    <Text style={styles.menuItemText}>{t('Class Settings')}</Text>
                     <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                   </TouchableOpacity>
                 </View>
@@ -820,6 +838,36 @@ const ProfileScreen = ({ navigation }) => {
                     </Text>
                   </View>
                 )}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.sectionContainer}>
+            <Pressable 
+              style={styles.sectionHeader} 
+              onPress={() => toggleSection('classSettings')}
+            >
+              <View style={styles.sectionTitleContainer}>
+                <Icon name="settings" size={24} color={CustomColors.primaryLight} />
+                <Text style={styles.sectionTitle}>{t('Class Settings')}</Text>
+              </View>
+              <Icon 
+                name={expandedSection === 'classSettings' ? 'expand-less' : 'expand-more'} 
+                size={24} 
+                color={CustomColors.textSecondary} 
+              />
+            </Pressable>
+            
+            {expandedSection === 'classSettings' && (
+              <View style={styles.expandedSection}>
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={handleClassSettings}
+                >
+                  <Icon name="settings" size={24} color={CustomColors.primaryLight} />
+                  <Text style={styles.menuItemText}>{t('Class Settings')}</Text>
+                  <Text style={styles.menuItemDescription}>{t('Manage class preferences')}</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>

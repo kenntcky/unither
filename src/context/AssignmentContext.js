@@ -128,18 +128,54 @@ export const AssignmentProvider = ({ children }) => {
   const handleAssignmentUpdate = (updatedAssignments) => {
     if (!currentClass) return;
     
-    setAssignments(updatedAssignments);
-    
-    // Store assignments by class ID
-    setAssignmentsByClass(prev => ({
-      ...prev,
-      [currentClass.id]: updatedAssignments
-    }));
-    
-    setSyncedWithCloud(true);
-    
-    // Also update local storage for offline access
-    saveLocalAssignments(updatedAssignments, currentClass.id);
+    // Get local assignments to preserve status
+    getLocalAssignments(currentClass.id).then(localAssignments => {
+      // Merge the assignments from Firestore with local status
+      const mergedAssignments = updatedAssignments.map(onlineAssignment => {
+        // Try to find a matching local assignment
+        const localMatch = localAssignments.find(
+          localAssignment => localAssignment.id === onlineAssignment.id
+        );
+        
+        // If we found a local match, preserve its status
+        if (localMatch) {
+          return {
+            ...onlineAssignment,
+            status: localMatch.status // Preserve local completion status
+          };
+        }
+        
+        // Otherwise just use the online assignment as is
+        return onlineAssignment;
+      });
+      
+      setAssignments(mergedAssignments);
+      
+      // Store assignments by class ID
+      setAssignmentsByClass(prev => ({
+        ...prev,
+        [currentClass.id]: mergedAssignments
+      }));
+      
+      setSyncedWithCloud(true);
+      
+      // Also update local storage for offline access
+      saveLocalAssignments(mergedAssignments, currentClass.id);
+    }).catch(error => {
+      console.error('Error preserving local status during update:', error);
+      
+      // Fallback to just using the updated assignments
+      setAssignments(updatedAssignments);
+      
+      setAssignmentsByClass(prev => ({
+        ...prev,
+        [currentClass.id]: updatedAssignments
+      }));
+      
+      setSyncedWithCloud(true);
+      
+      saveLocalAssignments(updatedAssignments, currentClass.id);
+    });
   };
 
   // Load assignments from Firestore
@@ -161,7 +197,17 @@ export const AssignmentProvider = ({ children }) => {
       // First check if user is class admin
       const isAdmin = await isClassAdmin(currentClass.id, user.uid);
       
-      // First load local assignments to preserve completion status
+      // Get user's experience data to check completed assignments
+      const { getUserExperience } = require('../utils/firestore');
+      const userExpResult = await getUserExperience(currentClass.id);
+      let completedAssignmentIds = [];
+      
+      if (userExpResult.success) {
+        completedAssignmentIds = userExpResult.experience.completedAssignments || [];
+        console.log(`Found ${completedAssignmentIds.length} completed assignments in user experience`);
+      }
+      
+      // First load local assignments for any offline assignments
       const localAssignments = await getLocalAssignments(currentClass.id);
       
       // Then load assignments from Firebase - pass true for includePending if admin
@@ -179,16 +225,22 @@ export const AssignmentProvider = ({ children }) => {
           localAssignment => localAssignment.id === onlineAssignment.id
         );
         
-        // If we found a local match, preserve its status
-        if (localMatch) {
-          return {
-            ...onlineAssignment,
-            status: localMatch.status // Preserve local completion status
-          };
+        // Check if this assignment is in the user's completed list from Firestore
+        const isCompletedOnServer = completedAssignmentIds.includes(onlineAssignment.id);
+        
+        // Determine the status - prioritize Firestore completion status over local
+        let assignmentStatus = onlineAssignment.status;
+        if (isCompletedOnServer) {
+          assignmentStatus = 'Selesai'; // Set to finished if completed in Firestore
+        } else if (localMatch && !isCompletedOnServer) {
+          // Only use local status if not found in server completions
+          assignmentStatus = localMatch.status;
         }
         
-        // Otherwise just use the online assignment as is
-        return onlineAssignment;
+        return {
+          ...onlineAssignment,
+          status: assignmentStatus
+        };
       }).filter(Boolean); // Remove null values
       
       // Also include local assignments that don't exist online
@@ -228,6 +280,12 @@ export const AssignmentProvider = ({ children }) => {
     try {
       const classId = currentClass?.id || 'local';
       const localAssignments = await getLocalAssignments(classId);
+      console.log(`AssignmentContext: Loaded ${localAssignments.length} assignments from local storage for class ${classId}`);
+      
+      // Log status information for debugging
+      const finishedCount = localAssignments.filter(a => a.status === 'Selesai').length;
+      console.log(`AssignmentContext: Found ${finishedCount} finished assignments in local storage`);
+      
       setAssignments(localAssignments);
       
       // Update the assignments by class map
@@ -522,19 +580,41 @@ export const AssignmentProvider = ({ children }) => {
       // Load fresh data
       setLoading(true);
       try {
-        // First, check if the class exists and is valid
+        // First load local assignments to preserve completion status
+        const localAssignments = await getLocalAssignments(currentClass.id);
+        
+        // Then fetch fresh assignments from Firestore
         const classAssignments = await getClassAssignments(currentClass.id, true);
         console.log(`AssignmentContext: Loaded ${classAssignments.length} assignments from Firestore`);
         
+        // Merge the assignments, preserving local status
+        const mergedAssignments = classAssignments.map(onlineAssignment => {
+          // Try to find a matching local assignment
+          const localMatch = localAssignments.find(
+            localAssignment => localAssignment.id === onlineAssignment.id
+          );
+          
+          // If we found a local match, preserve its status
+          if (localMatch) {
+            return {
+              ...onlineAssignment,
+              status: localMatch.status // Preserve local completion status
+            };
+          }
+          
+          // Otherwise just use the online assignment as is
+          return onlineAssignment;
+        });
+        
         // Store into context state
-        setAssignments(classAssignments);
+        setAssignments(mergedAssignments);
         setAssignmentsByClass(prev => ({
           ...prev,
-          [currentClass.id]: classAssignments
+          [currentClass.id]: mergedAssignments
         }));
         
-        // Also update local storage with the fresh data
-        await saveLocalAssignments(classAssignments, currentClass.id);
+        // Also update local storage with the merged data
+        await saveLocalAssignments(mergedAssignments, currentClass.id);
         
         setSyncedWithCloud(true);
       } catch (error) {

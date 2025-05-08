@@ -8,6 +8,8 @@ export const MEMBERS_SUBCOLLECTION = 'members';
 export const ASSIGNMENTS_COLLECTION = 'assignments';
 export const SUBJECTS_COLLECTION = 'subjects';
 export const EXPERIENCE_SUBCOLLECTION = 'experience';
+export const COMMENTS_COLLECTION = 'comments';
+export const COMPLETION_APPROVALS_COLLECTION = 'completionApprovals';
 
 // Generate a unique class code (6 characters alphanumeric)
 export const generateClassCode = async () => {
@@ -63,7 +65,8 @@ export const createClass = async (classData) => {
       createdAt: firestore.FieldValue.serverTimestamp(),
       updatedAt: firestore.FieldValue.serverTimestamp(),
       classCode: classCode,
-      active: true
+      active: true,
+      requireCompletionApproval: classData.requireCompletionApproval || false
     });
 
     // Add the creator as a member with role "teacher" (displayed as "Admin" in UI)
@@ -249,6 +252,59 @@ export const getClassDetails = async (classId) => {
   } catch (error) {
     console.error('Error getting class details:', error);
     return null;
+  }
+};
+
+// Update class settings
+export const updateClassSettings = async (classId, settings) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Check if user is an admin for this class
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+    if (!isAdmin) {
+      throw new Error('Only class admins can update class settings');
+    }
+    
+    // Validate settings object
+    if (!settings || typeof settings !== 'object') {
+      throw new Error('Invalid settings object');
+    }
+    
+    // Extract only allowed fields to update
+    const allowedUpdates = [
+      'name',
+      'description',
+      'maxUsers',
+      'requireCompletionApproval'
+    ];
+    
+    const updates = {};
+    allowedUpdates.forEach(field => {
+      if (settings[field] !== undefined) {
+        updates[field] = settings[field];
+      }
+    });
+    
+    // Add updated timestamp
+    updates.updatedAt = firestore.FieldValue.serverTimestamp();
+    
+    // Update the class document
+    await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .update(updates);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating class settings:', error);
+    return {
+      success: false,
+      error: error.message
+    };
   }
 };
 
@@ -1409,52 +1465,60 @@ export const getUserExperience = async (classId, userId = null) => {
 };
 
 // Add experience points for completing an assignment
-export const addExperiencePoints = async (classId, assignmentId, expPoints, userId = null) => {
+export const addExperiencePoints = async (classId, assignmentId, expPoints, userId = null, completionTimestamp = null) => {
   try {
     const currentUser = auth().currentUser;
-    if (!currentUser && !userId) {
+    if (!currentUser) {
       throw new Error('User not authenticated');
     }
     
+    // Use the provided user ID or current user's ID
     const targetUserId = userId || currentUser.uid;
     
-    // Get the user's current experience
-    const userExpResult = await getUserExperience(classId, targetUserId);
-    if (!userExpResult.success) {
-      throw new Error(userExpResult.error);
-    }
-    
-    const userExp = userExpResult.experience;
-    
-    // Check if assignment is already completed to prevent duplicate EXP
-    if (userExp.completedAssignments && userExp.completedAssignments.includes(assignmentId)) {
-      return {
-        success: false,
-        error: 'Assignment already completed'
-      };
-    }
-    
-    // Update experience
-    const updatedExp = {
-      totalExp: (userExp.totalExp || 0) + expPoints,
-      completedAssignments: [...(userExp.completedAssignments || []), assignmentId],
-      lastUpdated: firestore.FieldValue.serverTimestamp()
-    };
-    
-    await firestore()
+    // Reference to the experience document for this user in this class
+    const expRef = firestore()
       .collection(CLASSES_COLLECTION)
       .doc(classId)
       .collection(EXPERIENCE_SUBCOLLECTION)
-      .doc(targetUserId)
-      .update(updatedExp);
+      .doc(targetUserId);
+    
+    // Get current experience data
+    const expDoc = await expRef.get();
+    
+    if (expDoc.exists) {
+      // User already has an experience document
+      const expData = expDoc.data();
+      const currentTotalExp = expData.totalExp || 0;
+      const completedAssignments = expData.completedAssignments || [];
       
-    return {
-      success: true,
-      experience: {
-        ...userExp,
-        ...updatedExp
+      // Check if assignment is already completed
+      if (completedAssignments.includes(assignmentId)) {
+        return {
+          success: false,
+          error: 'Assignment already completed'
+        };
       }
-    };
+      
+      // Update with new experience points and add assignment to completed list
+      await expRef.update({
+        totalExp: currentTotalExp + expPoints,
+        completedAssignments: [...completedAssignments, assignmentId],
+        lastUpdated: completionTimestamp ? 
+          firestore.Timestamp.fromDate(new Date(completionTimestamp)) : 
+          firestore.FieldValue.serverTimestamp()
+      });
+    } else {
+      // Create new experience document for this user
+      await expRef.set({
+        totalExp: expPoints,
+        completedAssignments: [assignmentId],
+        lastUpdated: completionTimestamp ? 
+          firestore.Timestamp.fromDate(new Date(completionTimestamp)) : 
+          firestore.FieldValue.serverTimestamp()
+      });
+    }
+    
+    return { success: true };
   } catch (error) {
     console.error('Error adding experience points:', error);
     return {
@@ -1709,6 +1773,633 @@ export const rejectClassAssignment = async (classId, assignmentId) => {
     }
   } catch (error) {
     console.error('Error rejecting assignment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// COMMENT FUNCTIONS
+
+// Add a comment to an assignment
+export const addCommentToAssignment = async (classId, assignmentId, commentData) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Create a batch to make atomic operations
+    const batch = firestore().batch();
+    
+    // Create a reference to the new comment document with a generated ID
+    const assignmentRef = firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .doc(assignmentId);
+      
+    const commentRef = assignmentRef
+      .collection(COMMENTS_COLLECTION)
+      .doc();
+    
+    // Set the comment data
+    batch.set(commentRef, {
+      text: commentData.text,
+      userId: currentUser.uid,
+      userName: currentUser.displayName || currentUser.email.split('@')[0],
+      createdAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: firestore.FieldValue.serverTimestamp(),
+      edited: false
+    });
+    
+    // Get the assignment to preserve its timestamps
+    const assignmentDoc = await assignmentRef.get();
+    if (assignmentDoc.exists) {
+      const assignmentData = assignmentDoc.data();
+      
+      // Update the assignment with its original timestamps to prevent automatic updates
+      batch.update(assignmentRef, {
+        createdAt: assignmentData.createdAt,
+        updatedAt: assignmentData.updatedAt
+      });
+    }
+    
+    // Commit the batch
+    await batch.commit();
+
+    return {
+      success: true,
+      commentId: commentRef.id
+    };
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Get all comments for an assignment
+export const getAssignmentComments = async (classId, assignmentId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    const commentsSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .doc(assignmentId)
+      .collection(COMMENTS_COLLECTION)
+      .orderBy('createdAt', 'asc')
+      .get();
+
+    if (commentsSnapshot.empty) {
+      return [];
+    }
+
+    const comments = commentsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt && typeof data.createdAt.toDate === 'function' 
+          ? data.createdAt.toDate().toISOString() 
+          : new Date().toISOString(),
+        updatedAt: data.updatedAt && typeof data.updatedAt.toDate === 'function' 
+          ? data.updatedAt.toDate().toISOString() 
+          : new Date().toISOString(),
+        isOwnComment: data.userId === currentUser.uid
+      };
+    });
+    
+    return comments;
+  } catch (error) {
+    console.error('Error getting comments:', error);
+    throw error;
+  }
+};
+
+// Subscribe to assignment comments
+export const subscribeToAssignmentComments = (classId, assignmentId, callback) => {
+  const currentUser = auth().currentUser;
+  if (!currentUser) {
+    throw new Error('User not authenticated');
+  }
+  
+  const unsubscribe = firestore()
+    .collection(CLASSES_COLLECTION)
+    .doc(classId)
+    .collection(ASSIGNMENTS_COLLECTION)
+    .doc(assignmentId)
+    .collection(COMMENTS_COLLECTION)
+    .orderBy('createdAt', 'asc')
+    .onSnapshot(snapshot => {
+      const comments = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt && typeof data.createdAt.toDate === 'function' 
+            ? data.createdAt.toDate().toISOString() 
+            : new Date().toISOString(),
+          updatedAt: data.updatedAt && typeof data.updatedAt.toDate === 'function' 
+            ? data.updatedAt.toDate().toISOString() 
+            : new Date().toISOString(),
+          isOwnComment: data.userId === currentUser.uid
+        };
+      });
+      
+      callback(comments);
+    }, error => {
+      console.error('Error in comments subscription:', error);
+    });
+  
+  return unsubscribe;
+};
+
+// Update a comment
+export const updateComment = async (classId, assignmentId, commentId, newText) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Create a batch to make atomic operations
+    const batch = firestore().batch();
+    
+    // Reference to the assignment and comment
+    const assignmentRef = firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .doc(assignmentId);
+      
+    const commentRef = assignmentRef
+      .collection(COMMENTS_COLLECTION)
+      .doc(commentId);
+    
+    // Get the comment to check ownership
+    const commentDoc = await commentRef.get();
+    
+    if (!commentDoc.exists) {
+      throw new Error('Comment not found');
+    }
+    
+    const commentData = commentDoc.data();
+    
+    // Check if current user is the owner or an admin
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+    if (commentData.userId !== currentUser.uid && !isAdmin) {
+      throw new Error('You can only edit your own comments');
+    }
+    
+    // Update the comment
+    batch.update(commentRef, {
+      text: newText,
+      updatedAt: firestore.FieldValue.serverTimestamp(),
+      edited: true
+    });
+    
+    // Get the assignment to preserve its timestamps
+    const assignmentDoc = await assignmentRef.get();
+    if (assignmentDoc.exists) {
+      const assignmentData = assignmentDoc.data();
+      
+      // Update the assignment with its original timestamps to prevent automatic updates
+      batch.update(assignmentRef, {
+        createdAt: assignmentData.createdAt,
+        updatedAt: assignmentData.updatedAt
+      });
+    }
+    
+    // Commit the batch
+    await batch.commit();
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating comment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Delete a comment
+export const deleteComment = async (classId, assignmentId, commentId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Create a batch to make atomic operations
+    const batch = firestore().batch();
+    
+    // Reference to the assignment and comment
+    const assignmentRef = firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .doc(assignmentId);
+      
+    const commentRef = assignmentRef
+      .collection(COMMENTS_COLLECTION)
+      .doc(commentId);
+    
+    // Get the comment to check ownership
+    const commentDoc = await commentRef.get();
+    
+    if (!commentDoc.exists) {
+      throw new Error('Comment not found');
+    }
+    
+    const commentData = commentDoc.data();
+    
+    // Check if current user is the owner or an admin
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+    if (commentData.userId !== currentUser.uid && !isAdmin) {
+      throw new Error('You can only delete your own comments');
+    }
+    
+    // Delete the comment
+    batch.delete(commentRef);
+    
+    // Get the assignment to preserve its timestamps
+    const assignmentDoc = await assignmentRef.get();
+    if (assignmentDoc.exists) {
+      const assignmentData = assignmentDoc.data();
+      
+      // Update the assignment with its original timestamps to prevent automatic updates
+      batch.update(assignmentRef, {
+        createdAt: assignmentData.createdAt,
+        updatedAt: assignmentData.updatedAt
+      });
+    }
+    
+    // Commit the batch
+    await batch.commit();
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Get list of users who completed a specific assignment
+export const getAssignmentCompletions = async (classId, assignmentId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // First get all class members
+    const membersSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(MEMBERS_SUBCOLLECTION)
+      .get();
+      
+    if (membersSnapshot.empty) {
+      return {
+        success: true,
+        completions: []
+      };
+    }
+    
+    // Get all experience records for the class
+    const experienceSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(EXPERIENCE_SUBCOLLECTION)
+      .get();
+      
+    if (experienceSnapshot.empty) {
+      return {
+        success: true,
+        completions: []
+      };
+    }
+    
+    // Map of userId to member data
+    const membersMap = {};
+    membersSnapshot.docs.forEach(doc => {
+      const memberData = doc.data();
+      membersMap[memberData.userId] = memberData;
+    });
+    
+    // Filter experience records to only include users who completed this assignment
+    const completions = [];
+    experienceSnapshot.docs.forEach(doc => {
+      const experienceData = doc.data();
+      const userId = doc.id;
+      
+      // Check if user has completed this assignment
+      if (experienceData.completedAssignments && 
+          experienceData.completedAssignments.includes(assignmentId)) {
+        
+        // Get member data
+        const memberData = membersMap[userId] || {};
+        
+        // Create completion entry
+        completions.push({
+          userId,
+          displayName: memberData.displayName || 'Unknown User',
+          completedAt: experienceData.lastUpdated,
+          lastUpdated: experienceData.lastUpdated,
+          totalExp: experienceData.totalExp || 0
+        });
+      }
+    });
+    
+    // Sort completions by time (most recent last to show oldest completions first)
+    completions.sort((a, b) => {
+      if (!a.lastUpdated || !b.lastUpdated) return 0;
+      const timeA = a.lastUpdated.toDate ? a.lastUpdated.toDate().getTime() : 0;
+      const timeB = b.lastUpdated.toDate ? b.lastUpdated.toDate().getTime() : 0;
+      return timeA - timeB;
+    });
+    
+    return {
+      success: true,
+      completions
+    };
+  } catch (error) {
+    console.error('Error getting assignment completions:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Submit assignment completion for approval
+export const submitCompletionForApproval = async (classId, assignmentId, photoUri) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Get current timestamp for submission time
+    const submissionTime = new Date().toISOString();
+    
+    // First, check if a pending approval already exists for this user/assignment
+    const existingApprovalQuery = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(COMPLETION_APPROVALS_COLLECTION)
+      .where('userId', '==', currentUser.uid)
+      .where('assignmentId', '==', assignmentId)
+      .where('status', '==', 'pending')
+      .get();
+    
+    if (!existingApprovalQuery.empty) {
+      return {
+        success: false,
+        error: 'You already have a pending approval request for this assignment'
+      };
+    }
+    
+    // Upload photo to Firebase Storage
+    const storage = require('@react-native-firebase/storage').default;
+    const photoRef = storage().ref(`completions/${classId}/${assignmentId}/${currentUser.uid}_${Date.now()}`);
+    
+    // Upload photo
+    await photoRef.putFile(photoUri);
+    
+    // Get photo URL
+    const photoUrl = await photoRef.getDownloadURL();
+    
+    // Create approval document
+    const approvalRef = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(COMPLETION_APPROVALS_COLLECTION)
+      .add({
+        userId: currentUser.uid,
+        displayName: currentUser.displayName || currentUser.email.split('@')[0],
+        assignmentId: assignmentId,
+        photoUrl: photoUrl,
+        submittedAt: firestore.FieldValue.serverTimestamp(),
+        status: 'pending',
+        completionTimestamp: submissionTime // Store original completion time
+      });
+    
+    return {
+      success: true,
+      approvalId: approvalRef.id
+    };
+  } catch (error) {
+    console.error('Error submitting completion for approval:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Get pending assignment completion approvals for a class
+export const getPendingCompletionApprovals = async (classId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Check if user is admin for this class
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+    if (!isAdmin) {
+      throw new Error('Only class admins can view pending approvals');
+    }
+    
+    // Get all pending approvals
+    const approvalsSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(COMPLETION_APPROVALS_COLLECTION)
+      .where('status', '==', 'pending')
+      .orderBy('submittedAt', 'desc')
+      .get();
+    
+    if (approvalsSnapshot.empty) {
+      return {
+        success: true,
+        approvals: []
+      };
+    }
+    
+    // Process approvals and include assignment details
+    const approvals = await Promise.all(approvalsSnapshot.docs.map(async doc => {
+      const approvalData = doc.data();
+      let assignmentDetails = { title: 'Unknown Assignment' };
+      
+      // Try to get assignment details
+      try {
+        const result = await findAssignmentByInternalId(classId, approvalData.assignmentId);
+        if (result.success) {
+          assignmentDetails = {
+            title: result.assignment.title,
+            type: result.assignment.type || 'DEFAULT'
+          };
+        }
+      } catch (error) {
+        console.error(`Error fetching assignment details for ${approvalData.assignmentId}:`, error);
+      }
+      
+      return {
+        id: doc.id,
+        ...approvalData,
+        submittedAt: approvalData.submittedAt?.toDate?.() || new Date(),
+        assignment: assignmentDetails
+      };
+    }));
+    
+    return {
+      success: true,
+      approvals
+    };
+  } catch (error) {
+    console.error('Error getting pending approvals:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Approve a completion request
+export const approveCompletion = async (classId, approvalId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Check if user is admin for this class
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+    if (!isAdmin) {
+      throw new Error('Only class admins can approve completions');
+    }
+    
+    // Get the approval document
+    const approvalRef = firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(COMPLETION_APPROVALS_COLLECTION)
+      .doc(approvalId);
+    
+    const approvalDoc = await approvalRef.get();
+    if (!approvalDoc.exists) {
+      throw new Error('Approval request not found');
+    }
+    
+    const approvalData = approvalDoc.data();
+    if (approvalData.status !== 'pending') {
+      throw new Error('This approval request has already been processed');
+    }
+    
+    // Create a batch to perform multiple operations
+    const batch = firestore().batch();
+    
+    // Update approval status
+    batch.update(approvalRef, {
+      status: 'approved',
+      approvedBy: currentUser.uid,
+      approvedAt: firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Add experience for the assignment using the original completion timestamp
+    const { EXP_CONSTANTS } = require('../constants/UserTypes');
+    let expPoints = EXP_CONSTANTS.BASE_EXP.DEFAULT;
+    
+    // Try to get assignment details to determine proper XP
+    try {
+      const result = await findAssignmentByInternalId(classId, approvalData.assignmentId);
+      if (result.success) {
+        const assignmentType = result.assignment.type || 'DEFAULT';
+        expPoints = EXP_CONSTANTS.BASE_EXP[assignmentType] || EXP_CONSTANTS.BASE_EXP.DEFAULT;
+      }
+    } catch (error) {
+      console.error(`Error fetching assignment details for XP calculation:`, error);
+    }
+    
+    // Commit the batch
+    await batch.commit();
+    
+    // Add experience points, passing the original completion timestamp
+    await addExperiencePoints(
+      classId, 
+      approvalData.assignmentId, 
+      expPoints, 
+      approvalData.userId, 
+      new Date(approvalData.completionTimestamp)
+    );
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error approving completion:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Reject a completion request
+export const rejectCompletion = async (classId, approvalId, reason = '') => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Check if user is admin for this class
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+    if (!isAdmin) {
+      throw new Error('Only class admins can reject completions');
+    }
+    
+    // Get the approval document
+    const approvalRef = firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(COMPLETION_APPROVALS_COLLECTION)
+      .doc(approvalId);
+    
+    const approvalDoc = await approvalRef.get();
+    if (!approvalDoc.exists) {
+      throw new Error('Approval request not found');
+    }
+    
+    const approvalData = approvalDoc.data();
+    if (approvalData.status !== 'pending') {
+      throw new Error('This approval request has already been processed');
+    }
+    
+    // Update approval status
+    await approvalRef.update({
+      status: 'rejected',
+      rejectedBy: currentUser.uid,
+      rejectedAt: firestore.FieldValue.serverTimestamp(),
+      rejectionReason: reason || 'No reason provided'
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error rejecting completion:', error);
     return {
       success: false,
       error: error.message

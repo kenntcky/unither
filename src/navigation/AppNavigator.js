@@ -20,6 +20,7 @@ import ClassSelectionScreen from '../screens/ClassSelectionScreen';
 import CreateClassScreen from '../screens/CreateClassScreen';
 import JoinClassScreen from '../screens/JoinClassScreen';
 import ClassMembersScreen from '../screens/ClassMembersScreen';
+import ClassSettingsScreen from '../screens/ClassSettingsScreen';
 import LanguageSettingsScreen from '../screens/LanguageSettingsScreen';
 import PendingApprovalsScreen from '../screens/PendingApprovalsScreen';
 import Colors from '../constants/Colors';
@@ -267,6 +268,7 @@ const ProfileStack = () => (
   >
     <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: t('Profile') }} />
     <Stack.Screen name="ClassMembers" component={ClassMembersScreen} options={{ title: t('Class Members') }} />
+    <Stack.Screen name="ClassSettings" component={ClassSettingsScreen} options={{ title: t('Class Settings') }} />
     <Stack.Screen name="LanguageSettings" component={LanguageSettingsScreen} options={{ headerShown: false }} />
     <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} options={{ headerShown: false }} />
   </Stack.Navigator>

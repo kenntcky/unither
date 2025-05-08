@@ -6,7 +6,8 @@ import {
   createClass, 
   joinClass, 
   getUserClasses,
-  getClassDetails 
+  getClassDetails,
+  updateClassSettings
 } from '../utils/firestore';
 
 // Key for storing active class ID in AsyncStorage
@@ -216,6 +217,43 @@ export const ClassProvider = ({ children }) => {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  // Update class settings
+  const updateSettings = async (classId, settings) => {
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+    
+    try {
+      const result = await updateClassSettings(classId, settings);
+      
+      if (result.success) {
+        // Update the local class data
+        setClasses(prevClasses => 
+          prevClasses.map(c => 
+            c.id === classId ? { ...c, ...settings } : c
+          )
+        );
+        
+        // Update current class if it's the one being modified
+        if (currentClass && currentClass.id === classId) {
+          setCurrentClass(prev => ({ ...prev, ...settings }));
+        }
+        
+        // Force refresh of data
+        forceRefresh();
+        
+        return { success: true };
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update class settings');
+        return result;
+      }
+    } catch (error) {
+      console.error('Error updating class settings:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+      return { success: false, error: error.message };
+    }
+  };
+
   // Context value
   const value = {
     classes,
@@ -227,7 +265,8 @@ export const ClassProvider = ({ children }) => {
     createClass: handleCreateClass,
     joinClass: handleJoinClass,
     switchClass,
-    refreshClasses
+    refreshClasses,
+    updateSettings
   };
 
   return (

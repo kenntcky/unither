@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -8,7 +8,12 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
-  FlatList 
+  FlatList,
+  TextInput,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Image
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
@@ -16,10 +21,21 @@ import { getAssignments, updateAssignment as updateLocalAssignment } from '../ut
 import { ASSIGNMENT_STATUS, ASSIGNMENT_GROUP_TYPE } from '../constants/Types';
 import { useAuth } from '../context/AuthContext';
 import { useAssignment } from '../context/AssignmentContext';
-import { findAssignmentByInternalId, updateClassAssignment } from '../utils/firestore';
+import { findAssignmentByInternalId, updateClassAssignment, addCommentToAssignment, getAssignmentComments, updateComment, deleteComment, subscribeToAssignmentComments, isClassAdmin, getAssignmentCompletions, submitCompletionForApproval, getClassDetails } from '../utils/firestore';
 import { useClass } from '../context/ClassContext';
+import CommentItem from '../components/CommentItem';
+import AssignmentCompletionList from '../components/AssignmentCompletionList';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+
+// Tab names
+const TABS = {
+  DETAILS: 'Details',
+  COMPLETIONS: 'Completed By'
+};
 
 const AssignmentDetailsScreen = ({ route, navigation }) => {
+  const insets = useSafeAreaInsets();
   const [assignment, setAssignment] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
@@ -27,17 +43,87 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   const { assignmentId, documentId } = route.params;
   const { user } = useAuth();
   const { currentClass } = useClass();
-  const { assignments, updateAssignment, diagnoseAssignmentById } = useAssignment();
+  const { assignments, updateAssignment, diagnoseAssignmentById, toggleAssignmentStatus } = useAssignment();
+  
+  // Tab navigation state
+  const [activeTab, setActiveTab] = useState(TABS.DETAILS);
+  
+  // Comments state
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const commentsUnsubscribe = useRef(null);
+  const scrollViewRef = useRef(null);
+  
+  // Completion tracking state
+  const [completions, setCompletions] = useState([]);
+  const [isLoadingCompletions, setIsLoadingCompletions] = useState(false);
+  
+  // Class requires approval for completions
+  const [requiresApproval, setRequiresApproval] = useState(false);
+  const [photoSelectionVisible, setPhotoSelectionVisible] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [isSubmittingCompletion, setIsSubmittingCompletion] = useState(false);
+  const [hasPendingApproval, setHasPendingApproval] = useState(false);
 
   useEffect(() => {
     loadAssignmentDetails();
+    checkAdminStatus();
+    
+    return () => {
+      // Cleanup comments subscription when component unmounts
+      if (commentsUnsubscribe.current) {
+        commentsUnsubscribe.current();
+      }
+    };
   }, [assignmentId, documentId, assignments]);
 
   useEffect(() => {
     if (assignment) {
       navigation.setOptions({ title: assignment.title });
+      
+      // Load completions when assignment is loaded and we're in a class
+      if (currentClass) {
+        loadCompletions();
+        checkClassRequiresApproval();
+      }
     }
-  }, [assignment, navigation]);
+  }, [assignment, navigation, currentClass]);
+  
+  // Check if class requires approval for completions
+  const checkClassRequiresApproval = async () => {
+    if (!currentClass) return;
+    
+    try {
+      const classDetails = await getClassDetails(currentClass.id);
+      if (classDetails && classDetails.requireCompletionApproval) {
+        setRequiresApproval(true);
+        
+        // Check if user has a pending approval for this assignment
+        if (user) {
+          const firestore = require('@react-native-firebase/firestore').default;
+          const approvalQuery = await firestore()
+            .collection('classes')
+            .doc(currentClass.id)
+            .collection('completionApprovals')
+            .where('userId', '==', user.uid)
+            .where('assignmentId', '==', assignment.id)
+            .where('status', '==', 'pending')
+            .get();
+          
+          if (!approvalQuery.empty) {
+            setHasPendingApproval(true);
+          }
+        }
+      } else {
+        setRequiresApproval(false);
+      }
+    } catch (error) {
+      console.error('Error checking class approval requirements:', error);
+    }
+  };
 
   const loadAssignmentDetails = async () => {
     setIsLoading(true);
@@ -253,198 +339,695 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   };
 
   const renderGroupItem = ({ item, index }) => (
-    <TouchableOpacity
-      style={styles.groupItem}
-      onPress={() => handleJoinGroup(index)}
-    >
-      <View style={styles.groupItemHeader}>
-        <Text style={styles.groupItemTitle}>{item.name}</Text>
-        <Text style={styles.groupItemCount}>
+    <View style={styles.groupItem}>
+      <View style={styles.groupHeader}>
+        <Text style={styles.groupName}>{item.name}</Text>
+        <Text style={styles.memberCount}>
           {item.members.length} {item.members.length === 1 ? 'member' : 'members'}
         </Text>
       </View>
-      <View style={styles.groupMemberList}>
-        {item.members.map(member => (
-          <View key={member.userId} style={styles.groupMemberItem}>
-            <Icon name="person" size={16} color={Colors.textSecondary} />
-            <Text style={styles.groupMemberName}>{member.displayName}</Text>
-          </View>
-        ))}
-        {item.members.length === 0 && (
-          <Text style={styles.emptyMembersText}>No members yet</Text>
-        )}
-      </View>
-    </TouchableOpacity>
+      
+      {item.members.length > 0 ? (
+        <View style={styles.membersContainer}>
+          {item.members.map(member => (
+            <View key={member.userId} style={styles.memberItem}>
+              <Icon name="person" size={16} color={Colors.textSecondary} style={styles.memberIcon} />
+              <Text style={styles.memberName}>
+                {member.displayName}
+                {member.userId === user?.uid && ' (You)'}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.emptyGroupText}>No members yet</Text>
+      )}
+    </View>
   );
+
+  // Check if the current user is an admin
+  const checkAdminStatus = async () => {
+    if (currentClass && user) {
+      const adminStatus = await isClassAdmin(currentClass.id, user.uid);
+      setIsAdmin(adminStatus);
+    }
+  };
+
+  // Load comments for the assignment
+  const loadComments = async () => {
+    if (!currentClass || !assignment) return;
+    
+    setIsLoadingComments(true);
+    try {
+      // Set up real-time listener for comments
+      commentsUnsubscribe.current = subscribeToAssignmentComments(
+        currentClass.id,
+        assignment.documentId,
+        (newComments) => {
+          setComments(newComments);
+          setIsLoadingComments(false);
+        }
+      );
+    } catch (error) {
+      console.error('Error loading comments:', error);
+      setIsLoadingComments(false);
+      Alert.alert('Error', 'Could not load comments. Please try again later.');
+    }
+  };
+
+  // Add comment
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !currentClass || !assignment) return;
+    
+    setIsSubmittingComment(true);
+    Keyboard.dismiss();
+    
+    try {
+      const result = await addCommentToAssignment(currentClass.id, assignment.documentId, {
+        text: newComment.trim()
+      });
+      
+      if (result.success) {
+        setNewComment('');
+        // Comments will be updated via the subscription
+        // Scroll to bottom to show new comment
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 300);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to add comment. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  // Edit comment
+  const handleEditComment = async (commentId, newText) => {
+    if (!currentClass || !assignment) return;
+    
+    try {
+      const result = await updateComment(currentClass.id, assignment.documentId, commentId, newText);
+      
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Failed to update comment. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error editing comment:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+    }
+  };
+
+  // Delete comment
+  const handleDeleteComment = async (commentId) => {
+    if (!currentClass || !assignment) return;
+    
+    Alert.alert(
+      'Delete Comment',
+      'Are you sure you want to delete this comment?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await deleteComment(currentClass.id, assignment.documentId, commentId);
+              
+              if (!result.success) {
+                Alert.alert('Error', result.error || 'Failed to delete comment. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error deleting comment:', error);
+              Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Trigger loading comments when assignment is loaded
+  useEffect(() => {
+    if (assignment) {
+      loadComments();
+    }
+  }, [assignment, currentClass]);
+
+  // Scroll to bottom when keyboard appears
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+    
+    return () => {
+      keyboardDidShowListener.remove();
+    };
+  }, []);
+
+  // Load assignment completions
+  const loadCompletions = async () => {
+    if (!currentClass || !assignment) return;
+    
+    setIsLoadingCompletions(true);
+    try {
+      const result = await getAssignmentCompletions(currentClass.id, assignment.id);
+      if (result.success) {
+        setCompletions(result.completions);
+      } else {
+        console.error('Error loading completions:', result.error);
+      }
+    } catch (error) {
+      console.error('Error loading completions:', error);
+    } finally {
+      setIsLoadingCompletions(false);
+    }
+  };
+
+  // Tab navigation component
+  const TabNavigator = () => (
+    <View style={styles.tabContainer}>
+      {Object.values(TABS).map(tab => (
+        <TouchableOpacity
+          key={tab}
+          style={[
+            styles.tabButton,
+            activeTab === tab && styles.tabButtonActive
+          ]}
+          onPress={() => setActiveTab(tab)}
+        >
+          <View style={styles.tabContent}>
+            <Text
+              style={[
+                styles.tabButtonText,
+                activeTab === tab && styles.tabButtonTextActive
+              ]}
+            >
+              {tab}
+            </Text>
+            
+            {tab === TABS.COMPLETIONS && completions.length > 0 && (
+              <View style={styles.badgeContainer}>
+                <Text style={styles.badgeText}>{completions.length}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  // Handle assignment status toggle with approval support
+  const handleToggleStatus = async () => {
+    if (!assignment) return;
+    
+    // If this class requires approval and assignment is not completed yet,
+    // show photo submission modal instead of directly marking as complete
+    if (requiresApproval && 
+        assignment.status !== ASSIGNMENT_STATUS.FINISHED && 
+        !hasPendingApproval) {
+      setPhotoSelectionVisible(true);
+      return;
+    }
+    
+    // Otherwise, just toggle status as usual
+    const newStatus = assignment.status === ASSIGNMENT_STATUS.FINISHED
+      ? ASSIGNMENT_STATUS.ONGOING
+      : ASSIGNMENT_STATUS.FINISHED;
+      
+    const result = await toggleAssignmentStatus(assignment.id, newStatus);
+    
+    if (result.success) {
+      // Update local assignment state
+      setAssignment(prev => ({
+        ...prev,
+        status: newStatus
+      }));
+    } else {
+      Alert.alert('Error', result.error || 'Failed to update assignment status');
+    }
+  };
+  
+  // Take a photo with camera
+  const takePhoto = async () => {
+    try {
+      const result = await launchCamera({
+        mediaType: 'photo',
+        quality: 0.8,
+        saveToPhotos: true,
+      });
+      
+      if (result.didCancel) {
+        return;
+      }
+      
+      if (result.errorCode) {
+        throw new Error(`Image capture error: ${result.errorMessage}`);
+      }
+      
+      if (result.assets && result.assets.length > 0) {
+        setSelectedPhoto(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Could not capture image. Please try again.');
+    }
+  };
+  
+  // Pick a photo from gallery
+  const pickPhoto = async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+      });
+      
+      if (result.didCancel) {
+        return;
+      }
+      
+      if (result.errorCode) {
+        throw new Error(`Image selection error: ${result.errorMessage}`);
+      }
+      
+      if (result.assets && result.assets.length > 0) {
+        setSelectedPhoto(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Error picking photo:', error);
+      Alert.alert('Error', 'Could not select image. Please try again.');
+    }
+  };
+  
+  // Submit completion with photo evidence
+  const submitCompletionWithPhoto = async () => {
+    if (!selectedPhoto || !currentClass || !assignment) return;
+    
+    setIsSubmittingCompletion(true);
+    try {
+      const result = await submitCompletionForApproval(
+        currentClass.id, 
+        assignment.id, 
+        selectedPhoto.uri
+      );
+      
+      if (result.success) {
+        Alert.alert(
+          'Success', 
+          'Your completion request has been submitted for approval.',
+          [{ text: 'OK', onPress: () => setPhotoSelectionVisible(false) }]
+        );
+        setHasPendingApproval(true);
+        setSelectedPhoto(null);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to submit completion');
+      }
+    } catch (error) {
+      console.error('Error submitting completion:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSubmittingCompletion(false);
+    }
+  };
+  
+  // Cancel photo submission
+  const cancelPhotoSubmission = () => {
+    setPhotoSelectionVisible(false);
+    setSelectedPhoto(null);
+  };
+
+  // Add completionStatusButton to render function at the appropriate place:
+  const renderCompletionStatusButton = () => {
+    // If this is a pending assignment, we can't mark it as completed
+    if (assignment.pending && !assignment.approved) {
+      return (
+        <TouchableOpacity 
+          style={[styles.statusButton, styles.pendingStatusButton]}
+          disabled={true}
+        >
+          <Icon name="hourglass-empty" size={20} color="#fff" />
+          <Text style={styles.statusButtonText}>Pending Approval</Text>
+        </TouchableOpacity>
+      );
+    }
+    
+    // If completion is pending admin approval
+    if (hasPendingApproval) {
+      return (
+        <TouchableOpacity 
+          style={[styles.statusButton, styles.pendingApprovalButton]}
+          disabled={true}
+        >
+          <Icon name="hourglass-empty" size={20} color="#fff" />
+          <Text style={styles.statusButtonText}>Waiting for approval</Text>
+        </TouchableOpacity>
+      );
+    }
+    
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.statusButton, 
+          assignment.status === ASSIGNMENT_STATUS.FINISHED ? 
+            styles.completedStatusButton : styles.ongoingStatusButton
+        ]}
+        onPress={handleToggleStatus}
+      >
+        <Icon 
+          name={assignment.status === ASSIGNMENT_STATUS.FINISHED ? "undo" : "check"} 
+          size={20} 
+          color="#fff" 
+        />
+        <Text style={styles.statusButtonText}>
+          {assignment.status === ASSIGNMENT_STATUS.FINISHED ? 
+            "Mark as Incomplete" : "Mark as Complete"}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Loading assignment details...</Text>
       </View>
     );
   }
 
   if (!assignment) {
     return (
-      <View style={styles.centered}>
-        <Icon name="error-outline" size={64} color={Colors.error} />
-        <Text style={styles.errorText}>Assignment not found.</Text>
+      <View style={styles.errorContainer}>
+        <Icon name="error-outline" size={48} color={Colors.error} />
+        <Text style={styles.errorText}>Assignment not found</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backButton}>Go back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Details</Text>
-        <View style={styles.detailRow}>
-          <Icon name="subject" size={20} color={Colors.textSecondary} style={styles.icon} />
-          <Text style={styles.detailLabel}>Subject:</Text>
-          <Text style={styles.detailValue}>{assignment.subjectName}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Icon name="assignment" size={20} color={Colors.textSecondary} style={styles.icon} />
-          <Text style={styles.detailLabel}>Type:</Text>
-          <Text style={styles.detailValue}>{assignment.type}</Text>
-        </View>
-         <View style={styles.detailRow}>
-          <Icon name={assignment.groupType === ASSIGNMENT_GROUP_TYPE.GROUP ? "group" : "person"} size={20} color={Colors.textSecondary} style={styles.icon} />
-          <Text style={styles.detailLabel}>Work Type:</Text>
-          <Text style={styles.detailValue}>{assignment.groupType}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Icon name="event" size={20} color={Colors.textSecondary} style={styles.icon} />
-          <Text style={styles.detailLabel}>Deadline:</Text>
-          <Text style={styles.detailValue}>{formatDate(assignment.deadline)}</Text>
-        </View>
-         <View style={styles.detailRow}>
-          <Icon name={assignment.status === ASSIGNMENT_STATUS.FINISHED ? "check-circle" : "hourglass-empty"} size={20} color={assignment.status === ASSIGNMENT_STATUS.FINISHED ? Colors.success : Colors.warning} style={styles.icon} />
-          <Text style={styles.detailLabel}>Status:</Text>
-          <Text style={[styles.detailValue, { color: assignment.status === ASSIGNMENT_STATUS.FINISHED ? Colors.success : Colors.warning }]}>
-            {assignment.status}
-          </Text>
-        </View>
-         <View style={styles.detailRow}>
-          <Icon name="access-time" size={20} color={Colors.textSecondary} style={styles.icon} />
-          <Text style={styles.detailLabel}>Created:</Text>
-          <Text style={styles.detailValue}>{formatDate(assignment.createdAt)}</Text>
-        </View>
-        {assignment.updatedAt && (
-          <View style={styles.detailRow}>
-            <Icon name="update" size={20} color={Colors.textSecondary} style={styles.icon} />
-            <Text style={styles.detailLabel}>Last Updated:</Text>
-            <Text style={styles.detailValue}>{formatDate(assignment.updatedAt)}</Text>
-          </View>
+  // Render the comment form
+  const renderCommentForm = () => (
+    <View style={[styles.addCommentContainer, { marginBottom: insets.bottom > 0 ? insets.bottom : 0 }]}>
+      <TextInput
+        style={styles.commentInput}
+        placeholder="Add a comment..."
+        placeholderTextColor={Colors.textSecondary}
+        value={newComment}
+        onChangeText={setNewComment}
+        multiline
+        maxLength={500}
+      />
+      <TouchableOpacity
+        style={[styles.sendButton, newComment.trim() === '' || isSubmittingComment ? styles.disabledSendButton : null]}
+        onPress={handleAddComment}
+        disabled={newComment.trim() === '' || isSubmittingComment}
+      >
+        {isSubmittingComment ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Icon name="send" size={20} style={styles.sendIcon} />
         )}
-      </View>
+      </TouchableOpacity>
+    </View>
+  );
 
-      {assignment.description && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.descriptionText}>{assignment.description}</Text>
-        </View>
+  return (
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={80} // Adjust based on your bottom tab bar height
+    >
+      {/* Fixed Tab Navigator at the top */}
+      {!isLoading && assignment && (
+        <TabNavigator />
       )}
-
-      {/* Display groups for group assignments */}
-      {assignment.groupType === ASSIGNMENT_GROUP_TYPE.GROUP && assignment.groups && (
-        <View style={styles.section}>
-          <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>Groups</Text>
-            
-            {userGroupInfo ? (
-              <TouchableOpacity 
-                style={styles.leaveGroupButton} 
-                onPress={handleLeaveGroup}
-                disabled={isJoining}
-              >
-                <Text style={styles.leaveGroupButtonText}>Leave Group</Text>
-              </TouchableOpacity>
-            ) : canJoinGroup ? (
-              <TouchableOpacity 
-                style={styles.joinGroupButton} 
-                onPress={() => setShowJoinGroupModal(true)}
-                disabled={isJoining}
-              >
-                <Text style={styles.joinGroupButtonText}>Join a Group</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-          
-          {userGroupInfo && (
-            <View style={styles.userGroupInfo}>
-              <Text style={styles.userGroupLabel}>Your Group:</Text>
-              <Text style={styles.userGroupName}>{userGroupInfo.group.name}</Text>
-            </View>
-          )}
-          
-          <View style={styles.groupsList}>
-            {assignment.groups.map((group, index) => (
-              <View key={group.id} style={styles.groupCard}>
-                <View style={styles.groupHeader}>
-                  <Text style={styles.groupName}>{group.name}</Text>
-                  <Text style={styles.memberCount}>
-                    {group.members.length} {group.members.length === 1 ? 'member' : 'members'}
-                  </Text>
+      
+      <ScrollView 
+        style={styles.container}
+        ref={scrollViewRef}
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 16) + 100,
+          paddingTop: 8, // Add some padding at the top for content
+        }}
+      >
+        {/* Details Tab Content */}
+        {activeTab === TABS.DETAILS && (
+          <>
+            {/* Assignment Details */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Details</Text>
+              <View style={styles.detailRow}>
+                <Icon name={assignment.status === ASSIGNMENT_STATUS.FINISHED ? "check-circle" : "hourglass-empty"} size={20} color={assignment.status === ASSIGNMENT_STATUS.FINISHED ? Colors.success : Colors.warning} style={styles.icon} />
+                <Text style={styles.detailLabel}>Status:</Text>
+                <Text style={[styles.detailValue, { color: assignment.status === ASSIGNMENT_STATUS.FINISHED ? Colors.success : Colors.warning }]}>
+                  {assignment.status}
+                </Text>
+              </View>
+              
+              {/* Add status toggle button */}
+              {renderCompletionStatusButton()}
+              
+              <View style={styles.detailRow}>
+                <Icon name="access-time" size={20} color={Colors.textSecondary} style={styles.icon} />
+                <Text style={styles.detailLabel}>Created:</Text>
+                <Text style={styles.detailValue}>{formatDate(assignment.createdAt)}</Text>
+              </View>
+              {assignment.updatedAt && (
+                <View style={styles.detailRow}>
+                  <Icon name="update" size={20} color={Colors.textSecondary} style={styles.icon} />
+                  <Text style={styles.detailLabel}>Last Updated:</Text>
+                  <Text style={styles.detailValue}>{formatDate(assignment.updatedAt)}</Text>
                 </View>
+              )}
+            </View>
+
+            {assignment.description && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Description</Text>
+                <Text style={styles.descriptionText}>{assignment.description}</Text>
+              </View>
+            )}
+
+            {/* Display groups for group assignments */}
+            {assignment.groupType === ASSIGNMENT_GROUP_TYPE.GROUP && assignment.groups && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Groups</Text>
                 
-                {group.members.length > 0 ? (
-                  <View style={styles.membersContainer}>
-                    {group.members.map(member => (
-                      <View key={member.userId} style={styles.memberItem}>
-                        <Icon name="person" size={16} color={Colors.textSecondary} style={styles.memberIcon} />
-                        <Text style={styles.memberName}>
-                          {member.displayName}
-                          {member.userId === user?.uid && ' (You)'}
-                        </Text>
-                      </View>
-                    ))}
+                {userGroupInfo ? (
+                  <View style={styles.userGroupInfo}>
+                    <Text style={styles.groupInfoText}>
+                      You are in <Text style={styles.highlightText}>{userGroupInfo.group.name}</Text>
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.leaveGroupButton}
+                      onPress={handleLeaveGroup}
+                    >
+                      <Text style={styles.leaveGroupText}>Leave Group</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : canJoinGroup ? (
+                  <TouchableOpacity 
+                    style={styles.joinGroupButton}
+                    onPress={() => setShowJoinGroupModal(true)}
+                  >
+                    <Icon name="group-add" size={18} color="#fff" />
+                    <Text style={styles.joinGroupText}>Join a Group</Text>
+                  </TouchableOpacity>
+                ) : null}
+                
+                <FlatList
+                  data={assignment.groups}
+                  renderItem={renderGroupItem}
+                  keyExtractor={(item, index) => index.toString()}
+                  scrollEnabled={false}
+                  contentContainerStyle={{ marginTop: 10 }}
+                />
+              </View>
+            )}
+            
+            {/* Comments Section */}
+            {assignment && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Comments</Text>
+                
+                {isLoadingComments ? (
+                  <View style={styles.centeredContainer}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <Text style={styles.loadingText}>Loading comments...</Text>
+                  </View>
+                ) : comments.length === 0 ? (
+                  <View style={styles.centeredContainer}>
+                    <Icon name="chat-bubble-outline" size={48} color={Colors.textSecondary} />
+                    <Text style={styles.noCommentsText}>No comments yet</Text>
                   </View>
                 ) : (
-                  <Text style={styles.emptyGroupText}>No members yet</Text>
+                  <View style={styles.commentsContainer}>
+                    {comments.map(comment => (
+                      <CommentItem
+                        key={comment.id}
+                        comment={comment}
+                        onEdit={handleEditComment}
+                        onDelete={handleDeleteComment}
+                        isAdmin={isAdmin}
+                      />
+                    ))}
+                  </View>
                 )}
+                
+                {renderCommentForm()}
               </View>
-            ))}
-          </View>
-        </View>
-      )}
+            )}
+          </>
+        )}
 
-      {/* Modal for joining groups */}
+        {/* Completions Tab Content */}
+        {activeTab === TABS.COMPLETIONS && currentClass && (
+          <View style={styles.section}>
+            <AssignmentCompletionList
+              completions={completions}
+              loading={isLoadingCompletions}
+              assignmentType={assignment.type}
+              emptyMessage={`No one has completed "${assignment.title}" yet`}
+            />
+          </View>
+        )}
+      </ScrollView>
+      
+      {/* Group selection modal */}
       <Modal
         visible={showJoinGroupModal}
-        transparent
-        animationType="slide"
+        transparent={true}
+        animationType="fade"
         onRequestClose={() => setShowJoinGroupModal(false)}
       >
-        <View style={styles.modalContainer}>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select a Group to Join</Text>
-              <TouchableOpacity onPress={() => setShowJoinGroupModal(false)}>
-                <Icon name="close" size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.modalTitle}>Select a Group</Text>
             
-            {isJoining ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.loadingText}>Joining group...</Text>
-              </View>
-            ) : (
-              <FlatList
-                data={assignment?.groups || []}
-                keyExtractor={(item) => item.id}
-                renderItem={renderGroupItem}
-                style={styles.modalList}
-              />
+            {isJoining && (
+              <ActivityIndicator size="small" color={Colors.primary} style={styles.joiningIndicator} />
             )}
+            
+            <FlatList
+              data={assignment.groups}
+              renderItem={({ item, index }) => (
+                <TouchableOpacity
+                  style={styles.groupSelectItem}
+                  onPress={() => handleJoinGroup(index)}
+                  disabled={isJoining}
+                >
+                  <Text style={styles.groupSelectName}>{item.name}</Text>
+                  <Text style={styles.groupSelectMembers}>
+                    {item.members.length} member{item.members.length !== 1 ? 's' : ''}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              keyExtractor={(item, index) => index.toString()}
+              contentContainerStyle={styles.groupSelectList}
+            />
+            
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowJoinGroupModal(false)}
+              disabled={isJoining}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
-
-      {/* TODO: Add Attachments section if needed */}
-
-    </ScrollView>
+      
+      {/* Photo Selection Modal */}
+      <Modal
+        visible={photoSelectionVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={cancelPhotoSubmission}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.photoModalContent}>
+            <Text style={styles.photoModalTitle}>Submit Completion Evidence</Text>
+            
+            <Text style={styles.photoInstructions}>
+              Take a photo of your completed assignment to submit for approval.
+            </Text>
+            
+            {selectedPhoto ? (
+              <View style={styles.selectedPhotoContainer}>
+                <Image 
+                  source={{ uri: selectedPhoto.uri }} 
+                  style={styles.selectedPhoto} 
+                  resizeMode="contain"
+                />
+                
+                <TouchableOpacity
+                  style={styles.retakeButton}
+                  onPress={() => setSelectedPhoto(null)}
+                >
+                  <Icon name="replay" size={16} color="#fff" />
+                  <Text style={styles.photoButtonText}>Retake</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.photoButtons}>
+                <TouchableOpacity
+                  style={[styles.photoButton, styles.cameraButton]}
+                  onPress={takePhoto}
+                >
+                  <Icon name="camera-alt" size={24} color="#fff" />
+                  <Text style={styles.photoButtonText}>Take Photo</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.photoButton, styles.galleryButton]}
+                  onPress={pickPhoto}
+                >
+                  <Icon name="photo-library" size={24} color="#fff" />
+                  <Text style={styles.photoButtonText}>From Gallery</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            
+            <View style={styles.photoActionButtons}>
+              <TouchableOpacity
+                style={styles.cancelPhotoButton}
+                onPress={cancelPhotoSubmission}
+                disabled={isSubmittingCompletion}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              {selectedPhoto && (
+                <TouchableOpacity
+                  style={[
+                    styles.submitPhotoButton,
+                    isSubmittingCompletion && styles.disabledButton
+                  ]}
+                  onPress={submitCompletionWithPhoto}
+                  disabled={isSubmittingCompletion}
+                >
+                  {isSubmittingCompletion ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Icon name="check" size={16} color="#fff" />
+                      <Text style={styles.submitButtonText}>Submit</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -453,47 +1036,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  centered: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+  errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
     backgroundColor: Colors.background,
   },
+  loadingText: {
+    marginTop: 8,
+    color: Colors.textSecondary,
+    fontSize: 14,
+  },
   errorText: {
     marginTop: 10,
-    fontSize: 18,
-    color: Colors.error,
-    textAlign: 'center',
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+  backButton: {
+    color: Colors.accent,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 20,
   },
   section: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.cardBackground,
     borderRadius: 8,
-    margin: 16,
     padding: 16,
-    elevation: 2, // for Android shadow
-    shadowColor: '#000', // for iOS shadow
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
+    marginBottom: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.primary,
     marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.primaryLight,
-    paddingBottom: 6,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.primaryLight,
-    paddingBottom: 6,
+    color: Colors.text,
   },
   detailRow: {
     flexDirection: 'row',
@@ -501,71 +1090,180 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   icon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   detailLabel: {
+    width: 100,
     fontSize: 14,
     color: Colors.textSecondary,
-    width: 100, // Fixed width for alignment
   },
   detailValue: {
+    flex: 1,
     fontSize: 14,
     color: Colors.text,
-    flex: 1, // Allow text to wrap
   },
   descriptionText: {
     fontSize: 14,
-    color: Colors.text,
     lineHeight: 20,
+    color: Colors.text,
+  },
+  // Group styles
+  userGroupInfo: {
+    marginTop: 8,
+    marginBottom: 12,
+    backgroundColor: Colors.lightBackground,
+    padding: 12,
+    borderRadius: 8,
+  },
+  groupInfoText: {
+    fontSize: 14,
+    color: Colors.text,
+    marginBottom: 10,
+  },
+  highlightText: {
+    fontWeight: 'bold',
   },
   joinGroupButton: {
     backgroundColor: Colors.accent,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 4,
+    marginVertical: 8,
   },
-  joinGroupButtonText: {
-    color: Colors.text,
+  joinGroupText: {
+    color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
+    marginLeft: 4,
   },
   leaveGroupButton: {
     backgroundColor: Colors.error,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 4,
+    alignItems: 'center',
   },
-  leaveGroupButtonText: {
-    color: Colors.text,
+  leaveGroupText: {
+    color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
   },
-  userGroupInfo: {
+  // Group modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 8,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  joiningIndicator: {
+    marginBottom: 16,
+  },
+  groupSelectList: {
+    marginBottom: 16,
+  },
+  groupSelectItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  groupSelectName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  groupSelectMembers: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  cancelButton: {
+    backgroundColor: Colors.error,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  // Comment styles
+  centeredContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  commentsContainer: {
+    marginTop: 10,
+  },
+  noCommentsText: {
+    textAlign: 'center',
+    marginVertical: 15,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  addCommentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primaryLight,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
     padding: 12,
-    marginBottom: 16,
-    borderRadius: 8,
-  },
-  userGroupLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginRight: 8,
-  },
-  userGroupName: {
-    fontSize: 14,
-    color: Colors.text,
-  },
-  groupsList: {
     marginTop: 8,
+    backgroundColor: Colors.cardBackground,
   },
-  groupCard: {
+  commentInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    backgroundColor: Colors.background,
+    color: Colors.text,
+    fontSize: 14,
+  },
+  sendButton: {
+    backgroundColor: Colors.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  disabledSendButton: {
+    backgroundColor: Colors.border,
+  },
+  sendIcon: {
+    color: '#fff',
+  },
+  // Group item styles
+  groupItem: {
     backgroundColor: Colors.cardBackground,
     borderRadius: 8,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 8,
     borderLeftWidth: 3,
     borderLeftColor: Colors.primary,
   },
@@ -574,9 +1272,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   groupName: {
-    fontSize: 16,
+    fontSize: 16, 
     fontWeight: 'bold',
     color: Colors.text,
   },
@@ -585,14 +1286,12 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   membersContainer: {
-    marginTop: 4,
+    paddingLeft: 4,
   },
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 4,
   },
   memberIcon: {
     marginRight: 8,
@@ -608,80 +1307,171 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 8,
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 20,
-  },
-  modalContent: {
+  // Tab styles
+  tabContainer: {
+    flexDirection: 'row',
     backgroundColor: Colors.background,
-    borderRadius: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    elevation: 2, // Shadow for Android
+    shadowColor: '#000', // Shadow for iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabButtonActive: {
+    borderBottomWidth: 3,
+    borderBottomColor: Colors.primary,
+  },
+  tabButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  tabButtonTextActive: {
+    color: Colors.primary,
+    fontWeight: 'bold',
+  },
+  tabContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeContainer: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  statusButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+    marginVertical: 12,
+  },
+  ongoingStatusButton: {
+    backgroundColor: Colors.accent,
+  },
+  completedStatusButton: {
+    backgroundColor: Colors.success,
+  },
+  pendingStatusButton: {
+    backgroundColor: Colors.textSecondary,
+  },
+  pendingApprovalButton: {
+    backgroundColor: Colors.warning,
+  },
+  statusButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  photoModalContent: {
+    width: '90%',
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 8,
+    padding: 20,
     maxHeight: '80%',
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.surface,
-  },
-  modalTitle: {
+  photoModalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: Colors.text,
+    marginBottom: 16,
   },
-  modalList: {
-    padding: 8,
+  photoInstructions: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 20,
   },
-  groupItem: {
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 6,
-  },
-  groupItemHeader: {
+  photoButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 20,
   },
-  groupItemTitle: {
-    fontSize: 16,
+  photoButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 8,
+    marginHorizontal: 5,
+  },
+  cameraButton: {
+    backgroundColor: Colors.primary,
+  },
+  galleryButton: {
+    backgroundColor: Colors.primaryLight,
+  },
+  photoButtonText: {
+    color: '#fff',
     fontWeight: 'bold',
-    color: Colors.text,
+    marginTop: 8,
   },
-  groupItemCount: {
-    fontSize: 12,
-    color: Colors.textSecondary,
+  selectedPhotoContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  groupMemberList: {
-    paddingLeft: 8,
+  selectedPhoto: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 10,
   },
-  groupMemberItem: {
+  retakeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 4,
+    backgroundColor: Colors.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 4,
   },
-  groupMemberName: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: Colors.text,
+  photoActionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  emptyMembersText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
-    paddingVertical: 4,
-  },
-  loadingContainer: {
-    padding: 24,
+  cancelPhotoButton: {
+    padding: 12,
+    borderRadius: 4,
+    backgroundColor: Colors.surface,
+    marginRight: 8,
+    flex: 1,
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: Colors.text,
+  submitPhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 4,
+    backgroundColor: Colors.success,
+    flex: 2,
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 4,
   },
 });
 
