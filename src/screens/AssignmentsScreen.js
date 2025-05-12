@@ -333,6 +333,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 8,
+    marginTop: 36,
     backgroundColor: Colors.cardBackground,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border
