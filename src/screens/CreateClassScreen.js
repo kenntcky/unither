@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,25 +9,46 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Animated,
+  Dimensions
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import Colors from '../constants/Colors';
 import { useClass } from '../context/ClassContext';
 import { t } from '../translations';
 
+const { width } = Dimensions.get('window');
 const MAX_NAME_LENGTH = 50;
 const MAX_DESCRIPTION_LENGTH = 200;
 
 const CreateClassScreen = () => {
   const navigation = useNavigation();
   const { createClass, loading } = useClass();
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [maxUsers, setMaxUsers] = useState('30');
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const validateForm = () => {
     const newErrors = {};
@@ -80,49 +101,86 @@ const CreateClassScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <MaterialIcons name="arrow-back" size={24} color={Colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>{t('Create a New Class')}</Text>
-        </View>
+      <LinearGradient
+        colors={['#6a1b9a', '#4a148c']}
+        style={styles.header}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialIcons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.title}>{t('Create a New Class')}</Text>
+      </LinearGradient>
 
-        <View style={styles.formContainer}>
-          <Text style={styles.sectionTitle}>{t('Class Details')}</Text>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View 
+          style={[
+            styles.formContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <MaterialIcons name="school" size={24} color="#9c27b0" />
+            <Text style={styles.sectionTitle}>{t('Class Details')}</Text>
+          </View>
           
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('Class Name')}<Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={[styles.input, errors.name && styles.inputError]}
-              placeholder={t('Enter class name')}
-              placeholderTextColor={Colors.textSecondary}
-              value={name}
-              onChangeText={setName}
-              maxLength={MAX_NAME_LENGTH}
-            />
+            <Text style={styles.label}>
+              {t('Class Name')}
+              <Text style={styles.required}>*</Text>
+            </Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={[styles.input, errors.name && styles.inputError]}
+                placeholder={t('Enter class name')}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                value={name}
+                onChangeText={setName}
+                maxLength={MAX_NAME_LENGTH}
+              />
+              <MaterialIcons 
+                name="edit" 
+                size={20} 
+                color="rgba(255,255,255,0.5)" 
+                style={styles.inputIcon}
+              />
+            </View>
             {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
             <Text style={styles.charCount}>{name.length}/{MAX_NAME_LENGTH}</Text>
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>{t('Description')}</Text>
-            <TextInput
-              style={[styles.input, styles.textArea, errors.description && styles.inputError]}
-              placeholder={t('Enter class description')}
-              placeholderTextColor={Colors.textSecondary}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={4}
-              maxLength={MAX_DESCRIPTION_LENGTH}
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={[styles.input, styles.textArea, errors.description && styles.inputError]}
+                placeholder={t('Enter class description')}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={4}
+                maxLength={MAX_DESCRIPTION_LENGTH}
+              />
+              <MaterialIcons 
+                name="description" 
+                size={20} 
+                color="rgba(255,255,255,0.5)" 
+                style={[styles.inputIcon, styles.textAreaIcon]}
+              />
+            </View>
             {errors.description && (
               <Text style={styles.errorText}>{errors.description}</Text>
             )}
@@ -131,25 +189,33 @@ const CreateClassScreen = () => {
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>{t('Maximum Number of Students')}</Text>
-            <TextInput
-              style={[styles.input, errors.maxUsers && styles.inputError]}
-              placeholder={t('Enter maximum number of students')}
-              placeholderTextColor={Colors.textSecondary}
-              value={maxUsers}
-              onChangeText={setMaxUsers}
-              keyboardType="numeric"
-              maxLength={3}
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={[styles.input, errors.maxUsers && styles.inputError]}
+                placeholder={t('Enter maximum number of students')}
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                value={maxUsers}
+                onChangeText={setMaxUsers}
+                keyboardType="numeric"
+                maxLength={3}
+              />
+              <MaterialIcons 
+                name="people" 
+                size={20} 
+                color="rgba(255,255,255,0.5)" 
+                style={styles.inputIcon}
+              />
+            </View>
             {errors.maxUsers && <Text style={styles.errorText}>{errors.maxUsers}</Text>}
           </View>
 
           <View style={styles.infoBox}>
-            <MaterialIcons name="info" size={20} color={Colors.accent} style={styles.infoIcon} />
+            <MaterialIcons name="info" size={24} color="#ff3b30" style={styles.infoIcon} />
             <Text style={styles.infoText}>
               {t('Once your class is created, you\'ll receive a unique class code that you can share with your students.')}
             </Text>
           </View>
-        </View>
+        </Animated.View>
       </ScrollView>
 
       <View style={styles.bottomBar}>
@@ -158,14 +224,21 @@ const CreateClassScreen = () => {
           onPress={handleCreateClass}
           disabled={!name.trim() || loading}
         >
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <MaterialIcons name="add" size={24} color="#fff" />
-              <Text style={styles.createButtonText}>{t('Create Class')}</Text>
-            </>
-          )}
+          <LinearGradient
+            colors={['#9c27b0', '#6a1b9a']}
+            style={styles.gradientButton}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <MaterialIcons name="add" size={24} color="#fff" />
+                <Text style={styles.createButtonText}>{t('Create Class')}</Text>
+              </>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -175,118 +248,167 @@ const CreateClassScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
-  },
-  contentContainer: {
-    paddingBottom: 80,
+    backgroundColor: '#1a1a1a',
   },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 16,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: Colors.primary,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   backButton: {
     marginRight: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: '#fff',
+    fontFamily: 'Roboto-Bold',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingBottom: 100,
   },
   formContainer: {
+    padding: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    backgroundColor: 'rgba(156, 39, 176, 0.1)',
     padding: 16,
+    borderRadius: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 16,
+    color: '#fff',
+    marginLeft: 12,
+    fontFamily: 'Roboto-Bold',
   },
   inputContainer: {
-    marginBottom: 20,
-    position: 'relative',
+    marginBottom: 24,
   },
   label: {
     fontSize: 16,
     marginBottom: 8,
-    color: Colors.text,
+    color: '#fff',
+    fontFamily: 'Roboto-Medium',
   },
   required: {
-    color: 'red',
+    color: '#9c27b0',
+  },
+  inputWrapper: {
+    position: 'relative',
   },
   input: {
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingRight: 40,
     fontSize: 16,
-    color: Colors.text,
+    color: '#fff',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(156, 39, 176, 0.3)',
+    fontFamily: 'Roboto-Regular',
+  },
+  inputIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
   },
   textArea: {
-    minHeight: 100,
+    minHeight: 120,
     textAlignVertical: 'top',
   },
+  textAreaIcon: {
+    top: 16,
+  },
   inputError: {
-    borderColor: 'red',
+    borderColor: '#9c27b0',
   },
   errorText: {
-    color: 'red',
+    color: '#9c27b0',
     fontSize: 12,
     marginTop: 4,
+    fontFamily: 'Roboto-Regular',
   },
   charCount: {
     position: 'absolute',
     right: 8,
     bottom: -18,
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: 'rgba(255,255,255,0.5)',
+    fontFamily: 'Roboto-Regular',
   },
   infoBox: {
     flexDirection: 'row',
-    backgroundColor: Colors.lightBackground,
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-    alignItems: 'flex-start',
+    backgroundColor: 'rgba(156, 39, 176, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(156, 39, 176, 0.2)',
   },
   infoIcon: {
-    marginRight: 8,
+    marginRight: 12,
     marginTop: 2,
+    color: '#9c27b0',
   },
   infoText: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: 'rgba(255,255,255,0.8)',
     flex: 1,
+    fontFamily: 'Roboto-Regular',
+    lineHeight: 20,
   },
   bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
-    backgroundColor: Colors.background,
+    padding: 20,
+    backgroundColor: 'rgba(26, 26, 26, 0.95)',
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: 'rgba(156, 39, 176, 0.2)',
   },
   createButton: {
-    backgroundColor: Colors.accent,
-    borderRadius: 8,
-    paddingVertical: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#9c27b0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  gradientButton: {
+    paddingVertical: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: Colors.textSecondary,
+    opacity: 0.5,
   },
   createButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+    fontFamily: 'Roboto-Bold',
   },
 });
 
