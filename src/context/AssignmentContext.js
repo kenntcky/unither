@@ -501,6 +501,21 @@ export const AssignmentProvider = ({ children }) => {
         throw new Error('No class selected. Cannot update assignment status.');
       }
       
+      // Check if the current class requires approval for completions
+      // This should be a property on the class object (requiresCompletionApproval)
+      const requiresApproval = currentClass.requireCompletionApproval;
+      
+      // If marking as complete and requires approval, use the approval flow instead of direct update
+      if (newStatus === 'Selesai' && requiresApproval) {
+        // Return with flag indicating approval is needed
+        // The UI layer (AssignmentDetailsScreen) should handle showing the photo upload modal
+        return { 
+          success: false, 
+          requiresApproval: true,
+          error: 'This class requires approval for assignment completions' 
+        };
+      }
+      
       // Update the assignment with new status
       const updatedAssignment = {
         ...assignment,
@@ -526,7 +541,7 @@ export const AssignmentProvider = ({ children }) => {
         ) || []
       }));
       
-      // Handle experience points for the assignment only if approved
+      // Handle experience points for the assignment - only if approved and user has proper permissions
       if (!assignment.pending && assignment.approved) {
         try {
           // Get the assignment type for calculating exp points
@@ -534,19 +549,36 @@ export const AssignmentProvider = ({ children }) => {
           
           // Import required constants and functions directly here to avoid circular dependencies
           const { EXP_CONSTANTS } = require('../constants/UserTypes');
-          const { addExperiencePoints, removeExperiencePoints } = require('../utils/firestore');
+          const { addExperiencePoints, removeExperiencePoints, submitCompletionForApproval } = require('../utils/firestore');
           
           // Determine base exp points based on assignment type
           const baseExp = EXP_CONSTANTS.BASE_EXP[assignmentType] || EXP_CONSTANTS.BASE_EXP.DEFAULT;
           
           if (newStatus === 'Selesai') {
-            // Add experience when completing assignment
-            await addExperiencePoints(targetClassId, assignmentId, baseExp);
-            console.log(`Added ${baseExp} EXP for completing assignment ${assignmentId}`);
+            if (!requiresApproval) {
+              // Only add experience directly if no approval required
+              const expResult = await addExperiencePoints(targetClassId, assignmentId, baseExp);
+              if (!expResult.success) {
+                console.error(`Failed to add experience: ${expResult.error}`);
+              } else {
+                console.log(`Added ${baseExp} EXP for completing assignment ${assignmentId}`);
+              }
+            } else {
+              // For assignments requiring approval, the experience will be added
+              // when the admin approves the completion in the PendingApprovalsScreen
+              console.log(`Assignment ${assignmentId} completion requires admin approval before adding experience points`);
+              
+              // The actual photo upload and submission happens in AssignmentCompleteScreen
+              // when the user navigates there after this function returns with requiresApproval flag
+            }
           } else {
-            // Remove experience when uncompleting assignment
-            await removeExperiencePoints(targetClassId, assignmentId, baseExp);
-            console.log(`Removed ${baseExp} EXP for uncompleting assignment ${assignmentId}`);
+            // When marking incomplete, always remove experience
+            const expResult = await removeExperiencePoints(targetClassId, assignmentId, baseExp);
+            if (!expResult.success) {
+              console.error(`Failed to remove experience: ${expResult.error}`);
+            } else {
+              console.log(`Removed ${baseExp} EXP for uncompleting assignment ${assignmentId}`);
+            }
           }
         } catch (expError) {
           // Log but don't fail the assignment status change if exp update fails

@@ -17,7 +17,6 @@ const AssignmentsScreen = ({ navigation, route }) => {
   const { 
     assignments, 
     loading, 
-    toggleAssignmentStatus, 
     syncedWithCloud, 
     refreshAssignments,
     approveAssignment,
@@ -155,25 +154,6 @@ const AssignmentsScreen = ({ navigation, route }) => {
     });
   };
 
-  const handleToggleStatus = async (assignmentId) => {
-    // Find assignment using both ID types
-    const assignment = assignments.find(a => 
-      a.id === assignmentId || a.documentId === assignmentId
-    );
-    
-    if (assignment) {
-      console.log(`Toggling status for assignment: id=${assignment.id}, documentId=${assignment.documentId || 'N/A'}`);
-      
-      const newStatus = assignment.status === ASSIGNMENT_STATUS.FINISHED 
-        ? ASSIGNMENT_STATUS.UNFINISHED 
-        : ASSIGNMENT_STATUS.FINISHED;
-      
-      await toggleAssignmentStatus(assignment.id, newStatus);
-    } else {
-      console.error(`Assignment not found when toggling status: ${assignmentId}`);
-    }
-  };
-
   const handleApprove = async (assignmentId) => {
     try {
       const result = await approveAssignment(assignmentId);
@@ -237,7 +217,6 @@ const AssignmentsScreen = ({ navigation, route }) => {
               <AssignmentItem
                 assignment={item}
                 onPress={() => handleAssignmentPress(item)}
-                onToggleStatus={handleToggleStatus}
                 onEditPress={() => handleEditPress(item)}
                 onApprove={(id) => handleApprove(id)}
                 onReject={(id) => handleReject(id)}

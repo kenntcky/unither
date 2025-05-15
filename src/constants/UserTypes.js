@@ -27,6 +27,16 @@ export const EXP_CONSTANTS = {
     EARLY: 1.2,   // Completed well before deadline
     ON_TIME: 1.0, // Completed close to deadline
     LATE: 0.8     // Completed after deadline (if allowed)
+  },
+  
+  // Multiplier based on completion rank (1st, 2nd, 3rd, etc.)
+  COMPLETION_RANK_MULTIPLIER: {
+    1: 1.0,    // First to complete (100% of base XP)
+    2: 0.9,    // Second to complete (90% of base XP)
+    3: 0.85,   // Third to complete (85% of base XP)
+    4: 0.8,    // Fourth to complete (80% of base XP)
+    5: 0.75,   // Fifth to complete (75% of base XP)
+    DEFAULT: 0.7 // Everyone after fifth (70% of base XP)
   }
 };
 

@@ -1,0 +1,104 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow users to read and create classes if authenticated
+    match /classes/{classId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
+      
+      // Rules for the members subcollection
+      match /members/{memberId} {
+        allow read: if request.auth != null;
+        
+        // Allow users to join classes (create their own membership)
+        allow create: if request.auth != null && 
+                      (request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy || 
+                       request.auth.uid == request.resource.data.userId);
+        
+        // Allow users to manage their own membership or class creator to manage all memberships
+        allow update, delete: if request.auth != null && 
+                             (request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy ||
+                              request.auth.uid == resource.data.userId);
+      }
+      
+      // Rules for the assignments subcollection
+      match /assignments/{assignmentId} {
+        // Allow class members to read assignments
+        allow read: if request.auth != null;
+        
+        // Allow class members to create assignments
+        allow create: if request.auth != null;
+        
+        // Only creator can update/delete assignments
+        allow update, delete: if request.auth != null && 
+                             (request.auth.uid == resource.data.createdBy ||
+                              request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy);
+        
+        // Rules for the comments subcollection
+        match /comments/{commentId} {
+          // Allow all authenticated users to read comments
+          allow read: if request.auth != null;
+          
+          // Allow authenticated users to create comments
+          allow create: if request.auth != null;
+          
+          // Allow users to update/delete only their own comments
+          allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+          
+          // Allow class admin/creator to delete any comment
+          allow delete: if request.auth != null && 
+                       request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy;
+        }
+      }
+      
+      // Rules for completion approvals collection
+      match /completionApprovals/{approvalId} {
+        // Allow all authenticated users to read any approval (needed for leaderboard)
+        allow read: if request.auth != null;
+        
+        // Allow users to create their own approval requests
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+        
+        // Only class admin can update approvals (approve/reject)
+        allow update, delete: if request.auth != null && 
+                             request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy;
+      }
+      
+      // Rules for the subjects subcollection
+      match /subjects/{subjectId} {
+        // Allow class members to read subjects
+        allow read: if request.auth != null;
+        
+        // Allow class members to create subjects
+        allow create: if request.auth != null;
+        
+        // Only creator can update/delete subjects
+        allow update, delete: if request.auth != null && 
+                             (request.auth.uid == resource.data.createdBy ||
+                              request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy);
+      }
+      
+      // Rules for the experience subcollection
+      match /experience/{userId} {
+        // Allow all class members to read any experience record (for leaderboard)
+        allow read: if request.auth != null;
+        
+        // Allow users to modify only their own experience records
+        // The document ID is the user's ID for experience records
+        allow create, update: if request.auth != null && request.auth.uid == userId;
+        
+        // Allow class admin/creator to modify any experience record
+        allow create, update: if request.auth != null && 
+                              request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy;
+      }
+    }
+    
+    // Rules for users
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+} 

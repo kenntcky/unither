@@ -27,7 +27,7 @@ const getTypeIcon = (type) => {
   }
 };
 
-const AssignmentItem = ({ assignment, onPress, onToggleStatus, onEditPress, onApprove, onReject, isAdmin = false }) => {
+const AssignmentItem = ({ assignment, onPress, onEditPress, onApprove, onReject, isAdmin = false }) => {
   const isFinished = assignment.status === ASSIGNMENT_STATUS.FINISHED;
   const daysLeft = () => {
     const today = new Date();
@@ -82,22 +82,20 @@ const AssignmentItem = ({ assignment, onPress, onToggleStatus, onEditPress, onAp
               <Icon name="edit" size={24} color={Colors.accent} />
             </TouchableOpacity>
           )}
-          {!isPending && (
-            <TouchableOpacity 
-              style={styles.statusButton} 
-              onPress={() => onToggleStatus(assignment.id)}
-            >
-              <Icon
-                name={assignment.status === ASSIGNMENT_STATUS.FINISHED ? 'check-circle' : 'radio-button-unchecked'}
-                size={24}
-                color={assignment.status === ASSIGNMENT_STATUS.FINISHED ? Colors.success : Colors.textSecondary}
-              />
-            </TouchableOpacity>
-          )}
         </View>
       </View>
       
-      <Text style={styles.title}>{assignment.title}</Text>
+      <Text style={styles.title}>
+        {isFinished && (
+          <Icon
+            name="check-circle"
+            size={18}
+            color={Colors.success}
+            style={styles.completedIcon}
+          />
+        )}
+        {assignment.title}
+      </Text>
       <Text style={styles.subject}>{assignment.subjectName}</Text>
       
       <View style={styles.footer}>
@@ -198,6 +196,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.text,
     marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  completedIcon: {
+    marginRight: 6,
   },
   subject: {
     fontSize: 16,
@@ -294,10 +297,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     marginLeft: 4,
-  },
-  statusButton: {
-    padding: 4,
-    marginLeft: 8,
   },
 });
 

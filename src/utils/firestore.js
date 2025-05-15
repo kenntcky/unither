@@ -1,5 +1,6 @@
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
+import storage from '@react-native-firebase/storage';
 
 // Collection names
 export const CLASSES_COLLECTION = 'classes';
@@ -480,7 +481,6 @@ export const updateClassAssignment = async (classId, assignmentId, updatedData) 
 
     // Get the existing assignment if this is an edit and user is not admin
     let originalState = null;
-    if (!isAdmin) {
       const assignmentRef = firestore()
         .collection(CLASSES_COLLECTION)
         .doc(classId)
@@ -488,21 +488,32 @@ export const updateClassAssignment = async (classId, assignmentId, updatedData) 
         .doc(docId);
 
       const assignmentDoc = await assignmentRef.get();
-      if (assignmentDoc.exists) {
-        // Save original state for potential rejection
+    if (!assignmentDoc.exists) {
+      return {
+        success: false,
+        error: 'Assignment not found'
+      };
+    }
+
+    const assignmentData = assignmentDoc.data();
+
+    // If user is not admin and not the creator, deny the operation
+    if (!isAdmin && assignmentData.createdBy !== currentUser.uid) {
+      return {
+        success: false,
+        error: 'You do not have permission to edit this assignment'
+      };
+    }
+
+    // Save original state for potential rejection if user is not admin
+    if (!isAdmin) {
         originalState = assignmentDoc.data();
         // Remove any sensitive fields that shouldn't be restored
         delete originalState.originalState;
-      }
     }
 
     // If user is admin, update directly; otherwise, mark as pending for approval
-    await firestore()
-      .collection(CLASSES_COLLECTION)
-      .doc(classId)
-      .collection(ASSIGNMENTS_COLLECTION)
-      .doc(docId)
-      .update({
+    await assignmentRef.update({
         ...updatedData,
         updatedAt: firestore.FieldValue.serverTimestamp(),
         updatedBy: currentUser.uid,
@@ -533,6 +544,9 @@ export const deleteClassAssignment = async (classId, assignmentId) => {
       throw new Error('User not authenticated');
     }
 
+    // Check if user is an admin for this class
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+
     // First, try to find the document with a query if needed
     let docId = assignmentId;
     
@@ -552,16 +566,52 @@ export const deleteClassAssignment = async (classId, assignmentId) => {
       }
     }
 
-    await firestore()
+    // Get the assignment document reference
+    const assignmentRef = firestore()
       .collection(CLASSES_COLLECTION)
       .doc(classId)
       .collection(ASSIGNMENTS_COLLECTION)
-      .doc(docId)
-      .delete();
-
+      .doc(docId);
+      
+    // Get the assignment data
+    const assignmentDoc = await assignmentRef.get();
+    if (!assignmentDoc.exists) {
+      return {
+        success: false,
+        error: 'Assignment not found'
+      };
+    }
+    
+    const assignmentData = assignmentDoc.data();
+    
+    // If user is not admin and not the creator, deny the operation
+    if (!isAdmin && assignmentData.createdBy !== currentUser.uid) {
+      return {
+        success: false,
+        error: 'You do not have permission to delete this assignment'
+      };
+    }
+    
+    // If admin, delete directly
+    if (isAdmin) {
+      await assignmentRef.delete();
     return {
       success: true
     };
+    } else {
+      // If not admin, mark as pending deletion (similar to pending creation/edit)
+      await assignmentRef.update({
+        pendingDeletion: true,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser.uid
+      });
+      
+      return {
+        success: true,
+        pendingDeletion: true,
+        message: 'Delete request submitted for approval'
+      };
+    }
   } catch (error) {
     console.error('Error deleting assignment:', error);
     return {
@@ -2085,13 +2135,6 @@ export const getAssignmentCompletions = async (classId, assignmentId) => {
       .doc(classId)
       .collection(EXPERIENCE_SUBCOLLECTION)
       .get();
-      
-    if (experienceSnapshot.empty) {
-      return {
-        success: true,
-        completions: []
-      };
-    }
     
     // Map of userId to member data
     const membersMap = {};
@@ -2100,8 +2143,50 @@ export const getAssignmentCompletions = async (classId, assignmentId) => {
       membersMap[memberData.userId] = memberData;
     });
     
+    // Get all pending completion approvals for this assignment
+    const pendingApprovalsSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(COMPLETION_APPROVALS_COLLECTION)
+      .where('assignmentId', '==', assignmentId)
+      .where('status', '==', 'pending')
+      .get();
+    
+    // Get all rejected completion approvals for this assignment
+    const rejectedApprovalsSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(COMPLETION_APPROVALS_COLLECTION)
+      .where('assignmentId', '==', assignmentId)
+      .where('status', '==', 'rejected')
+      .get();
+    
+    // Create maps of pending and rejected approvals by userId
+    const pendingApprovalsByUser = {};
+    pendingApprovalsSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      pendingApprovalsByUser[data.userId] = {
+        id: doc.id,
+        submittedAt: data.submittedAt
+      };
+    });
+    
+    const rejectedApprovalsByUser = {};
+    rejectedApprovalsSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      rejectedApprovalsByUser[data.userId] = {
+        id: doc.id,
+        submittedAt: data.submittedAt,
+        rejectedAt: data.rejectedAt,
+        rejectionReason: data.rejectionReason
+      };
+    });
+    
     // Filter experience records to only include users who completed this assignment
     const completions = [];
+    
+    // First add users who officially completed the assignment
+    if (!experienceSnapshot.empty) {
     experienceSnapshot.docs.forEach(doc => {
       const experienceData = doc.data();
       const userId = doc.id;
@@ -2110,6 +2195,9 @@ export const getAssignmentCompletions = async (classId, assignmentId) => {
       if (experienceData.completedAssignments && 
           experienceData.completedAssignments.includes(assignmentId)) {
         
+          // Skip if this user has a pending approval (will be added below)
+          if (pendingApprovalsByUser[userId]) return;
+          
         // Get member data
         const memberData = membersMap[userId] || {};
         
@@ -2119,9 +2207,44 @@ export const getAssignmentCompletions = async (classId, assignmentId) => {
           displayName: memberData.displayName || 'Unknown User',
           completedAt: experienceData.lastUpdated,
           lastUpdated: experienceData.lastUpdated,
-          totalExp: experienceData.totalExp || 0
+            totalExp: experienceData.totalExp || 0,
+            status: 'approved'
         });
       }
+      });
+    }
+    
+    // Then add users with pending approvals
+    Object.keys(pendingApprovalsByUser).forEach(userId => {
+      const pendingApproval = pendingApprovalsByUser[userId];
+      const memberData = membersMap[userId] || {};
+      
+      completions.push({
+        userId,
+        displayName: memberData.displayName || 'Unknown User',
+        completedAt: pendingApproval.submittedAt,
+        lastUpdated: pendingApproval.submittedAt,
+        totalExp: 0, // No EXP for pending approvals
+        status: 'pending',
+        approvalId: pendingApproval.id
+      });
+    });
+    
+    // Then add users with rejected approvals
+    Object.keys(rejectedApprovalsByUser).forEach(userId => {
+      const rejectedApproval = rejectedApprovalsByUser[userId];
+      const memberData = membersMap[userId] || {};
+      
+      completions.push({
+        userId,
+        displayName: memberData.displayName || 'Unknown User',
+        completedAt: rejectedApproval.submittedAt,
+        lastUpdated: rejectedApproval.rejectedAt || rejectedApproval.submittedAt,
+        totalExp: 0, // No EXP for rejected approvals
+        status: 'rejected',
+        approvalId: rejectedApproval.id,
+        rejectionReason: rejectedApproval.rejectionReason || 'No reason provided'
+      });
     });
     
     // Sort completions by time (most recent last to show oldest completions first)
@@ -2173,17 +2296,91 @@ export const submitCompletionForApproval = async (classId, assignmentId, photoUr
       };
     }
     
-    // Upload photo to Firebase Storage
-    const storage = require('@react-native-firebase/storage').default;
-    const photoRef = storage().ref(`completions/${classId}/${assignmentId}/${currentUser.uid}_${Date.now()}`);
+    // Import image resizer library
+    const ImageResizer = require('react-native-image-resizer').default;
+    const RNFetchBlob = require('rn-fetch-blob').default;
+    let base64Image;
+    let originalImageSize = 0;
+    let compressedImageSize = 0;
     
-    // Upload photo
-    await photoRef.putFile(photoUri);
+    try {
+      // First, clean the URI if needed
+      const cleanUri = photoUri.startsWith('file://') ? photoUri : `file://${photoUri}`;
+      
+      // Resize and compress the image to a maximum dimension of 1000x1000 and 80% quality
+      // These values provide a good balance between quality and file size
+      console.log('Resizing image...');
+      const resizedImage = await ImageResizer.createResizedImage(
+        cleanUri,            // uri
+        1000,                // maxWidth
+        1000,                // maxHeight
+        'JPEG',              // compressFormat
+        80,                  // quality (0-100)
+        0,                   // rotation
+        null,                // outputPath (null = temp file)
+        false,               // keepMeta
+        { onlyScaleDown: true }  // options
+      );
+      
+      console.log('Image resized successfully:', resizedImage.uri);
+      originalImageSize = resizedImage.size || 0;
+      
+      // Now convert the resized image to base64
+      const fs = RNFetchBlob.fs;
+      const realPath = resizedImage.uri.replace('file://', '');
+      base64Image = await fs.readFile(realPath, 'base64');
+      
+      compressedImageSize = base64Image.length;
+      console.log(`Image sizes - Original: ${originalImageSize} bytes, Base64: ${compressedImageSize} bytes`);
+      
+      // If still too large for Firestore (approaching 1MB limit), reduce quality further
+      if (base64Image.length > 750 * 1024) {
+        console.log('Image still too large after resizing, compressing further...');
     
-    // Get photo URL
-    const photoUrl = await photoRef.getDownloadURL();
+        // Create a new resized image with lower quality
+        const furtherResizedImage = await ImageResizer.createResizedImage(
+          resizedImage.uri,    // uri
+          800,                 // maxWidth
+          800,                 // maxHeight
+          'JPEG',              // compressFormat
+          50,                  // quality (0-100) - much lower quality
+          0,                   // rotation
+          null,                // outputPath
+          false,               // keepMeta
+          { onlyScaleDown: true }  // options
+        );
+        
+        const furtherRealPath = furtherResizedImage.uri.replace('file://', '');
+        base64Image = await fs.readFile(furtherRealPath, 'base64');
+        compressedImageSize = base64Image.length;
+        
+        console.log(`Further compressed image: ${compressedImageSize} bytes`);
     
-    // Create approval document
+        // Clean up temporary files
+        try {
+          await fs.unlink(furtherRealPath);
+        } catch (e) {
+          console.error('Error cleaning up further resized file:', e);
+        }
+      }
+      
+      // Clean up temporary file
+      try {
+        await fs.unlink(realPath);
+      } catch (e) {
+        console.error('Error cleaning up resized file:', e);
+      }
+      
+      // Store additional metadata about the image
+      const imageMetadata = {
+        timestamp: Date.now(),
+        userId: currentUser.uid,
+        originalSize: originalImageSize,
+        compressedSize: compressedImageSize,
+        type: 'image/jpeg',
+      };
+    
+      // Create approval document with base64 image
     const approvalRef = await firestore()
       .collection(CLASSES_COLLECTION)
       .doc(classId)
@@ -2192,21 +2389,26 @@ export const submitCompletionForApproval = async (classId, assignmentId, photoUr
         userId: currentUser.uid,
         displayName: currentUser.displayName || currentUser.email.split('@')[0],
         assignmentId: assignmentId,
-        photoUrl: photoUrl,
+          base64Image: base64Image,
+          imageMetadata: imageMetadata,
         submittedAt: firestore.FieldValue.serverTimestamp(),
         status: 'pending',
-        completionTimestamp: submissionTime // Store original completion time
+          completionTimestamp: submissionTime
       });
     
     return {
       success: true,
       approvalId: approvalRef.id
     };
+    } catch (e) {
+      console.error('Error processing image:', e);
+      throw new Error('Failed to process the image. Please try using a smaller image or taking a photo with lower resolution.');
+    }
   } catch (error) {
     console.error('Error submitting completion for approval:', error);
     return {
       success: false,
-      error: error.message
+      error: error.message || 'Failed to submit completion'
     };
   }
 };
@@ -2321,20 +2523,49 @@ export const approveCompletion = async (classId, approvalId) => {
       approvedAt: firestore.FieldValue.serverTimestamp()
     });
     
-    // Add experience for the assignment using the original completion timestamp
+    // Get assignment details to determine proper XP
     const { EXP_CONSTANTS } = require('../constants/UserTypes');
-    let expPoints = EXP_CONSTANTS.BASE_EXP.DEFAULT;
+    let baseExpPoints = EXP_CONSTANTS.BASE_EXP.DEFAULT;
     
-    // Try to get assignment details to determine proper XP
+    // Try to get assignment details to determine proper base XP
     try {
       const result = await findAssignmentByInternalId(classId, approvalData.assignmentId);
       if (result.success) {
         const assignmentType = result.assignment.type || 'DEFAULT';
-        expPoints = EXP_CONSTANTS.BASE_EXP[assignmentType] || EXP_CONSTANTS.BASE_EXP.DEFAULT;
+        baseExpPoints = EXP_CONSTANTS.BASE_EXP[assignmentType] || EXP_CONSTANTS.BASE_EXP.DEFAULT;
       }
     } catch (error) {
       console.error(`Error fetching assignment details for XP calculation:`, error);
     }
+    
+    // Get completion data to determine rank
+    let completionRank = 0;
+    let rankMultiplier = EXP_CONSTANTS.COMPLETION_RANK_MULTIPLIER.DEFAULT;
+    
+    try {
+      // Get all completions for this assignment
+      const completionsResult = await getAssignmentCompletions(classId, approvalData.assignmentId);
+      if (completionsResult.success) {
+        // Filter to only include approved completions
+        const approvedCompletions = completionsResult.completions.filter(
+          completion => completion.status === 'approved'
+        );
+        
+        // This user's rank will be one more than the current count of approved completions
+        completionRank = approvedCompletions.length + 1;
+        
+        // Get the multiplier based on rank (use the DEFAULT for ranks beyond what's explicitly defined)
+        rankMultiplier = EXP_CONSTANTS.COMPLETION_RANK_MULTIPLIER[completionRank] || 
+                         EXP_CONSTANTS.COMPLETION_RANK_MULTIPLIER.DEFAULT;
+      }
+    } catch (error) {
+      console.error(`Error determining completion rank:`, error);
+      // Fall back to default multiplier if there's an error
+      rankMultiplier = EXP_CONSTANTS.COMPLETION_RANK_MULTIPLIER.DEFAULT;
+    }
+    
+    // Calculate final XP based on base value and rank multiplier
+    const finalExpPoints = Math.round(baseExpPoints * rankMultiplier);
     
     // Commit the batch
     await batch.commit();
@@ -2343,7 +2574,7 @@ export const approveCompletion = async (classId, approvalId) => {
     await addExperiencePoints(
       classId, 
       approvalData.assignmentId, 
-      expPoints, 
+      finalExpPoints, 
       approvalData.userId, 
       new Date(approvalData.completionTimestamp)
     );

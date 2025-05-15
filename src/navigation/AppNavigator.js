@@ -23,6 +23,7 @@ import ClassMembersScreen from '../screens/ClassMembersScreen';
 import ClassSettingsScreen from '../screens/ClassSettingsScreen';
 import LanguageSettingsScreen from '../screens/LanguageSettingsScreen';
 import PendingApprovalsScreen from '../screens/PendingApprovalsScreen';
+import AssignmentCompleteScreen from '../screens/AssignmentCompleteScreen';
 import Colors from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { ClassProvider, useClass } from '../context/ClassContext';
@@ -203,6 +204,11 @@ const HomeStack = () => (
       name="AssignmentDetails" 
       component={AssignmentDetailsScreen} 
     /> 
+    <Stack.Screen 
+      name="AssignmentComplete" 
+      component={AssignmentCompleteScreen} 
+      options={{ title: t('Complete Assignment') }}
+    /> 
   </Stack.Navigator>
 );
 
@@ -225,6 +231,11 @@ const AssignmentsStack = () => (
     <Stack.Screen 
       name="AssignmentDetails" 
       component={AssignmentDetailsScreen} 
+    /> 
+    <Stack.Screen 
+      name="AssignmentComplete" 
+      component={AssignmentCompleteScreen} 
+      options={{ title: t('Complete Assignment') }}
     /> 
   </Stack.Navigator>
 );
@@ -251,6 +262,11 @@ const SubjectsStack = () => (
       name="AssignmentDetails" 
       component={AssignmentDetailsScreen} 
     /> 
+    <Stack.Screen 
+      name="AssignmentComplete" 
+      component={AssignmentCompleteScreen} 
+      options={{ title: t('Complete Assignment') }}
+    /> 
   </Stack.Navigator>
 );
 
@@ -269,8 +285,17 @@ const ProfileStack = () => (
     <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: t('Profile') }} />
     <Stack.Screen name="ClassMembers" component={ClassMembersScreen} options={{ title: t('Class Members') }} />
     <Stack.Screen name="ClassSettings" component={ClassSettingsScreen} options={{ title: t('Class Settings') }} />
-    <Stack.Screen name="LanguageSettings" component={LanguageSettingsScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} options={{ title: t('Pending Approvals') }} />
+    <Stack.Screen name="LanguageSettings" component={LanguageSettingsScreen} options={{ title: t('Language Settings') }} />
+    <Stack.Screen 
+      name="AssignmentDetails" 
+      component={AssignmentDetailsScreen} 
+    />
+    <Stack.Screen 
+      name="AssignmentComplete" 
+      component={AssignmentCompleteScreen} 
+      options={{ title: t('Complete Assignment') }}
+    />
   </Stack.Navigator>
 );
 

@@ -219,38 +219,44 @@ export const ClassProvider = ({ children }) => {
 
   // Update class settings
   const updateSettings = async (classId, settings) => {
-    if (!user) {
-      return { success: false, error: 'User not authenticated' };
-    }
-    
     try {
+      console.log('Updating class settings:', classId, settings);
+      
       const result = await updateClassSettings(classId, settings);
       
       if (result.success) {
-        // Update the local class data
+        // Update the current class state with new settings
+        setCurrentClass(prevClass => {
+          if (prevClass && prevClass.id === classId) {
+            return {
+              ...prevClass,
+              ...settings
+            };
+          }
+          return prevClass;
+        });
+        
+        // Update classes list
         setClasses(prevClasses => 
           prevClasses.map(c => 
             c.id === classId ? { ...c, ...settings } : c
           )
         );
         
-        // Update current class if it's the one being modified
-        if (currentClass && currentClass.id === classId) {
-          setCurrentClass(prev => ({ ...prev, ...settings }));
-        }
-        
-        // Force refresh of data
-        forceRefresh();
+        console.log('Class settings updated successfully, new state:', {
+          ...currentClass,
+          ...settings
+        });
         
         return { success: true };
-      } else {
-        Alert.alert('Error', result.error || 'Failed to update class settings');
-        return result;
       }
+      return result;
     } catch (error) {
       console.error('Error updating class settings:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error: error.message
+      };
     }
   };
 

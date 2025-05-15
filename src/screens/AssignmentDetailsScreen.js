@@ -546,20 +546,32 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   const handleToggleStatus = async () => {
     if (!assignment) return;
     
+    // If marking as incomplete, just toggle the status as usual
+    if (assignment.status === ASSIGNMENT_STATUS.FINISHED) {
+      const newStatus = ASSIGNMENT_STATUS.ONGOING;
+      const result = await toggleAssignmentStatus(assignment.id, newStatus);
+      
+      if (result.success) {
+        // Update local assignment state
+        setAssignment(prev => ({
+          ...prev,
+          status: newStatus
+        }));
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update assignment status');
+      }
+      return;
+    }
+    
     // If this class requires approval and assignment is not completed yet,
-    // show photo submission modal instead of directly marking as complete
-    if (requiresApproval && 
-        assignment.status !== ASSIGNMENT_STATUS.FINISHED && 
-        !hasPendingApproval) {
+    // show the photo selection modal directly instead of navigating to another screen
+    if (requiresApproval && !hasPendingApproval) {
       setPhotoSelectionVisible(true);
       return;
     }
     
     // Otherwise, just toggle status as usual
-    const newStatus = assignment.status === ASSIGNMENT_STATUS.FINISHED
-      ? ASSIGNMENT_STATUS.ONGOING
-      : ASSIGNMENT_STATUS.FINISHED;
-      
+    const newStatus = ASSIGNMENT_STATUS.FINISHED;
     const result = await toggleAssignmentStatus(assignment.id, newStatus);
     
     if (result.success) {
@@ -568,6 +580,9 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
         ...prev,
         status: newStatus
       }));
+    } else if (result.requiresApproval) {
+      // If the context indicates approval is required, show the photo selection modal
+      setPhotoSelectionVisible(true);
     } else {
       Alert.alert('Error', result.error || 'Failed to update assignment status');
     }
@@ -891,10 +906,9 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
         {activeTab === TABS.COMPLETIONS && currentClass && (
           <View style={styles.section}>
             <AssignmentCompletionList
-              completions={completions}
-              loading={isLoadingCompletions}
+              classId={currentClass.id}
+              assignmentId={assignmentId}
               assignmentType={assignment.type}
-              emptyMessage={`No one has completed "${assignment.title}" yet`}
             />
           </View>
         )}
