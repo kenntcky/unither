@@ -7,7 +7,8 @@ import {
   joinClass, 
   getUserClasses,
   getClassDetails,
-  updateClassSettings
+  updateClassSettings,
+  isClassAdmin
 } from '../utils/firestore';
 
 // Key for storing active class ID in AsyncStorage
@@ -31,6 +32,12 @@ export const ClassProvider = ({ children }) => {
   const [isClassSwitching, setIsClassSwitching] = useState(false);
   const lastActiveClassId = useRef(null);
   const forceRefreshTimestamp = useRef(Date.now());
+
+  // Wrapper for isClassAdmin to make it available through the context
+  const isUserClassAdmin = async (classId) => {
+    if (!user) return false;
+    return await isClassAdmin(classId, user.uid);
+  };
 
   // Load active class ID from AsyncStorage on mount
   useEffect(() => {
@@ -272,7 +279,8 @@ export const ClassProvider = ({ children }) => {
     joinClass: handleJoinClass,
     switchClass,
     refreshClasses,
-    updateSettings
+    updateSettings,
+    isUserClassAdmin
   };
 
   return (

@@ -8,6 +8,13 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
       
+      // Helper function to check if user is admin for this class
+      function isAdmin() {
+        return request.auth.uid == resource.data.createdBy || 
+               exists(/databases/$(database)/documents/classes/$(classId)/members/$(request.auth.uid)) && 
+               get(/databases/$(database)/documents/classes/$(classId)/members/$(request.auth.uid)).data.role == 'admin';
+      }
+      
       // Rules for the members subcollection
       match /members/{memberId} {
         allow read: if request.auth != null;
@@ -92,6 +99,56 @@ service cloud.firestore {
         // Allow class admin/creator to modify any experience record
         allow create, update: if request.auth != null && 
                               request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy;
+      }
+      
+      // Rules for gallery collection
+      match /gallery/{imageId} {
+        // Allow class members to read images
+        allow read: if request.auth != null;
+        
+        // Allow class admin to create/update/delete images
+        allow create, update, delete: if request.auth != null && 
+                                     (request.auth.uid == resource.data.createdBy ||
+                                      request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy ||
+                                      isAdmin());
+      }
+      
+      // Rules for albums collection
+      match /albums/{albumId} {
+        // Allow class members to read albums
+        allow read: if request.auth != null;
+        
+        // Allow class admin to create/update/delete albums
+        allow create, update, delete: if request.auth != null && 
+                                     (request.auth.uid == resource.data.createdBy ||
+                                      request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy ||
+                                      isAdmin());
+      }
+      
+      // Rules for featuredImages collection (carousel)
+      match /featuredImages/{imageId} {
+        // Allow class members to read featured images
+        allow read: if request.auth != null;
+        
+        // Only class admin can manage featured images
+        allow create, update, delete: if request.auth != null && 
+                                     (request.auth.uid == resource.data.createdBy ||
+                                      request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy ||
+                                      isAdmin());
+      }
+      
+      // Rules for gallery approvals collection
+      match /galleryApprovals/{approvalId} {
+        // Allow all authenticated users to read approvals
+        allow read: if request.auth != null;
+        
+        // Allow users to create their own approval requests
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.createdBy;
+        
+        // Only class admin can update approvals (approve/reject)
+        allow update, delete: if request.auth != null && 
+                             (request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy ||
+                              isAdmin());
       }
     }
     

@@ -21,12 +21,14 @@ const ClassSettingsScreen = ({ navigation }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [requireCompletionApproval, setRequireCompletionApproval] = useState(false);
+  const [requireGalleryApproval, setRequireGalleryApproval] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (currentClass) {
       checkAdminStatus();
       setRequireCompletionApproval(currentClass.requireCompletionApproval || false);
+      setRequireGalleryApproval(currentClass.requireGalleryApproval !== false);
     }
   }, [currentClass]);
 
@@ -64,7 +66,8 @@ const ClassSettingsScreen = ({ navigation }) => {
     setIsSaving(true);
     try {
       const result = await updateSettings(currentClass.id, {
-        requireCompletionApproval
+        requireCompletionApproval,
+        requireGalleryApproval
       });
       
       if (result.success) {
@@ -130,6 +133,26 @@ const ClassSettingsScreen = ({ navigation }) => {
             onValueChange={setRequireCompletionApproval}
             trackColor={{ false: Colors.surface, true: Colors.primaryLight }}
             thumbColor={requireCompletionApproval ? Colors.primary : Colors.textSecondary}
+          />
+        </View>
+      </View>
+      
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Gallery Settings</Text>
+        
+        <View style={styles.settingItem}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingTitle}>Require Approval for Gallery Uploads</Text>
+            <Text style={styles.settingDescription}>
+              When enabled, non-admin users must submit images for approval before they appear in the gallery.
+            </Text>
+          </View>
+          
+          <Switch
+            value={requireGalleryApproval}
+            onValueChange={setRequireGalleryApproval}
+            trackColor={{ false: Colors.surface, true: Colors.primaryLight }}
+            thumbColor={requireGalleryApproval ? Colors.primary : Colors.textSecondary}
           />
         </View>
       </View>
