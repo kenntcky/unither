@@ -30,6 +30,24 @@ import { getClassMembers } from '../utils/firestore';
 import ScreenContainer from '../components/ScreenContainer';
 import { useTranslation } from 'react-i18next';
 
+// Custom color palette
+const CustomColors = {
+  primary: '#6A5ACD', // Purple (SlateBlue)
+  primaryLight: '#8A7CDC', // Lighter purple
+  secondary: '#4169E1', // Royal Blue
+  accent: '#FF4757', // Red
+  background: '#FFFFFF', // White
+  surface: '#F8F9FA', // Light gray for inputs
+  text: '#333333', // Dark text
+  textSecondary: '#6C757D', // Secondary text
+  error: '#FF6B6B', // Error color
+  success: '#28A745', // Success color
+  cardBorder: '#E0E7FF', // Light purple border
+  inputBorder: '#D1C4E9', // Light purple for input borders
+  switchTrack: '#B39DDB', // Light purple for switch track
+  modalOverlay: 'rgba(106, 90, 205, 0.3)', // Semi-transparent purple
+}
+
 const AddAssignmentScreen = ({ navigation, route }) => {
   const { currentClass } = useClass();
   const { addAssignment, updateAssignment, deleteAssignment, assignments, syncedWithCloud } = useAssignment();
@@ -499,7 +517,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
     >
       <Text style={styles.modalItemText}>{item.name}</Text>
       {selectedSubject && selectedSubject.id === item.id && (
-        <Icon name="check" size={20} color={Colors.accent} />
+        <Icon name="check" size={20} color={CustomColors.primary} />
       )}
     </TouchableOpacity>
   );
@@ -514,7 +532,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
     >
       <Text style={styles.modalItemText}>{item}</Text>
       {selectedType === item && (
-        <Icon name="check" size={20} color={Colors.accent} />
+        <Icon name="check" size={20} color={CustomColors.primary} />
       )}
     </TouchableOpacity>
   );
@@ -526,7 +544,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
     >
       <Text style={styles.modalItemText}>{item}</Text>
       {selectedDeadlineOption === item && (
-        <Icon name="check" size={20} color={Colors.accent} />
+        <Icon name="check" size={20} color={CustomColors.primary} />
       )}
     </TouchableOpacity>
   );
@@ -539,7 +557,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
       <Text style={styles.modalItemText}>{item.displayName}</Text>
       {selectedGroupIndex !== null && 
        groups[selectedGroupIndex].members.some(m => m.userId === item.userId) && (
-        <Icon name="check" size={20} color={Colors.accent} />
+        <Icon name="check" size={20} color={CustomColors.primary} />
       )}
     </TouchableOpacity>
   );
@@ -557,7 +575,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
         }}
         style={styles.memberChipRemove}
       >
-        <Icon name="close" size={16} color={Colors.text} />
+        <Icon name="close" size={16} color={CustomColors.text} />
       </TouchableOpacity>
     </View>
   );
@@ -570,7 +588,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
           style={styles.groupAddButton}
           onPress={() => handleSelectGroupForEditing(index)}
         >
-          <Icon name="person-add" size={20} color={Colors.text} />
+          <Icon name="person-add" size={20} color="#FFFFFF" />
           <Text style={styles.groupAddButtonText}>Add Members</Text>
         </TouchableOpacity>
       </View>
@@ -597,7 +615,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
     >
       <Text style={styles.modalItemText}>{item}</Text>
       {randomizationMode === item && (
-        <Icon name="check" size={20} color={Colors.accent} />
+        <Icon name="check" size={20} color={CustomColors.primary} />
       )}
     </TouchableOpacity>
   );
@@ -605,13 +623,15 @@ const AddAssignmentScreen = ({ navigation, route }) => {
   return (
     <ScreenContainer scroll style={styles.container}>
       <View style={styles.formContainer}>
+        <Text style={styles.sectionTitle}>Create Assignment</Text>
+        
         <Text style={styles.label}>Title</Text>
         <TextInput
           style={styles.input}
           value={title}
           onChangeText={setTitle}
           placeholder="Enter assignment title"
-          placeholderTextColor={Colors.textSecondary}
+          placeholderTextColor={CustomColors.textSecondary}
         />
 
         <Text style={styles.label}>Subject</Text>
@@ -622,7 +642,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
           <Text style={selectedSubject ? styles.selectorText : styles.selectorPlaceholder}>
             {selectedSubject ? selectedSubject.name : 'Select a subject'}
           </Text>
-          <Icon name="arrow-drop-down" size={24} color={Colors.textSecondary} />
+          <Icon name="arrow-drop-down" size={24} color={CustomColors.primary} />
         </TouchableOpacity>
 
         <Text style={styles.label}>Assignment Type</Text>
@@ -633,7 +653,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
           <Text style={selectedType ? styles.selectorText : styles.selectorPlaceholder}>
             {selectedType || 'Select assignment type'}
           </Text>
-          <Icon name="arrow-drop-down" size={24} color={Colors.textSecondary} />
+          <Icon name="arrow-drop-down" size={24} color={CustomColors.primary} />
         </TouchableOpacity>
 
         <Text style={styles.label}>Deadline</Text>
@@ -649,7 +669,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
                 })
               : selectedDeadlineOption}
           </Text>
-          <Icon name="expand-more" size={24} color={Colors.textSecondary} />
+          <Icon name="calendar-today" size={20} color={CustomColors.primary} />
         </TouchableOpacity>
 
         <View style={styles.groupTypeContainer}>
@@ -666,8 +686,8 @@ const AddAssignmentScreen = ({ navigation, route }) => {
               onValueChange={(value) => 
                 setGroupType(value ? ASSIGNMENT_GROUP_TYPE.GROUP : ASSIGNMENT_GROUP_TYPE.INDIVIDUAL)
               }
-              trackColor={{ false: Colors.surface, true: Colors.primaryLight }}
-              thumbColor={groupType === ASSIGNMENT_GROUP_TYPE.GROUP ? Colors.accent : Colors.textSecondary}
+              trackColor={{ false: CustomColors.surface, true: CustomColors.switchTrack }}
+              thumbColor={groupType === ASSIGNMENT_GROUP_TYPE.GROUP ? CustomColors.primary : CustomColors.textSecondary}
             />
             <Text style={[
               styles.switchLabel, 
@@ -687,7 +707,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
                 onPress={() => setShowGroupCountModal(true)}
               >
                 <Text style={styles.groupCountButtonText}>{groupCount}</Text>
-                <Icon name="edit" size={16} color={Colors.text} />
+                <Icon name="edit" size={16} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
             
@@ -697,9 +717,9 @@ const AddAssignmentScreen = ({ navigation, route }) => {
                   style={styles.randomizationModeButton}
                   onPress={() => setShowRandomizationModeModal(true)}
                 >
-                  <Icon name="tune" size={20} color={Colors.text} />
+                  <Icon name="tune" size={20} color={CustomColors.text} />
                   <Text style={styles.randomizationModeText}>{randomizationMode}</Text>
-                  <Icon name="arrow-drop-down" size={24} color={Colors.text} />
+                  <Icon name="arrow-drop-down" size={24} color={CustomColors.text} />
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
@@ -708,10 +728,10 @@ const AddAssignmentScreen = ({ navigation, route }) => {
                   disabled={isRandomizing || classMembers.length === 0}
                 >
                   {isRandomizing ? (
-                    <ActivityIndicator size="small" color={Colors.text} />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
-                      <Icon name="shuffle" size={20} color={Colors.text} />
+                      <Icon name="shuffle" size={20} color="#FFFFFF" />
                       <Text style={styles.randomizeButtonText}>Randomize Groups</Text>
                     </>
                   )}
@@ -729,7 +749,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
           value={description}
           onChangeText={setDescription}
           placeholder="Enter assignment description"
-          placeholderTextColor={Colors.textSecondary}
+          placeholderTextColor={CustomColors.textSecondary}
           multiline
           numberOfLines={4}
           textAlignVertical="top"
@@ -743,10 +763,10 @@ const AddAssignmentScreen = ({ navigation, route }) => {
               disabled={isDeleting || isLoading}
             >
               {isDeleting ? (
-                <ActivityIndicator size="small" color={Colors.text} />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
-                  <Icon name="delete" size={20} color={Colors.text} />
+                  <Icon name="delete" size={20} color="#FFFFFF" />
                   <Text style={styles.buttonText}>Delete</Text>
                 </>
               )}
@@ -763,10 +783,10 @@ const AddAssignmentScreen = ({ navigation, route }) => {
             disabled={isLoading || isDeleting || !title.trim() || !selectedSubject || !selectedType}
           >
             {isLoading ? (
-              <ActivityIndicator size="small" color={Colors.text} />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
-                <Icon name={isEditing ? "save" : "add"} size={20} color={Colors.text} />
+                <Icon name={isEditing ? "save" : "add"} size={20} color="#FFFFFF" />
                 <Text style={styles.buttonText}>
                   {isEditing ? 'Update' : 'Save Assignment'}
                 </Text>
@@ -788,7 +808,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Subject</Text>
               <TouchableOpacity onPress={() => setShowSubjectModal(false)}>
-                <Icon name="close" size={24} color={Colors.text} />
+                <Icon name="close" size={24} color={CustomColors.text} />
               </TouchableOpacity>
             </View>
             
@@ -831,7 +851,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Assignment Type</Text>
               <TouchableOpacity onPress={() => setShowTypeModal(false)}>
-                <Icon name="close" size={24} color={Colors.text} />
+                <Icon name="close" size={24} color={CustomColors.text} />
               </TouchableOpacity>
             </View>
             
@@ -857,7 +877,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Deadline</Text>
               <TouchableOpacity onPress={() => setShowDeadlineModal(false)}>
-                <Icon name="close" size={24} color={Colors.text} />
+                <Icon name="close" size={24} color={CustomColors.text} />
               </TouchableOpacity>
             </View>
             
@@ -887,13 +907,13 @@ const AddAssignmentScreen = ({ navigation, route }) => {
                   : 'Select Group Members'}
               </Text>
               <TouchableOpacity onPress={() => setShowMembersModal(false)}>
-                <Icon name="close" size={24} color={Colors.text} />
+                <Icon name="close" size={24} color={CustomColors.text} />
               </TouchableOpacity>
             </View>
             
             {loadingMembers ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+                <ActivityIndicator size="large" color={CustomColors.primary} />
               </View>
             ) : classMembers.length === 0 ? (
               <View style={styles.emptyContainer}>
@@ -932,7 +952,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Number of Groups</Text>
               <TouchableOpacity onPress={() => setShowGroupCountModal(false)}>
-                <Icon name="close" size={24} color={Colors.text} />
+                <Icon name="close" size={24} color={CustomColors.text} />
               </TouchableOpacity>
             </View>
             
@@ -946,7 +966,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
                 >
                   <Text style={styles.modalItemText}>{item} Group{item !== 1 ? 's' : ''}</Text>
                   {groupCount === item && (
-                    <Icon name="check" size={20} color={Colors.accent} />
+                    <Icon name="check" size={20} color={CustomColors.primary} />
                   )}
                 </TouchableOpacity>
               )}
@@ -968,7 +988,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Randomization Mode</Text>
               <TouchableOpacity onPress={() => setShowRandomizationModeModal(false)}>
-                <Icon name="close" size={24} color={Colors.text} />
+                <Icon name="close" size={24} color={CustomColors.text} />
               </TouchableOpacity>
             </View>
             
@@ -1004,44 +1024,66 @@ const AddAssignmentScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: CustomColors.background,
   },
   formContainer: {
     padding: 20,
   },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: CustomColors.primary,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
   label: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: CustomColors.secondary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: CustomColors.surface,
+    borderRadius: 12,
+    padding: 14,
     fontSize: 16,
-    color: Colors.text,
+    color: CustomColors.text,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: CustomColors.inputBorder,
+    shadowColor: CustomColors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   textArea: {
     minHeight: 100,
+    textAlignVertical: 'top',
   },
   selector: {
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: CustomColors.surface,
+    borderRadius: 12,
+    padding: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: CustomColors.inputBorder,
+    shadowColor: CustomColors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   selectorText: {
     fontSize: 16,
-    color: Colors.text,
+    color: CustomColors.text,
   },
   selectorPlaceholder: {
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
   },
   groupTypeContainer: {
     marginBottom: 16,
@@ -1050,17 +1092,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: CustomColors.surface,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: CustomColors.inputBorder,
   },
   switchLabel: {
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
     marginHorizontal: 8,
   },
   activeSwitchLabel: {
-    color: Colors.text,
+    color: CustomColors.primary,
     fontWeight: 'bold',
   },
   buttonContainer: {
@@ -1073,25 +1117,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    elevation: 2,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    elevation: 3,
     flex: 1,
-    marginHorizontal: 4,
+    marginHorizontal: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   saveButton: {
-    backgroundColor: Colors.accent,
+    backgroundColor: CustomColors.accent,
   },
   deleteButton: {
-    backgroundColor: Colors.error,
+    backgroundColor: CustomColors.error,
   },
   disabledButton: {
-    backgroundColor: Colors.textSecondary,
+    backgroundColor: CustomColors.textSecondary,
     opacity: 0.7,
   },
   buttonText: {
-    color: Colors.text,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
@@ -1099,13 +1147,18 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: CustomColors.modalOverlay,
   },
   modalContent: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    backgroundColor: CustomColors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1113,12 +1166,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.surface,
+    borderBottomColor: CustomColors.surface,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: CustomColors.primary,
   },
   modalList: {
     padding: 8,
@@ -1129,11 +1182,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.surface,
+    borderBottomColor: CustomColors.surface,
   },
   modalItemText: {
     fontSize: 16,
-    color: Colors.text,
+    color: CustomColors.text,
   },
   emptyContainer: {
     padding: 24,
@@ -1141,16 +1194,16 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
     marginBottom: 16,
   },
   addButton: {
-    backgroundColor: Colors.primaryLight,
-    borderRadius: 8,
+    backgroundColor: CustomColors.primary,
+    borderRadius: 12,
     padding: 12,
   },
   addButtonText: {
-    color: Colors.text,
+    color: '#FFFFFF',
     fontWeight: 'bold',
   },
   groupSettingsContainer: {
@@ -1165,7 +1218,7 @@ const styles = StyleSheet.create({
   groupCountButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: CustomColors.secondary,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -1173,32 +1226,37 @@ const styles = StyleSheet.create({
   groupCountButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: '#FFFFFF',
     marginRight: 8,
   },
   groupCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    marginBottom: 12,
-    padding: 12,
+    backgroundColor: CustomColors.surface,
+    borderRadius: 12,
+    marginBottom: 16,
+    padding: 16,
     borderLeftWidth: 4,
-    borderLeftColor: Colors.primary,
+    borderLeftColor: CustomColors.primary,
+    shadowColor: CustomColors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   groupHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   groupTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: CustomColors.primary,
   },
   groupAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.accent,
+    backgroundColor: CustomColors.accent,
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -1206,7 +1264,7 @@ const styles = StyleSheet.create({
   groupAddButtonText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: '#FFFFFF',
     marginLeft: 4,
   },
   groupMembersList: {
@@ -1214,7 +1272,7 @@ const styles = StyleSheet.create({
   },
   emptyGroupText: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 8,
@@ -1225,18 +1283,18 @@ const styles = StyleSheet.create({
   },
   modalFooter: {
     borderTopWidth: 1,
-    borderTopColor: Colors.surface,
+    borderTopColor: CustomColors.surface,
     padding: 16,
     alignItems: 'flex-end',
   },
   modalButton: {
-    backgroundColor: Colors.accent,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: CustomColors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
   },
   modalButtonText: {
-    color: Colors.text,
+    color: '#FFFFFF',
     fontWeight: 'bold',
   },
   randomizationContainer: {
@@ -1245,28 +1303,35 @@ const styles = StyleSheet.create({
   randomizationModeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: CustomColors.surface,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: CustomColors.inputBorder,
   },
   randomizationModeText: {
     flex: 1,
     fontSize: 14,
-    color: Colors.text,
+    color: CustomColors.text,
     marginLeft: 8,
   },
   randomizeButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: CustomColors.secondary,
+    borderRadius: 12,
+    padding: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    shadowColor: CustomColors.secondary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   randomizeButtonText: {
-    color: Colors.text,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
@@ -1274,14 +1339,42 @@ const styles = StyleSheet.create({
   modalFooterInfo: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: Colors.surface,
+    borderTopColor: CustomColors.surface,
   },
   modalFooterInfoText: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
     fontStyle: 'italic',
     textAlign: 'center',
   },
+  selectedMembersContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  memberChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CustomColors.primaryLight,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    margin: 4,
+  },
+  memberChipText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    marginRight: 4,
+  },
+  memberChipRemove: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
+
 
 export default AddAssignmentScreen;
