@@ -32,7 +32,9 @@ import { AssignmentProvider } from "../context/AssignmentContext"
 import ClassDataProvider from "../providers/ClassDataProvider"
 import { t } from "../translations"
 import AnimatedBottomBar from "../components/AnimatedBottomBar"
-import AiScreen from "../screens/AiScreen" 
+import AiScreen from "../screens/AiScreen"
+import AddAiMaterial from "../screens/AddAiMaterial"
+import AiMaterialDetails from "../screens/AiMaterialDetails"
 
 const Tab = createBottomTabNavigator()
 const Stack = createStackNavigator()
@@ -215,7 +217,8 @@ const AiStack = () => (
   }}
   >
     <Stack.Screen name="AI" component={AiScreen} options={{ title: t("AI Assistant") }} />
-    {/* You can add more AI-related screens here if needed */}
+    <Stack.Screen name="AddAiMaterial" component={AddAiMaterial} options={{ title: t("Add AI Material") }} />
+    <Stack.Screen name="AiMaterialDetails" component={AiMaterialDetails} options={{ title: t("AI Material Details") }} />
   </Stack.Navigator>
 )
 

@@ -30,6 +30,20 @@ service cloud.firestore {
                               request.auth.uid == resource.data.userId);
       }
       
+      // Rules for the aiMaterials subcollection
+      match /aiMaterials/{materialId} {
+        // Allow all class members to read AI materials
+        allow read: if request.auth != null;
+        
+        // Allow class members to create AI materials
+        allow create: if request.auth != null;
+        
+        // Allow users to update/delete only their own AI materials
+        allow update, delete: if request.auth != null && 
+                             (request.auth.uid == resource.data.createdBy.uid ||
+                              request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy);
+      }
+      
       // Rules for the assignments subcollection
       match /assignments/{assignmentId} {
         // Allow class members to read assignments
@@ -156,6 +170,23 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Legacy rules for AI Materials at root level - can be removed later once migration complete
+    match /aiMaterials/{materialId} {
+      // Allow authenticated users to read AI materials
+      allow read: if request.auth != null;
+      
+      // Allow authenticated users to create AI materials
+      allow create: if request.auth != null;
+      
+      // Allow users to update/delete only their own AI materials
+      allow update, delete: if request.auth != null && 
+                           request.auth.uid == resource.data.createdBy.uid;
+      
+      // Allow class admins to update/delete AI materials for their class
+      allow update, delete: if request.auth != null && 
+                           request.auth.uid == get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.createdBy;
     }
   }
 } 
