@@ -30,6 +30,7 @@ import { AssignmentProvider } from "../context/AssignmentContext"
 import ClassDataProvider from "../providers/ClassDataProvider"
 import { t } from "../translations"
 import AnimatedBottomBar from "../components/AnimatedBottomBar"
+import AiScreen from "../screens/AiScreen" 
 
 const Tab = createBottomTabNavigator()
 const Stack = createStackNavigator()
@@ -55,60 +56,67 @@ const MainNavigator = () => {
 
   return (
     <ClassDataProvider currentClass={currentClass}>
-      <SubjectProvider>
-        <AssignmentProvider>
-          <Tab.Navigator
-            tabBar={(props) => <AnimatedBottomBar {...props} />}
-            screenOptions={{
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.text,
-              headerTitleStyle: {
-                fontWeight: "bold",
-              },
-              headerShown: false,
+    <SubjectProvider>
+      <AssignmentProvider>
+        <Tab.Navigator
+          tabBar={(props) => <AnimatedBottomBar {...props} />}
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: Colors.primary,
+            },
+            headerTintColor: Colors.text,
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+            headerShown: false,
+          }}
+        >
+          <Tab.Screen
+            name="HomeTab"
+            component={HomeStack}
+            options={{
+              title: t("Home"),
             }}
-          >
-            <Tab.Screen
-              name="HomeTab"
-              component={HomeStack}
-              options={{
-                title: t("Home"),
-              }}
-            />
-            <Tab.Screen
-              name="AssignmentsTab"
-              component={AssignmentsStack}
-              options={{
-                title: t("Assignments"),
-              }}
-            />
-            <Tab.Screen
-              name="SubjectsTab"
-              component={SubjectsStack}
-              options={{
-                title: t("Subjects"),
-              }}
-            />
-            <Tab.Screen
-              name="GalleryTab"
-              component={GalleryStack}
-              options={{
-                title: t("Gallery"),
-              }}
-            />
-            <Tab.Screen
-              name="ProfileTab"
-              component={ProfileStack}
-              options={{
-                title: t("Profile"),
-              }}
-            />
-          </Tab.Navigator>
-        </AssignmentProvider>
-      </SubjectProvider>
-    </ClassDataProvider>
+          />
+          <Tab.Screen
+            name="AssignmentsTab"
+            component={AssignmentsStack}
+            options={{
+              title: t("Assignments"),
+            }}
+          />
+          <Tab.Screen
+            name="SubjectsTab"
+            component={SubjectsStack}
+            options={{
+              title: t("Subjects"),
+            }}
+          />
+          <Tab.Screen
+            name="AiTab"  // Add this new tab
+            component={AiStack}
+            options={{
+              title: t("AI"), // Make sure to add this translation key
+            }}
+          />
+          <Tab.Screen
+            name="GalleryTab"
+            component={GalleryStack}
+            options={{
+              title: t("Gallery"),
+            }}
+          />
+          <Tab.Screen
+            name="ProfileTab"
+            component={ProfileStack}
+            options={{
+              title: t("Profile"),
+            }}
+          />
+        </Tab.Navigator>
+      </AssignmentProvider>
+    </SubjectProvider>
+  </ClassDataProvider>
   )
 }
 
@@ -129,17 +137,11 @@ const ClassNavigator = () => (
 
 const HomeStack = () => (
   <Stack.Navigator
-    screenOptions={{
-      headerStyle: {
-        backgroundColor: Colors.primary,
-      },
-      headerTintColor: Colors.text,
-      headerTitleStyle: {
-        fontWeight: "bold",
-      },
-    }}
+  screenOptions={{
+    headerShown: false,
+  }}
   >
-    <Stack.Screen name="Home" component={HomeScreen} options={{ title: t("Dashboard") }} />
+    <Stack.Screen name="Home" component={HomeScreen} options={{ title: t("Home") }} />
     <Stack.Screen
       name="AddAssignment"
       component={AddAssignmentScreen}
@@ -158,15 +160,9 @@ const HomeStack = () => (
 
 const AssignmentsStack = () => (
   <Stack.Navigator
-    screenOptions={{
-      headerStyle: {
-        backgroundColor: Colors.primary,
-      },
-      headerTintColor: Colors.text,
-      headerTitleStyle: {
-        fontWeight: "bold",
-      },
-    }}
+  screenOptions={{
+    headerShown: false,
+  }}
   >
     <Stack.Screen name="Assignments" component={AssignmentsScreen} options={{ title: t("Assignments") }} />
     <Stack.Screen
@@ -187,15 +183,9 @@ const AssignmentsStack = () => (
 
 const SubjectsStack = () => (
   <Stack.Navigator
-    screenOptions={{
-      headerStyle: {
-        backgroundColor: Colors.primary,
-      },
-      headerTintColor: Colors.text,
-      headerTitleStyle: {
-        fontWeight: "bold",
-      },
-    }}
+  screenOptions={{
+    headerShown: false,
+  }}
   >
     <Stack.Screen name="Subjects" component={SubjectsScreen} options={{ title: t("Subjects") }} />
     <Stack.Screen name="AddSubject" component={AddSubjectScreen} options={{ title: t("Add Subject") }} />
@@ -216,18 +206,23 @@ const SubjectsStack = () => (
   </Stack.Navigator>
 )
 
+const AiStack = () => (
+  <Stack.Navigator
+  screenOptions={{
+    headerShown: false,
+  }}
+  >
+    <Stack.Screen name="AI" component={AiScreen} options={{ title: t("AI Assistant") }} />
+    {/* You can add more AI-related screens here if needed */}
+  </Stack.Navigator>
+)
+
 // New Gallery Stack
 const GalleryStack = () => (
   <Stack.Navigator
-    screenOptions={{
-      headerStyle: {
-        backgroundColor: Colors.primary,
-      },
-      headerTintColor: Colors.text,
-      headerTitleStyle: {
-        fontWeight: "bold",
-      },
-    }}
+  screenOptions={{
+    headerShown: false,
+  }}
   >
     <Stack.Screen name="Gallery" component={GalleryScreen} options={{ title: t("Class Gallery") }} />
   </Stack.Navigator>
@@ -235,15 +230,9 @@ const GalleryStack = () => (
 
 const ProfileStack = () => (
   <Stack.Navigator
-    screenOptions={{
-      headerStyle: {
-        backgroundColor: Colors.primary,
-      },
-      headerTintColor: Colors.text,
-      headerTitleStyle: {
-        fontWeight: "bold",
-      },
-    }}
+  screenOptions={{
+    headerShown: false,
+  }}
   >
     <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: t("Profile") }} />
     <Stack.Screen name="ClassMembers" component={ClassMembersScreen} options={{ title: t("Class Members") }} />
