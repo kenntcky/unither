@@ -6,12 +6,38 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  Alert
+  Alert,
+  StatusBar
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage, LANGUAGES } from '../context/LanguageContext';
 import Colors from '../constants/Colors';
 import { t } from '../translations';
+
+// Custom color palette to match other screens
+const NewColors = {
+  primary: "#6A4CE4", // Purple primary
+  primaryLight: "#8A7CDC", // Lighter purple
+  primaryDark: "#5038C0", // Darker purple
+  secondary: "#3A8EFF", // Blue secondary
+  secondaryLight: "#6AADFF", // Lighter blue
+  secondaryDark: "#2A6EDF", // Darker blue
+  accent: "#FF4566", // Red accent
+  accentLight: "#FF7A90", // Lighter red
+  accentDark: "#E02545", // Darker red
+  background: "#FFFFFF", // White background
+  cardBackground: "#F4F7FF", // Light blue card background
+  cardBackgroundAlt: "#F0EDFF", // Light purple card background
+  textPrimary: "#333355", // Dark blue/purple text
+  textSecondary: "#7777AA", // Medium purple text
+  textLight: "#FFFFFF", // White text
+  separator: "#E0E6FF", // Light purple separator
+  success: "#44CC88", // Green success
+  warning: "#FFAA44", // Orange warning
+  error: "#FF4566", // Red error
+  shadow: "rgba(106, 76, 228, 0.2)", // Purple shadow
+  overlay: "rgba(51, 51, 85, 0.6)", // Dark overlay
+};
 
 const LanguageSettingsScreen = ({ navigation }) => {
   const { 
@@ -82,16 +108,26 @@ const LanguageSettingsScreen = ({ navigation }) => {
           isSelected && styles.selectedLanguageItem
         ]}
         onPress={() => handleLanguageSelect(item.code)}
+        activeOpacity={0.8}
       >
-        <Text style={[
-          styles.languageName,
-          isSelected && styles.selectedLanguageText
-        ]}>
-          {item.name}
-        </Text>
+        <View style={styles.languageInfo}>
+          <Text style={[
+            styles.languageName,
+            isSelected && styles.selectedLanguageText
+          ]}>
+            {item.name}
+          </Text>
+          <Text style={styles.languageCode}>{item.code.toUpperCase()}</Text>
+        </View>
         
-        {isSelected && (
-          <Icon name="check" size={24} color={Colors.accent} />
+        {isSelected ? (
+          <View style={styles.checkIconContainer}>
+            <Icon name="check" size={22} color={NewColors.textLight} />
+          </View>
+        ) : (
+          <View style={styles.radioOuter}>
+            <View style={styles.radioInner} />
+          </View>
         )}
       </TouchableOpacity>
     );
@@ -100,31 +136,47 @@ const LanguageSettingsScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <StatusBar barStyle="light-content" backgroundColor={NewColors.primaryDark} />
+        <ActivityIndicator size="large" color={NewColors.primary} />
+        <Text style={styles.loadingText}>{t('Loading languages...')}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={NewColors.primaryDark} />
+      
+      {/* Enhanced Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Icon name="arrow-back" size={24} color={Colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('Language Settings')}</Text>
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={NewColors.textLight} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('Language Settings')}</Text>
+        </View>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>{t('Select Language')}</Text>
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionTitleContainer}>
+            <Icon name="language" size={24} color={NewColors.primary} />
+            <Text style={styles.sectionTitle}>{t('Select Language')}</Text>
+          </View>
+          <Text style={styles.sectionDescription}>
+            {t('Choose your preferred language for the application interface.')}
+          </Text>
+        </View>
         
         <FlatList
           data={languages}
           keyExtractor={(item) => item.code}
           renderItem={renderLanguageItem}
           contentContainerStyle={styles.languageList}
+          showsVerticalScrollIndicator={false}
         />
         
         <TouchableOpacity
@@ -135,13 +187,24 @@ const LanguageSettingsScreen = ({ navigation }) => {
           ]}
           onPress={handleApplyLanguage}
           disabled={changing || selectedLanguage === currentLanguage}
+          activeOpacity={0.8}
         >
           {changing ? (
-            <ActivityIndicator color={Colors.text} />
+            <ActivityIndicator color={NewColors.textLight} />
           ) : (
-            <Text style={styles.applyButtonText}>{t('Apply')}</Text>
+            <>
+              <Icon name="check-circle" size={20} color={NewColors.textLight} />
+              <Text style={styles.applyButtonText}>{t('Apply Changes')}</Text>
+            </>
           )}
         </TouchableOpacity>
+        
+        <View style={styles.noteContainer}>
+          <Icon name="info" size={16} color={NewColors.textSecondary} />
+          <Text style={styles.noteText}>
+            {t('Some translations may be incomplete or in progress.')}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -150,38 +213,85 @@ const LanguageSettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: NewColors.background,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: NewColors.background,
   },
+  loadingText: {
+    marginTop: 16,
+    color: NewColors.textSecondary,
+    fontSize: 16,
+  },
+  
+  // Enhanced Header
   header: {
-    backgroundColor: Colors.primary,
+    backgroundColor: NewColors.primary,
     paddingTop: 40,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    marginBottom: 16,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 16,
   },
   backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     marginRight: 16,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: NewColors.textLight,
   },
+  
+  // Content
   content: {
     flex: 1,
-    padding: 20,
+    padding: 16,
+  },
+  sectionContainer: {
+    marginBottom: 20,
+    backgroundColor: NewColors.cardBackground,
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 16,
+    color: NewColors.textPrimary,
+    marginLeft: 8,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: NewColors.textSecondary,
+    lineHeight: 20,
   },
   languageList: {
     paddingBottom: 20,
@@ -190,37 +300,100 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: NewColors.cardBackground,
     padding: 16,
     marginBottom: 12,
-    borderRadius: 8,
+    borderRadius: 12,
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 2,
   },
+  languageInfo: {
+    flex: 1,
+  },
   selectedLanguageItem: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: NewColors.primaryLight,
+    borderWidth: 1,
+    borderColor: NewColors.primary,
   },
   languageName: {
     fontSize: 16,
-    color: Colors.text,
+    color: NewColors.textPrimary,
+    marginBottom: 4,
+  },
+  languageCode: {
+    fontSize: 12,
+    color: NewColors.textSecondary,
   },
   selectedLanguageText: {
     fontWeight: 'bold',
+    color: NewColors.textLight,
+  },
+  checkIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: NewColors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioOuter: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: NewColors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
   },
   applyButton: {
-    backgroundColor: Colors.accent,
+    backgroundColor: NewColors.accent,
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 8,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   disabledButton: {
-    opacity: 0.6,
+    backgroundColor: NewColors.textSecondary,
+    opacity: 0.7,
   },
   applyButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: NewColors.textLight,
+    marginLeft: 8,
+  },
+  noteContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: NewColors.cardBackgroundAlt,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  noteText: {
+    fontSize: 13,
+    color: NewColors.textSecondary,
+    marginLeft: 8,
+    flex: 1,
   },
 });
 
-export default LanguageSettingsScreen; 
+
+export default LanguageSettingsScreen;

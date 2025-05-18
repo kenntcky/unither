@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Modal
+  Modal,
+  StatusBar,
+  Image
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
@@ -23,6 +25,35 @@ import {
 import { calculateLevelFromExp } from '../constants/UserTypes';
 import { t } from '../translations';
 import LevelProgressBar from '../components/LevelProgressBar';
+
+// Custom color palette to match other screens
+const NewColors = {
+  primary: "#6A4CE4", // Purple primary
+  primaryLight: "#8A7CDC", // Lighter purple
+  primaryDark: "#5038C0", // Darker purple
+  secondary: "#3A8EFF", // Blue secondary
+  secondaryLight: "#6AADFF", // Lighter blue
+  secondaryDark: "#2A6EDF", // Darker blue
+  accent: "#FF4566", // Red accent
+  accentLight: "#FF7A90", // Lighter red
+  accentDark: "#E02545", // Darker red
+  background: "#FFFFFF", // White background
+  cardBackground: "#F4F7FF", // Light blue card background
+  cardBackgroundAlt: "#F0EDFF", // Light purple card background
+  textPrimary: "#333355", // Dark blue/purple text
+  textSecondary: "#7777AA", // Medium purple text
+  textLight: "#FFFFFF", // White text
+  separator: "#E0E6FF", // Light purple separator
+  success: "#44CC88", // Green success
+  warning: "#FFAA44", // Orange warning
+  error: "#FF4566", // Red error
+  shadow: "rgba(106, 76, 228, 0.2)", // Purple shadow
+  overlay: "rgba(51, 51, 85, 0.6)", // Dark overlay
+  gold: "#FFD700", // Gold for 1st place
+  silver: "#C0C0C0", // Silver for 2nd place
+  bronze: "#CD7F32", // Bronze for 3rd place
+  rankDefault: "#8A7CDC", // Default rank color (light purple)
+};
 
 const ClassMembersScreen = ({ navigation }) => {
   const { currentClass } = useClass();
@@ -204,6 +235,35 @@ const ClassMembersScreen = ({ navigation }) => {
     );
   };
 
+  // Function to render rank badge based on position
+  const renderRankBadge = (rank) => {
+    if (rank === 1) {
+      return (
+        <View style={[styles.rankContainer, styles.firstPlace]}>
+          <MaterialIcons name="emoji-events" size={16} color={NewColors.gold} />
+        </View>
+      );
+    } else if (rank === 2) {
+      return (
+        <View style={[styles.rankContainer, styles.secondPlace]}>
+          <MaterialIcons name="emoji-events" size={16} color={NewColors.silver} />
+        </View>
+      );
+    } else if (rank === 3) {
+      return (
+        <View style={[styles.rankContainer, styles.thirdPlace]}>
+          <MaterialIcons name="emoji-events" size={16} color={NewColors.bronze} />
+        </View>
+      );
+    } else {
+      return (
+        <View style={[styles.rankContainer, styles.defaultRank]}>
+          <Text style={styles.rankText}>{rank}</Text>
+        </View>
+      );
+    }
+  };
+
   const renderMemberItem = ({ item, index }) => {
     // Customize role colors
     let roleColor;
@@ -211,27 +271,33 @@ const ClassMembersScreen = ({ navigation }) => {
     
     switch (item.role.toLowerCase()) {
       case 'teacher':
-        roleColor = Colors.text;
-        roleBgColor = Colors.accent;
+        roleColor = NewColors.textLight;
+        roleBgColor = NewColors.primary;
         break;
       case 'admin':
-        roleColor = Colors.text;
-        roleBgColor = Colors.primary;
+        roleColor = NewColors.textLight;
+        roleBgColor = NewColors.primary;
         break;
       default: // student
-        roleColor = Colors.text;
-        roleBgColor = Colors.lightBackground;
+        roleColor = NewColors.textLight;
+        roleBgColor = NewColors.secondary;
     }
 
+    // Determine if this is a top 3 position
+    const isTopThree = index < 3;
+    
     return (
       <TouchableOpacity 
-        style={styles.memberItem}
+        style={[
+          styles.memberItem,
+          isTopThree && styles.topThreeMember,
+          item.isCurrentUser && styles.currentUserItem
+        ]}
         onPress={() => handleMemberPress(item)}
         disabled={!isUserClassAdmin || item.isCurrentUser}
+        activeOpacity={0.8}
       >
-        <View style={styles.rankContainer}>
-          <Text style={styles.rankText}>{index + 1}</Text>
-        </View>
+        {renderRankBadge(index + 1)}
         
         <View style={styles.memberInfo}>
           <View style={styles.nameContainer}>
@@ -267,21 +333,36 @@ const ClassMembersScreen = ({ navigation }) => {
         </View>
         
         {isUserClassAdmin && !item.isCurrentUser && (
-          <MaterialIcons 
-            name="more-vert" 
-            size={20} 
-            color={Colors.textSecondary} 
-            style={styles.moreIcon}
-          />
+          <TouchableOpacity 
+            style={styles.moreButton}
+            onPress={() => handleMemberPress(item)}
+          >
+            <MaterialIcons 
+              name="more-vert" 
+              size={20} 
+              color={NewColors.textSecondary} 
+            />
+          </TouchableOpacity>
         )}
       </TouchableOpacity>
     );
   };
 
+  const renderListHeader = () => (
+    <View style={styles.leaderboardHeader}>
+      <Text style={styles.leaderboardTitle}>{t('Class Leaderboard')}</Text>
+      <Text style={styles.leaderboardSubtitle}>
+        {t('Based on experience points and completed assignments')}
+      </Text>
+    </View>
+  );
+
   if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <StatusBar barStyle="light-content" backgroundColor={NewColors.primaryDark} />
+        <ActivityIndicator size="large" color={NewColors.primary} />
+        <Text style={styles.loadingText}>{t('Loading members...')}</Text>
       </View>
     );
   }
@@ -290,24 +371,35 @@ const ClassMembersScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={NewColors.primaryDark} />
+      
+      {/* Enhanced Header */}
       <View style={styles.header}>
-        <Text style={styles.classTitle}>{currentClass?.name}</Text>
-        <View style={styles.headerInfo}>
-          <Text style={styles.memberCount}>
-            {members.length} {members.length === 1 ? t('Member') : t('Members')}
-          </Text>
-          
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={NewColors.textLight} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{currentClass?.name}</Text>
           <TouchableOpacity 
             style={styles.sortButton}
             onPress={toggleSortOrder}
           >
-            <MaterialIcons name="sort" size={20} color={Colors.text} />
+            <MaterialIcons name="sort" size={20} color={NewColors.textLight} />
             <Text style={styles.sortText}>
-              {sortOrder === 'level' ? t('Sort by: Level') : 
-               sortOrder === 'name' ? t('Sort by: Name') : 
-               t('Sort by: Role')}
+              {sortOrder === 'level' ? t('XP') : 
+               sortOrder === 'name' ? t('Name') : 
+               t('Role')}
             </Text>
           </TouchableOpacity>
+        </View>
+        
+        <View style={styles.headerInfo}>
+          <Text style={styles.memberCount}>
+            {members.length} {members.length === 1 ? t('Member') : t('Members')}
+          </Text>
         </View>
       </View>
 
@@ -317,20 +409,18 @@ const ClassMembersScreen = ({ navigation }) => {
         renderItem={renderMemberItem}
         refreshing={refreshing}
         onRefresh={handleRefresh}
+        ListHeaderComponent={renderListHeader}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="people" size={64} color={Colors.textSecondary} />
+            <View style={styles.emptyIconContainer}>
+              <MaterialIcons name="people" size={64} color={NewColors.primaryLight} />
+            </View>
             <Text style={styles.emptyText}>{t('No members found')}</Text>
           </View>
         }
       />
-
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <MaterialIcons name="arrow-back" size={24} color={Colors.text} />
-      </TouchableOpacity>
 
       {/* Member Actions Modal */}
       <Modal
@@ -345,24 +435,38 @@ const ClassMembersScreen = ({ navigation }) => {
           onPress={() => setShowMemberActions(false)}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {selectedMember?.displayName}
-            </Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {selectedMember?.displayName}
+              </Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowMemberActions(false)}
+              >
+                <MaterialIcons name="close" size={24} color={NewColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
             
             {selectedMember?.role === 'student' ? (
               <TouchableOpacity style={styles.modalOption} onPress={handlePromoteToTeacher}>
-                <MaterialIcons name="admin-panel-settings" size={22} color={Colors.accent} />
+                <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(106, 76, 228, 0.15)' }]}>
+                  <MaterialIcons name="admin-panel-settings" size={22} color={NewColors.primary} />
+                </View>
                 <Text style={styles.modalOptionText}>{t('Make Class Admin')}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity style={styles.modalOption} onPress={handleDemoteToStudent}>
-                <MaterialIcons name="person" size={22} color={Colors.primary} />
+                <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(58, 142, 255, 0.15)' }]}>
+                  <MaterialIcons name="person" size={22} color={NewColors.secondary} />
+                </View>
                 <Text style={styles.modalOptionText}>{t('Remove Admin Rights')}</Text>
               </TouchableOpacity>
             )}
             
             <TouchableOpacity style={styles.modalOption} onPress={handleRemoveMember}>
-              <MaterialIcons name="person-remove" size={22} color={Colors.error} />
+              <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(255, 69, 102, 0.15)' }]}>
+                <MaterialIcons name="person-remove" size={22} color={NewColors.error} />
+              </View>
               <Text style={[styles.modalOptionText, styles.dangerText]}>
                 {t('Remove from Class')}
               </Text>
@@ -384,70 +488,162 @@ const ClassMembersScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: NewColors.background,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: NewColors.background,
   },
-  header: {
-    backgroundColor: Colors.primary,
-    padding: 20,
-    paddingTop: 40,
-  },
-  classTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: Colors.text,
-  },
-  headerInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  memberCount: {
+  loadingText: {
+    marginTop: 16,
+    color: NewColors.textSecondary,
     fontSize: 16,
-    color: Colors.textSecondary,
+  },
+  
+  // Enhanced Header
+  header: {
+    backgroundColor: NewColors.primary,
+    paddingTop: 40,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: NewColors.textLight,
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 8,
   },
   sortButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 16,
   },
   sortText: {
     fontSize: 12,
-    color: Colors.text,
+    color: NewColors.textLight,
     marginLeft: 4,
+    fontWeight: '500',
   },
+  headerInfo: {
+    paddingHorizontal: 16,
+  },
+  memberCount: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  
+  // Leaderboard header
+  leaderboardHeader: {
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  leaderboardTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: NewColors.textPrimary,
+    marginBottom: 4,
+  },
+  leaderboardSubtitle: {
+    fontSize: 14,
+    color: NewColors.textSecondary,
+    textAlign: 'center',
+  },
+  
+  // List content
+  listContent: {
+    paddingBottom: 20,
+  },
+  
+  // Member item
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: NewColors.cardBackground,
     padding: 16,
     marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 8,
+    marginVertical: 6,
+    borderRadius: 12,
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 2,
   },
+  topThreeMember: {
+    backgroundColor: NewColors.cardBackgroundAlt,
+    borderWidth: 1,
+    borderColor: NewColors.separator,
+  },
+  currentUserItem: {
+    borderWidth: 1,
+    borderColor: NewColors.primary,
+  },
+  
+  // Rank badges
   rankContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  rankText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: Colors.text,
+  firstPlace: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderWidth: 1,
+    borderColor: NewColors.gold,
   },
+  secondPlace: {
+    backgroundColor: 'rgba(192, 192, 192, 0.2)',
+    borderWidth: 1,
+    borderColor: NewColors.silver,
+  },
+  thirdPlace: {
+    backgroundColor: 'rgba(205, 127, 50, 0.2)',
+    borderWidth: 1,
+    borderColor: NewColors.bronze,
+  },
+  defaultRank: {
+    backgroundColor: 'rgba(138, 124, 220, 0.2)',
+    borderWidth: 1,
+    borderColor: NewColors.rankDefault,
+  },
+  rankText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: NewColors.textPrimary,
+  },
+  
+  // Member info
   memberInfo: {
     flex: 1,
   },
@@ -460,27 +656,28 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: NewColors.textPrimary,
     flex: 1,
   },
   currentUser: {
     fontStyle: 'italic',
     fontWeight: 'normal',
+    color: NewColors.textSecondary,
   },
   levelBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: Colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    backgroundColor: NewColors.primary,
     marginLeft: 8,
   },
   levelText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: NewColors.textLight,
   },
   progressBar: {
-    marginVertical: 4,
+    marginVertical: 6,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -488,90 +685,125 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
+    fontSize: 12,
+    color: NewColors.textSecondary,
   },
+  
+  // Role badge
   roleBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
     marginLeft: 8,
   },
   roleText: {
     fontSize: 12,
     fontWeight: 'bold',
   },
-  moreIcon: {
-    marginLeft: 8,
+  moreButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(106, 76, 228, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
   },
+  
+  // Empty state
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
     marginTop: 40,
   },
-  emptyText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 40,
-    left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(106, 76, 228, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 16,
   },
+  emptyText: {
+    fontSize: 16,
+    color: NewColors.textSecondary,
+    textAlign: 'center',
+  },
+  
+  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: NewColors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    width: '80%',
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 8,
-    padding: 20,
-    elevation: 5,
+    width: '85%',
+    backgroundColor: NewColors.background,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: NewColors.separator,
+    backgroundColor: NewColors.cardBackground,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 16,
-    textAlign: 'center',
+    color: NewColors.textPrimary,
+    flex: 1,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(106, 76, 228, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: NewColors.separator,
+  },
+  modalIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   modalOptionText: {
     fontSize: 16,
-    marginLeft: 12,
-    color: Colors.text,
+    color: NewColors.textPrimary,
   },
   dangerText: {
-    color: Colors.error,
+    color: NewColors.error,
   },
   cancelButton: {
-    marginTop: 16,
-    paddingVertical: 12,
+    padding: 16,
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 16,
-    color: Colors.primary,
+    color: NewColors.primary,
     fontWeight: 'bold',
   },
 });
 
-export default ClassMembersScreen; 
+export default ClassMembersScreen;
