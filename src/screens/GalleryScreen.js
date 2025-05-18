@@ -19,7 +19,6 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons"
 import { launchCamera, launchImageLibrary } from "react-native-image-picker"
 import ImageResizer from "react-native-image-resizer"
 import RNFetchBlob from "rn-fetch-blob"
-import Colors from "../constants/Colors"
 import { useAuth } from "../context/AuthContext"
 import { useClass } from "../context/ClassContext"
 import firestore from "@react-native-firebase/firestore"
@@ -30,6 +29,19 @@ const GALLERY_COLLECTION = 'gallery'
 const ALBUMS_COLLECTION = 'albums'
 const GALLERY_APPROVALS_COLLECTION = 'galleryApprovals'
 const FEATURED_IMAGES_COLLECTION = 'featuredImages'
+
+const Colors = {
+  primary: '#6A0DAD',       // Purple
+  secondary: '#1E90FF',     // Blue
+  accent: '#C4D9FF',        // Red/Orange
+  background: '#FFFFFF',    // White
+  textPrimary: '#333333',
+  textSecondary: '#666666',
+  error: '#FF0000',
+  lightPurple: '#E6E6FA',
+  lightBlue: '#E6F2FF',
+  lightRed: '#E8F9FF'
+}
 
 const { width } = Dimensions.get("window")
 const CAROUSEL_INTERVAL = 3000 // 3 seconds
@@ -1523,36 +1535,47 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     backgroundColor: Colors.primary,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
-    color: Colors.text,
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: {width: 1, height: 1},
+    textShadowRadius: 2
   },
   headerButtons: {
     flexDirection: 'row',
   },
   approvalsButton: {
-    backgroundColor: "#8A2BE2",
+    backgroundColor: Colors.lightBlue,
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
+    elevation: 2,
   },
   addButton: {
-    backgroundColor: "#8A2BE2",
+    backgroundColor: Colors.secondary,
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+    elevation: 2,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.background,
   },
   loadingText: {
     marginTop: 10,
@@ -1563,9 +1586,15 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   carouselContainer: {
-    height: 220,
+    height: 250,
     width: '100%',
     marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginHorizontal: 8,
+    width: width - 16,
+    elevation: 3,
+    backgroundColor: Colors.lightPurple,
   },
   carouselBackgroundItem: {
     position: 'absolute',
@@ -1583,8 +1612,8 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   carouselItem: {
-    width: width,
-    height: 220,
+    width: width - 16,
+    height: 250,
     position: 'absolute',
   },
   carouselImage: {
@@ -1596,17 +1625,19 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 12,
+    backgroundColor: 'rgba(106, 13, 173, 0.7)',
+    padding: 16,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
   },
   carouselTitle: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   carouselIndicators: {
     position: 'absolute',
-    bottom: 12,
+    bottom: 20,
     right: 0,
     left: 0,
     flexDirection: 'row',
@@ -1614,30 +1645,38 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   indicatorButton: {
-    padding: 8, // Increase touch target size
+    padding: 8,
   },
   carouselIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    marginHorizontal: 4,
+    marginHorizontal: 6,
   },
   carouselIndicatorActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.accent,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   featuredPlaceholder: {
-    height: 220,
-    width: '100%',
+    height: 250,
+    width: width - 16,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F0F0F0',
+    backgroundColor: Colors.lightPurple,
     marginBottom: 16,
+    borderRadius: 12,
+    marginHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   featuredPlaceholderText: {
     marginTop: 8,
     fontSize: 16,
-    color: '#888888',
+    color: Colors.primary,
+    fontWeight: '500',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1645,33 +1684,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     marginBottom: 12,
+    marginTop: 8,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
+    color: Colors.primary,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.accent,
+    paddingLeft: 12,
   },
   createAlbumButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.secondary,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    elevation: 2,
   },
   createAlbumText: {
     color: '#FFFFFF',
-    marginLeft: 4,
-    fontSize: 12,
+    marginLeft: 6,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   albumsSection: {
     marginBottom: 24,
+    backgroundColor: Colors.lightBlue,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginHorizontal: 8,
   },
   albumsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
   },
   albumItem: {
     width: '25%',
@@ -1684,39 +1732,56 @@ const styles = StyleSheet.create({
     height: 64,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    elevation: 2,
   },
   albumName: {
     fontSize: 12,
     textAlign: 'center',
     color: Colors.textPrimary,
+    fontWeight: '500',
   },
   expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
+    backgroundColor: Colors.lightPurple,
+    marginHorizontal: 16,
+    borderRadius: 20,
+    marginTop: 8,
   },
   expandButtonText: {
     color: Colors.primary,
     fontSize: 14,
-    marginRight: 4,
+    marginRight: 6,
+    fontWeight: 'bold',
   },
   gallerySection: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
+    backgroundColor: Colors.lightRed,
+    borderRadius: 12,
+    marginHorizontal: 8,
+    paddingVertical: 12,
   },
   galleryContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     marginTop: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
   },
   galleryItem: {
     width: "48%",
     aspectRatio: 1,
-    margin: "1%",
-    borderRadius: 8,
+    marginBottom: "4%",
+    borderRadius: 12,
     overflow: "hidden",
     position: "relative",
+    elevation: 2,
+    backgroundColor: '#FFFFFF',
   },
   galleryImage: {
     width: "100%",
@@ -1727,12 +1792,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(255, 69, 0, 0.7)",
     padding: 8,
   },
   galleryItemTitle: {
     color: "#FFFFFF",
     fontWeight: "bold",
+    fontSize: 14,
   },
   emptyGallery: {
     width: '100%',
@@ -1742,7 +1808,7 @@ const styles = StyleSheet.create({
   },
   emptyGalleryText: {
     marginTop: 8,
-    color: '#888888',
+    color: Colors.textSecondary,
     fontSize: 16,
   },
   modalOverlay: {
@@ -1773,9 +1839,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#EEEEEE',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
+    color: Colors.primary,
   },
   closeButton: {
     padding: 4,
@@ -1788,11 +1854,17 @@ const styles = StyleSheet.create({
   photoOptionButton: {
     alignItems: 'center',
     padding: 16,
+    backgroundColor: Colors.lightPurple,
+    borderRadius: 12,
+    width: '40%',
+    elevation: 2,
   },
   photoOptionText: {
     marginTop: 8,
     fontSize: 14,
-    color: Colors.textPrimary,
+    color: Colors.primary,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   photoPreviewContainer: {
     alignItems: 'center',
@@ -1801,48 +1873,56 @@ const styles = StyleSheet.create({
   photoPreview: {
     width: '80%',
     aspectRatio: 1,
-    borderRadius: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.primary,
   },
   retakeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.accent,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
     marginTop: 16,
+    elevation: 2,
   },
   retakeButtonText: {
     color: '#FFFFFF',
-    marginLeft: 4,
+    marginLeft: 8,
     fontWeight: 'bold',
+    fontSize: 14,
   },
   albumSelection: {
     padding: 16,
   },
   albumSelectionLabel: {
     fontSize: 16,
-    marginBottom: 8,
-    color: Colors.textPrimary,
+    marginBottom: 12,
+    color: Colors.primary,
+    fontWeight: '500',
   },
   albumOptionsList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   albumOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#EEEEEE',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.lightBlue,
     marginRight: 8,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.secondary,
   },
   albumOptionSelected: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.secondary,
   },
   albumOptionText: {
     fontSize: 14,
     color: Colors.textPrimary,
+    fontWeight: '500',
   },
   submitButton: {
     flexDirection: 'row',
@@ -1851,7 +1931,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     paddingVertical: 14,
     marginHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 12,
+    marginTop: 16,
+    elevation: 2,
   },
   submitButtonDisabled: {
     opacity: 0.7,
@@ -1866,16 +1948,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
     marginHorizontal: 16,
-    color: Colors.textPrimary,
+    color: Colors.primary,
+    fontWeight: '500',
   },
   albumNameInput: {
     borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 8,
+    borderColor: Colors.primary,
+    borderRadius: 12,
     padding: 12,
     marginTop: 8,
     marginHorizontal: 16,
     fontSize: 16,
+    backgroundColor: Colors.lightPurple,
   },
   createButton: {
     flexDirection: 'row',
@@ -1885,7 +1969,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginTop: 24,
     marginHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 12,
+    elevation: 2,
   },
   createButtonText: {
     color: '#FFFFFF',
@@ -1902,6 +1987,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     overflow: 'hidden',
+    elevation: 5,
   },
   actionMenuItem: {
     flexDirection: 'row',
@@ -1918,7 +2004,7 @@ const styles = StyleSheet.create({
   actionMenuCancel: {
     padding: 16,
     alignItems: 'center',
-    backgroundColor: '#F8F8F8',
+    backgroundColor: Colors.lightPurple,
   },
   actionMenuCancelText: {
     fontSize: 16,
@@ -1931,15 +2017,18 @@ const styles = StyleSheet.create({
   },
   titleInputLabel: {
     fontSize: 16,
-    color: Colors.textPrimary,
+    color: Colors.primary,
     marginBottom: 8,
+    fontWeight: '500',
   },
   titleInput: {
     borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 8,
+    borderColor: Colors.primary,
+    borderRadius: 12,
     padding: 12,
     fontSize: 16,
+    color: Colors.textPrimary,
+    backgroundColor: Colors.lightPurple,
   },
   albumSelectionModal: {
     backgroundColor: '#FFFFFF',
@@ -1959,7 +2048,7 @@ const styles = StyleSheet.create({
   albumSelectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
+    color: Colors.primary,
   },
   albumSelectionList: {
     paddingVertical: 8,
@@ -1967,7 +2056,7 @@ const styles = StyleSheet.create({
   albumSelectionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
@@ -1982,6 +2071,7 @@ const styles = StyleSheet.create({
     width: '90%',
     maxHeight: '90%',
     overflow: 'hidden',
+    elevation: 5,
   },
   imageDetailHeader: {
     flexDirection: 'row',
@@ -1990,16 +2080,19 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
+    backgroundColor: Colors.primary,
   },
   imageDetailTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
+    color: '#FFFFFF',
   },
   imageDetailPreview: {
     width: '100%',
-    height: 220,
-    backgroundColor: '#F8F8F8',
+    height: 250,
+    backgroundColor: Colors.lightPurple,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   imageDetailThumbnail: {
     width: '100%',
@@ -2011,12 +2104,15 @@ const styles = StyleSheet.create({
   metadataItem: {
     flexDirection: 'row',
     marginBottom: 12,
+    backgroundColor: Colors.lightBlue,
+    padding: 12,
+    borderRadius: 8,
   },
   metadataLabel: {
     width: 100,
     fontSize: 14,
     fontWeight: 'bold',
-    color: Colors.textSecondary,
+    color: Colors.primary,
   },
   metadataValue: {
     flex: 1,
@@ -2035,11 +2131,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     width: '90%',
     overflow: 'hidden',
+    elevation: 5,
   },
   editPreview: {
     width: '100%',
-    height: 180,
-    backgroundColor: '#F8F8F8',
+    height: 200,
+    backgroundColor: Colors.lightPurple,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   editThumbnail: {
     width: '100%',
@@ -2051,14 +2150,16 @@ const styles = StyleSheet.create({
   editLabel: {
     fontSize: 16,
     marginBottom: 8,
-    color: Colors.textPrimary,
+    color: Colors.primary,
+    fontWeight: '500',
   },
   editInput: {
     borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 8,
+    borderColor: Colors.primary,
+    borderRadius: 12,
     padding: 12,
     fontSize: 16,
+    backgroundColor: Colors.lightPurple,
   },
   editButtons: {
     flexDirection: 'row',
@@ -2071,16 +2172,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginRight: 8,
+    backgroundColor: Colors.lightRed,
+    borderRadius: 8,
   },
   cancelEditText: {
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: Colors.accent,
+    fontWeight: 'bold',
   },
   saveEditButton: {
     backgroundColor: Colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 4,
+    borderRadius: 8,
+    elevation: 2,
   },
   saveEditText: {
     fontSize: 16,

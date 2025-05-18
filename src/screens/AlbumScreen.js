@@ -11,19 +11,45 @@ import {
   Modal,
   Dimensions,
   TextInput,
-  ScrollView
+  ScrollView,
+  StatusBar
 } from "react-native"
 import MaterialIcons from "react-native-vector-icons/MaterialIcons"
-import Colors from "../constants/Colors"
 import { useAuth } from "../context/AuthContext"
 import { useClass } from "../context/ClassContext"
 import firestore from "@react-native-firebase/firestore"
 import { formatDate } from "../utils/helpers"
-
 const { width } = Dimensions.get("window")
 const GALLERY_COLLECTION = 'gallery'
 const FEATURED_IMAGES_COLLECTION = 'featuredImages'
 const ALBUMS_COLLECTION = 'albums'
+
+// Enhanced color scheme
+const NewColors = {
+  primary: "#6A4CE4", // Purple primary
+  primaryLight: "#8A7CDC", // Lighter purple
+  primaryDark: "#5038C0", // Darker purple
+  secondary: "#3A8EFF", // Blue secondary
+  secondaryLight: "#6AADFF", // Lighter blue
+  secondaryDark: "#2A6EDF", // Darker blue
+  accent: "#FF4566", // Red accent
+  accentLight: "#FF7A90", // Lighter red
+  accentDark: "#E02545", // Darker red
+  background: "#FFFFFF", // White background
+  cardBackground: "#F4F7FF", // Light blue card background
+  cardBackgroundAlt: "#F0EDFF", // Light purple card background
+  textPrimary: "#333355", // Dark blue/purple text
+  textSecondary: "#7777AA", // Medium purple text
+  textLight: "#FFFFFF", // White text
+  separator: "#E0E6FF", // Light purple separator
+  success: "#44CC88", // Green success
+  warning: "#FFAA44", // Orange warning
+  error: "#FF4566", // Red error
+  shadow: "rgba(106, 76, 228, 0.2)", // Purple shadow
+  overlay: "rgba(51, 51, 85, 0.6)", // Dark overlay
+  gradientStart: "#6A4CE4", // Purple gradient start
+  gradientEnd: "#3A8EFF", // Blue gradient end
+}
 
 const AlbumScreen = ({ route, navigation }) => {
   const { album } = route.params
@@ -424,6 +450,7 @@ const AlbumScreen = ({ route, navigation }) => {
     <TouchableOpacity 
       style={styles.imageItem}
       onPress={() => handleImagePress(item)}
+      activeOpacity={0.8}
     >
       <Image 
         source={{ uri: `data:image/jpeg;base64,${item.image}` }} 
@@ -437,26 +464,39 @@ const AlbumScreen = ({ route, navigation }) => {
   
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={NewColors.primaryDark} />
+      
+      {/* Enhanced Gradient-like Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{album.name}</Text>
+        <View style={styles.headerContent}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={NewColors.textLight} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{album.name}</Text>
+          <TouchableOpacity 
+            style={styles.headerActionButton}
+            onPress={() => navigation.navigate('GalleryScreen')}
+          >
+            <MaterialIcons name="photo-library" size={24} color={NewColors.textLight} />
+          </TouchableOpacity>
+        </View>
       </View>
       
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading album...</Text>
+          <View style={styles.loadingIndicator}>
+            <ActivityIndicator size="large" color={NewColors.primary} />
+            <Text style={styles.loadingText}>Loading album...</Text>
+          </View>
         </View>
       ) : (
         <>
           <View style={styles.albumInfo}>
             <View style={styles.albumIconContainer}>
-              <MaterialIcons name="folder" size={36} color="#FFC107" />
+              <MaterialIcons name="photo-album" size={36} color={NewColors.secondary} />
             </View>
             <View style={styles.albumDetails}>
               <Text style={styles.albumName}>{album.name}</Text>
@@ -471,13 +511,20 @@ const AlbumScreen = ({ route, navigation }) => {
               data={images}
               renderItem={renderImageItem}
               keyExtractor={item => item.id}
-              numColumns={3}
+              numColumns={2}
               contentContainerStyle={styles.imageGrid}
+              showsVerticalScrollIndicator={false}
             />
           ) : (
             <View style={styles.emptyContainer}>
-              <MaterialIcons name="photo" size={48} color="#AAAAAA" />
+              <View style={styles.emptyIconContainer}>
+                <MaterialIcons name="photo-library" size={80} color={NewColors.primaryLight} />
+              </View>
               <Text style={styles.emptyText}>No images in this album</Text>
+              <TouchableOpacity style={styles.emptyAddButton}>
+                <MaterialIcons name="add-photo-alternate" size={20} color={NewColors.textLight} />
+                <Text style={styles.emptyAddButtonText}>Add Images</Text>
+              </TouchableOpacity>
             </View>
           )}
         </>
@@ -496,11 +543,23 @@ const AlbumScreen = ({ route, navigation }) => {
           onPress={() => setImageActionMenuVisible(false)}
         >
           <View style={styles.actionMenuContainer}>
+            <View style={styles.actionMenuHeader}>
+              <Text style={styles.actionMenuHeaderText}>Image Options</Text>
+              <TouchableOpacity
+                onPress={() => setImageActionMenuVisible(false)}
+                style={styles.closeIconButton}
+              >
+                <MaterialIcons name="close" size={24} color={NewColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
             <TouchableOpacity 
               style={styles.actionMenuItem}
               onPress={() => setImageAsFeatured(selectedImage)}
             >
-              <MaterialIcons name="star" size={24} color={Colors.primary} />
+              <View style={[styles.actionMenuIconBg, { backgroundColor: 'rgba(58, 142, 255, 0.15)' }]}>
+                <MaterialIcons name="star" size={22} color={NewColors.secondary} />
+              </View>
               <Text style={styles.actionMenuText}>Add to Featured</Text>
             </TouchableOpacity>
             
@@ -508,7 +567,9 @@ const AlbumScreen = ({ route, navigation }) => {
               style={styles.actionMenuItem}
               onPress={showMoveToAlbumModal}
             >
-              <MaterialIcons name="folder" size={24} color={Colors.primary} />
+              <View style={[styles.actionMenuIconBg, { backgroundColor: 'rgba(106, 76, 228, 0.15)' }]}>
+                <MaterialIcons name="folder" size={22} color={NewColors.primary} />
+              </View>
               <Text style={styles.actionMenuText}>Move to Album</Text>
             </TouchableOpacity>
             
@@ -516,7 +577,9 @@ const AlbumScreen = ({ route, navigation }) => {
               style={styles.actionMenuItem}
               onPress={viewImageDetails}
             >
-              <MaterialIcons name="info" size={24} color={Colors.primary} />
+              <View style={[styles.actionMenuIconBg, { backgroundColor: 'rgba(68, 204, 136, 0.15)' }]}>
+                <MaterialIcons name="info" size={22} color={NewColors.success} />
+              </View>
               <Text style={styles.actionMenuText}>View Details</Text>
             </TouchableOpacity>
             
@@ -524,7 +587,9 @@ const AlbumScreen = ({ route, navigation }) => {
               style={styles.actionMenuItem}
               onPress={showEditModal}
             >
-              <MaterialIcons name="edit" size={24} color={Colors.primary} />
+              <View style={[styles.actionMenuIconBg, { backgroundColor: 'rgba(255, 170, 68, 0.15)' }]}>
+                <MaterialIcons name="edit" size={22} color={NewColors.warning} />
+              </View>
               <Text style={styles.actionMenuText}>Edit</Text>
             </TouchableOpacity>
             
@@ -535,15 +600,10 @@ const AlbumScreen = ({ route, navigation }) => {
                 deleteImage(selectedImage)
               }}
             >
-              <MaterialIcons name="delete" size={24} color={Colors.error} />
+              <View style={[styles.actionMenuIconBg, { backgroundColor: 'rgba(255, 69, 102, 0.15)' }]}>
+                <MaterialIcons name="delete" size={22} color={NewColors.error} />
+              </View>
               <Text style={[styles.actionMenuText, styles.deleteMenuText]}>Delete</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.actionMenuCancel}
-              onPress={() => setImageActionMenuVisible(false)}
-            >
-              <Text style={styles.actionMenuCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -561,10 +621,10 @@ const AlbumScreen = ({ route, navigation }) => {
             <View style={styles.albumSelectionHeader}>
               <Text style={styles.albumSelectionTitle}>Move to Album</Text>
               <TouchableOpacity
-                style={styles.closeButton}
+                style={styles.closeIconButton}
                 onPress={() => setMoveToAlbumVisible(false)}
               >
-                <MaterialIcons name="close" size={24} color="#000000" />
+                <MaterialIcons name="close" size={24} color={NewColors.textPrimary} />
               </TouchableOpacity>
             </View>
             
@@ -573,7 +633,9 @@ const AlbumScreen = ({ route, navigation }) => {
                 style={styles.albumSelectionItem}
                 onPress={() => moveImageToAlbum(selectedImage, null)}
               >
-                <MaterialIcons name="photo-library" size={30} color={Colors.primary} />
+                <View style={[styles.albumSelectionIcon, { backgroundColor: 'rgba(58, 142, 255, 0.15)' }]}>
+                  <MaterialIcons name="photo-library" size={28} color={NewColors.secondary} />
+                </View>
                 <Text style={styles.albumSelectionItemText}>None (Main Gallery)</Text>
               </TouchableOpacity>
               
@@ -583,7 +645,9 @@ const AlbumScreen = ({ route, navigation }) => {
                   style={styles.albumSelectionItem}
                   onPress={() => moveImageToAlbum(selectedImage, album.id)}
                 >
-                  <MaterialIcons name="folder" size={30} color="#FFC107" />
+                  <View style={[styles.albumSelectionIcon, { backgroundColor: 'rgba(106, 76, 228, 0.15)' }]}>
+                    <MaterialIcons name="folder" size={28} color={NewColors.primary} />
+                  </View>
                   <Text style={styles.albumSelectionItemText}>{album.name}</Text>
                 </TouchableOpacity>
               ))}
@@ -606,10 +670,10 @@ const AlbumScreen = ({ route, navigation }) => {
                 {selectedImage?.title || 'Image Details'}
               </Text>
               <TouchableOpacity 
-                style={styles.closeButton}
+                style={styles.closeIconButton}
                 onPress={() => setImageDetailVisible(false)}
               >
-                <MaterialIcons name="close" size={24} color="#000000" />
+                <MaterialIcons name="close" size={24} color={NewColors.textPrimary} />
               </TouchableOpacity>
             </View>
             
@@ -623,32 +687,68 @@ const AlbumScreen = ({ route, navigation }) => {
                   />
                 </View>
                 
-                <View style={styles.imageMetadata}>
+                <ScrollView style={styles.imageMetadata}>
                   {selectedImage.title && (
                     <View style={styles.metadataItem}>
-                      <Text style={styles.metadataLabel}>Title:</Text>
-                      <Text style={styles.metadataValue}>{selectedImage.title}</Text>
+                      <MaterialIcons name="title" size={20} color={NewColors.primary} />
+                      <View style={styles.metadataContent}>
+                        <Text style={styles.metadataLabel}>Title</Text>
+                        <Text style={styles.metadataValue}>{selectedImage.title}</Text>
+                      </View>
                     </View>
                   )}
                   
                   <View style={styles.metadataItem}>
-                    <Text style={styles.metadataLabel}>Uploaded By:</Text>
-                    <Text style={styles.metadataValue}>{uploaderInfo.name}</Text>
+                    <MaterialIcons name="person" size={20} color={NewColors.primary} />
+                    <View style={styles.metadataContent}>
+                      <Text style={styles.metadataLabel}>Uploaded By</Text>
+                      <Text style={styles.metadataValue}>{uploaderInfo.name}</Text>
+                    </View>
                   </View>
                   
                   {selectedImage.createdAt && (
                     <View style={styles.metadataItem}>
-                      <Text style={styles.metadataLabel}>Uploaded On:</Text>
-                      <Text style={styles.metadataValue}>
-                        {formatDate(selectedImage.createdAt)}
-                      </Text>
+                      <MaterialIcons name="event" size={20} color={NewColors.primary} />
+                      <View style={styles.metadataContent}>
+                        <Text style={styles.metadataLabel}>Uploaded On</Text>
+                        <Text style={styles.metadataValue}>
+                          {formatDate(selectedImage.createdAt)}
+                        </Text>
+                      </View>
                     </View>
                   )}
                   
                   <View style={styles.metadataItem}>
-                    <Text style={styles.metadataLabel}>Album:</Text>
-                    <Text style={styles.metadataValue}>{album.name}</Text>
+                    <MaterialIcons name="folder" size={20} color={NewColors.primary} />
+                    <View style={styles.metadataContent}>
+                      <Text style={styles.metadataLabel}>Album</Text>
+                      <Text style={styles.metadataValue}>{album.name}</Text>
+                    </View>
                   </View>
+                </ScrollView>
+                
+                <View style={styles.imageDetailActions}>
+                  <TouchableOpacity 
+                    style={[styles.imageDetailAction, { backgroundColor: NewColors.secondary }]}
+                    onPress={() => {
+                      setImageDetailVisible(false);
+                      showEditModal();
+                    }}
+                  >
+                    <MaterialIcons name="edit" size={20} color={NewColors.textLight} />
+                    <Text style={styles.imageDetailActionText}>Edit</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.imageDetailAction, { backgroundColor: NewColors.error }]}
+                    onPress={() => {
+                      setImageDetailVisible(false);
+                      deleteImage(selectedImage);
+                    }}
+                  >
+                    <MaterialIcons name="delete" size={20} color={NewColors.textLight} />
+                    <Text style={styles.imageDetailActionText}>Delete</Text>
+                  </TouchableOpacity>
                 </View>
               </>
             )}
@@ -668,10 +768,10 @@ const AlbumScreen = ({ route, navigation }) => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Image</Text>
               <TouchableOpacity 
-                style={styles.closeButton}
+                style={styles.closeIconButton}
                 onPress={() => setEditModalVisible(false)}
               >
-                <MaterialIcons name="close" size={24} color="#000000" />
+                <MaterialIcons name="close" size={24} color={NewColors.textPrimary} />
               </TouchableOpacity>
             </View>
             
@@ -693,6 +793,7 @@ const AlbumScreen = ({ route, navigation }) => {
                     onChangeText={setEditImageTitle}
                     placeholder="Enter image title"
                     maxLength={50}
+                    placeholderTextColor={NewColors.textSecondary}
                   />
                 </View>
                 
@@ -710,7 +811,7 @@ const AlbumScreen = ({ route, navigation }) => {
                     disabled={loading}
                   >
                     {loading ? (
-                      <ActivityIndicator size="small" color="#fff" />
+                      <ActivityIndicator size="small" color={NewColors.textLight} />
                     ) : (
                       <Text style={styles.saveEditText}>Save</Text>
                     )}
@@ -728,271 +829,280 @@ const AlbumScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: NewColors.background,
   },
+  
+  // Enhanced Header with Gradient-like style
   header: {
+    backgroundColor: NewColors.primary,
+    paddingTop: 40,  // Extra space for status bar
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    marginBottom: 16,
+  },
+  headerContent: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    justifyContent: 'space-between',
   },
   backButton: {
-    marginRight: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  headerActionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
-    color: Colors.text,
+    color: NewColors.textLight,
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 8,
   },
+
+  // Loading state
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
+  },
+  loadingIndicator: {
+    backgroundColor: NewColors.cardBackground,
+    padding: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   loadingText: {
-    marginTop: 10,
-    color: Colors.textSecondary,
+    marginTop: 16,
+    color: NewColors.textSecondary,
     fontSize: 16,
+    fontWeight: '500',
   },
+
+  // Album info section
   albumInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 16,
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    backgroundColor: NewColors.cardBackground,
+    borderRadius: 16,
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   albumIconContainer: {
     width: 60,
     height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(58, 142, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
   },
   albumDetails: {
     flex: 1,
   },
   albumName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
+    color: NewColors.textPrimary,
+    marginBottom: 4,
   },
   albumStats: {
-    marginTop: 4,
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: NewColors.textSecondary,
   },
+
+  // Image grid
   imageGrid: {
-    padding: 4,
+    paddingHorizontal: 12,
+    paddingBottom: 20,
   },
   imageItem: {
-    width: (width - 24) / 3,
-    aspectRatio: 1,
+    flex: 1,
     margin: 4,
-    borderRadius: 4,
+    borderRadius: 12,
     overflow: 'hidden',
+    backgroundColor: NewColors.cardBackgroundAlt,
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    height: 180,
   },
   thumbnail: {
     width: '100%',
     height: '100%',
+    borderRadius: 12,
   },
   imageOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 4,
+    backgroundColor: 'rgba(51, 51, 85, 0.7)',
+    padding: 8,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
   },
   imageTitle: {
-    color: '#FFFFFF',
-    fontSize: 12,
+    color: NewColors.textLight,
+    fontSize: 14,
+    fontWeight: '500',
   },
+
+  // Empty state
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 20,
+  },
+  emptyIconContainer: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(106, 76, 228, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   emptyText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: Colors.textSecondary,
+    fontSize: 18,
+    fontWeight: '500',
+    color: NewColors.textSecondary,
+    marginBottom: 24,
     textAlign: 'center',
   },
+  emptyAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: NewColors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  emptyAddButtonText: {
+    color: NewColors.textLight,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+
+  // Modal overlay
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: NewColors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  // Action menu modal
   actionMenuContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    width: width * 0.85,
+    backgroundColor: NewColors.background,
+    borderRadius: 20,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  actionMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: NewColors.separator,
+    backgroundColor: NewColors.cardBackground,
+  },
+  actionMenuHeaderText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: NewColors.textPrimary,
+  },
+  closeIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(106, 76, 228, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    borderBottomColor: NewColors.separator,
+  },
+  actionMenuIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
   actionMenuText: {
     fontSize: 16,
-    marginLeft: 16,
-    color: Colors.textPrimary,
+    color: NewColors.textPrimary,
+    fontWeight: '500',
   },
   deleteMenuItem: {
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderBottomWidth: 0,
   },
   deleteMenuText: {
-    color: Colors.error,
+    color: NewColors.error,
   },
-  actionMenuCancel: {
-    padding: 16,
-    alignItems: 'center',
-    backgroundColor: '#F8F8F8',
-  },
-  actionMenuCancelText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.primary,
-  },
-  imageDetailContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    width: '90%',
-    maxHeight: '90%',
-    overflow: 'hidden',
-  },
-  imageDetailHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
-  imageDetailTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-  },
-  imageDetailPreview: {
-    width: '100%',
-    height: 220,
-    backgroundColor: '#F8F8F8',
-  },
-  imageDetailThumbnail: {
-    width: '100%',
-    height: '100%',
-  },
-  imageMetadata: {
-    padding: 16,
-  },
-  metadataItem: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  metadataLabel: {
-    width: 100,
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.textSecondary,
-  },
-  metadataValue: {
-    flex: 1,
-    fontSize: 14,
-    color: Colors.textPrimary,
-  },
-  editContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    width: '90%',
-    overflow: 'hidden',
-  },
-  editPreview: {
-    width: '100%',
-    height: 180,
-    backgroundColor: '#F8F8F8',
-  },
-  editThumbnail: {
-    width: '100%',
-    height: '100%',
-  },
-  editField: {
-    padding: 16,
-  },
-  editLabel: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: Colors.textPrimary,
-  },
-  editInput: {
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  editButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-  },
-  cancelEditButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-  },
-  cancelEditText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  saveEditButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 4,
-  },
-  saveEditText: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  // Album selection modal styles
+
+  // Album selection modal
   albumSelectionModal: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    width: '90%',
+    width: width * 0.9,
     maxHeight: '80%',
-    elevation: 5,
+    backgroundColor: NewColors.background,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   albumSelectionHeader: {
     flexDirection: 'row',
@@ -1000,28 +1110,231 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    borderBottomColor: NewColors.separator,
+    backgroundColor: NewColors.cardBackground,
   },
   albumSelectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
+    color: NewColors.textPrimary,
   },
   albumSelectionList: {
-    paddingVertical: 8,
+    padding: 8,
+    maxHeight: 400,
   },
   albumSelectionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    marginVertical: 4,
+    backgroundColor: NewColors.cardBackground,
+    borderRadius: 12,
+  },
+  albumSelectionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
   albumSelectionItemText: {
     fontSize: 16,
-    marginLeft: 16,
-    color: Colors.textPrimary,
+    color: NewColors.textPrimary,
+    fontWeight: '500',
   },
-})
 
-export default AlbumScreen 
+  // Image detail modal
+  imageDetailContainer: {
+    width: width * 0.9,
+    maxHeight: '80%',
+    backgroundColor: NewColors.background,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  imageDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: NewColors.separator,
+    backgroundColor: NewColors.cardBackground,
+  },
+  imageDetailTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: NewColors.textPrimary,
+    flex: 1,
+  },
+  imageDetailPreview: {
+    height: 200,
+    backgroundColor: NewColors.cardBackgroundAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  imageDetailThumbnail: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  imageMetadata: {
+    padding: 16,
+    maxHeight: 200,
+  },
+  metadataItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: NewColors.cardBackground,
+    padding: 12,
+    borderRadius: 12,
+  },
+  metadataContent: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  metadataLabel: {
+    fontSize: 14,
+    color: NewColors.textSecondary,
+    marginBottom: 2,
+  },
+  metadataValue: {
+    fontSize: 16,
+    color: NewColors.textPrimary,
+    fontWeight: '500',
+  },
+  imageDetailActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: NewColors.separator,
+  },
+  imageDetailAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  imageDetailActionText: {
+    color: NewColors.textLight,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+
+  // Edit modal
+  editContainer: {
+    width: width * 0.9,
+    backgroundColor: NewColors.background,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: NewColors.separator,
+    backgroundColor: NewColors.cardBackground,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: NewColors.textPrimary,
+  },
+  editPreview: {
+    height: 200,
+    backgroundColor: NewColors.cardBackgroundAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  editThumbnail: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  editField: {
+    padding: 16,
+  },
+  editLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: NewColors.textPrimary,
+    marginBottom: 8,
+  },
+  editInput: {
+    backgroundColor: NewColors.cardBackground,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+    color: NewColors.textPrimary,
+    borderWidth: 1,
+    borderColor: NewColors.separator,
+  },
+  editButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: NewColors.separator,
+  },
+  cancelEditButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: NewColors.cardBackground,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: NewColors.separator,
+  },
+  cancelEditText: {
+    color: NewColors.textPrimary,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  saveEditButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: NewColors.primary,
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: NewColors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  saveEditText: {
+    color: NewColors.textLight,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
+
+
+export default AlbumScreen;
