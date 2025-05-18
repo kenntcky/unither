@@ -10,6 +10,8 @@ import AssignmentDetailsScreen from "../screens/AssignmentDetailsScreen"
 import EditSubjectScreen from "../screens/EditSubjectScreen"
 import ProfileScreen from "../screens/ProfileScreen"
 import GalleryScreen from "../screens/GalleryScreen" // New Gallery screen
+import AlbumScreen from "../screens/AlbumScreen" // Album screen
+import GalleryApprovalScreen from "../screens/GalleryApprovalScreen" // Gallery approvals screen
 import LoginScreen from "../screens/auth/LoginScreen"
 import RegisterScreen from "../screens/auth/RegisterScreen"
 import ForgotPasswordScreen from "../screens/auth/ForgotPasswordScreen"
@@ -221,10 +223,19 @@ const AiStack = () => (
 const GalleryStack = () => (
   <Stack.Navigator
   screenOptions={{
-    headerShown: false,
-  }}
+      headerStyle: {
+        backgroundColor: Colors.primary,
+      },
+      headerTintColor: Colors.text,
+      headerTitleStyle: {
+        fontWeight: "bold",
+      },
+      headerShown: false, // Hide headers since we have custom headers in each screen
+    }}
   >
     <Stack.Screen name="Gallery" component={GalleryScreen} options={{ title: t("Class Gallery") }} />
+    <Stack.Screen name="AlbumScreen" component={AlbumScreen} options={{ title: t("Album") }} />
+    <Stack.Screen name="GalleryApproval" component={GalleryApprovalScreen} options={{ title: t("Approve Images") }} />
   </Stack.Navigator>
 )
 
