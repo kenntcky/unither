@@ -13,7 +13,8 @@ import {
   Dimensions,
   Platform,
   TextInput,
-  PanResponder
+  PanResponder,
+  SafeAreaView
 } from "react-native"
 import MaterialIcons from "react-native-vector-icons/MaterialIcons"
 import { launchCamera, launchImageLibrary } from "react-native-image-picker"
@@ -43,7 +44,7 @@ const Colors = {
   lightRed: '#E8F9FF'
 }
 
-const { width } = Dimensions.get("window")
+const { width, height: windowHeight } = Dimensions.get("window")
 const CAROUSEL_INTERVAL = 3000 // 3 seconds
 
 const GalleryScreen = ({ navigation }) => {
@@ -1032,12 +1033,6 @@ const GalleryScreen = ({ navigation }) => {
               <MaterialIcons name="approval" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity 
-            style={styles.addButton}
-            onPress={handleAddImage}
-          >
-          <MaterialIcons name="add-photo-alternate" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
         </View>
       </View>
 
@@ -1045,19 +1040,38 @@ const GalleryScreen = ({ navigation }) => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading gallery...</Text>
-            </View>
+        </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.contentContainer}>
-          {/* Featured Images Carousel */}
-          {renderFeaturedCarousel()}
-          
-          {/* Albums Section */}
-          {renderAlbums()}
-          
-          {/* Gallery Images Grid */}
-          {renderGallerySection()}
-        </ScrollView>
+        <View style={{flex: 1}}>
+          <ScrollView contentContainerStyle={styles.contentContainer}>
+            {/* Featured Images Carousel */}
+            {renderFeaturedCarousel()}
+            
+            {/* Albums Section */}
+            {renderAlbums()}
+            
+            {/* Gallery Images Grid */}
+            {renderGallerySection()}
+            
+            {/* Extra space at bottom to avoid FAB overlap */}
+            <View style={{height: 100}} />
+          </ScrollView>
+        </View>
       )}
+      
+      {/* Fixed position add button */}
+      <TouchableOpacity 
+        style={[
+          styles.addButtonFixed,
+          { bottom: Platform.OS === 'ios' ? 90 : 60 }
+        ]}
+        onPress={handleAddImage}
+        activeOpacity={0.8}
+      >
+        <View style={styles.addButtonInner}>
+          <MaterialIcons name="add-photo-alternate" size={32} color="#FFFFFF" />
+        </View>
+      </TouchableOpacity>
       
       {/* Upload Image Modal */}
       <Modal
@@ -1069,6 +1083,17 @@ const GalleryScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
+              {isAdmin && (
+                <TouchableOpacity
+                  style={styles.approvalButtonInModal}
+                  onPress={() => {
+                    setUploadModalVisible(false)
+                    navigation.navigate('GalleryApproval')
+                  }}
+                >
+                  <MaterialIcons name="approval" size={22} color={Colors.primary} />
+                </TouchableOpacity>
+              )}
               <Text style={styles.modalTitle}>Upload Image</Text>
               <TouchableOpacity 
                 style={styles.closeButton}
@@ -1327,9 +1352,9 @@ const GalleryScreen = ({ navigation }) => {
                 >
                   <MaterialIcons name="folder" size={30} color="#FFC107" />
                   <Text style={styles.albumSelectionItemText}>{album.name}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1529,6 +1554,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  approvalButtonInModal: {
+    backgroundColor: Colors.lightPurple,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1560,15 +1596,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
-    elevation: 2,
-  },
-  addButton: {
-    backgroundColor: Colors.secondary,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
     elevation: 2,
   },
   loadingContainer: {
@@ -1830,14 +1857,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 36 : 16,
     minHeight: 240,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
+    modalHeader: {    flexDirection: 'row',    justifyContent: 'space-between',    alignItems: 'center',    padding: 16,    borderBottomWidth: 1,    borderBottomColor: '#EEEEEE',  },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -2191,6 +2211,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  addButtonFixed: {
+    position: 'absolute',
+    right: 20,
+    width: 70,
+    height: 70,
+    zIndex: 9999,
+  },
+  addButtonInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 35,
+    backgroundColor: '#FF5722',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+    borderWidth: 3,
+    borderColor: '#fff',
   },
 })
 
