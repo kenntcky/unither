@@ -7,7 +7,15 @@ module.exports = {
       blacklist: null,
       whitelist: null,
       safe: false,
-      allowUndefined: true
+      allowUndefined: true,
+      // Explicitly list the variables you're using
+      include: [
+        'AIMLAPI_KEY_1',
+        'AIMLAPI_KEY_2', 
+        'AIMLAPI_KEY_3',
+        'GEMINI_API_KEY',
+        'EXPO_DEBUG'
+      ]
     }]
   ]
 };

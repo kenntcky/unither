@@ -175,11 +175,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
       if (randomizationMode === RANDOMIZATION_MODE.ABSOLUTE_RANDOM) {
         performAbsoluteRandomization();
       } else if (randomizationMode === RANDOMIZATION_MODE.FAIR_GENDER) {
-        Alert.alert(
-          'Feature Not Available',
-          'Fair gender distribution is not yet available as gender data is not stored. This feature will be available in a future update.',
-          [{ text: 'OK', onPress: () => performAbsoluteRandomization() }]
-        );
+        performFairGenderRandomization();
       }
     } catch (error) {
       console.error('Error randomizing group members:', error);
@@ -211,6 +207,90 @@ const AddAssignmentScreen = ({ navigation, route }) => {
     setGroups(randomizedGroups);
     
     Alert.alert('Success', 'Group members have been randomized');
+    setIsRandomizing(false);
+  };
+  
+  const performFairGenderRandomization = () => {
+    // Check if we have gender data available
+    const membersWithGender = classMembers.filter(member => member.gender);
+    
+    if (membersWithGender.length < classMembers.length * 0.5) {
+      // If less than half of members have gender data, notify user and fall back to absolute randomization
+      Alert.alert(
+        'Limited Gender Data',
+        'Not enough members have gender information. Performing standard randomization instead.',
+        [{ text: 'OK' }]
+      );
+      performAbsoluteRandomization();
+      return;
+    }
+    
+    // Separate members by gender
+    const maleMembers = [...classMembers.filter(member => member.gender === 'male')]
+      .sort(() => Math.random() - 0.5);
+    
+    const femaleMembers = [...classMembers.filter(member => member.gender === 'female')]
+      .sort(() => Math.random() - 0.5);
+    
+    const otherMembers = [...classMembers.filter(member => 
+      !member.gender || (member.gender !== 'male' && member.gender !== 'female')
+    )].sort(() => Math.random() - 0.5);
+    
+    console.log(`Gender distribution - Male: ${maleMembers.length}, Female: ${femaleMembers.length}, Other/Unknown: ${otherMembers.length}`);
+    
+    // Initialize empty groups
+    const randomizedGroups = [];
+    for (let i = 0; i < groupCount; i++) {
+      randomizedGroups.push({
+        id: `group_${Date.now()}_${i}`,
+        name: `Group ${i + 1}`,
+        members: []
+      });
+    }
+    
+    // Helper function to find the group with the fewest members of a specific gender
+    const findGroupWithFewestGender = (groups, gender) => {
+      return groups.reduce((minGroup, currentGroup, currentIndex) => {
+        const minCount = minGroup.members.filter(m => m.gender === gender).length;
+        const currentCount = currentGroup.members.filter(m => m.gender === gender).length;
+        
+        if (currentCount < minCount) return currentGroup;
+        // If equal, use the group with fewer total members
+        if (currentCount === minCount && currentGroup.members.length < minGroup.members.length) {
+          return currentGroup;
+        }
+        return minGroup;
+      });
+    };
+    
+    // Helper function to find the group with the fewest members overall
+    const findGroupWithFewestMembers = (groups) => {
+      return groups.reduce((minGroup, currentGroup) => {
+        return currentGroup.members.length < minGroup.members.length ? currentGroup : minGroup;
+      });
+    };
+    
+    // Distribute male members
+    maleMembers.forEach(member => {
+      const targetGroup = findGroupWithFewestGender(randomizedGroups, 'male');
+      targetGroup.members.push(member);
+    });
+    
+    // Distribute female members
+    femaleMembers.forEach(member => {
+      const targetGroup = findGroupWithFewestGender(randomizedGroups, 'female');
+      targetGroup.members.push(member);
+    });
+    
+    // Distribute other/unknown members
+    otherMembers.forEach(member => {
+      const targetGroup = findGroupWithFewestMembers(randomizedGroups);
+      targetGroup.members.push(member);
+    });
+    
+    setGroups(randomizedGroups);
+    
+    Alert.alert('Success', 'Group members have been randomized with fair gender distribution');
     setIsRandomizing(false);
   };
   

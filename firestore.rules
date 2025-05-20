@@ -169,7 +169,16 @@ service cloud.firestore {
     // Rules for users
     match /users/{userId} {
       allow read: if request.auth != null;
+      
+      // Allow users to update their own profiles (including base64 image data)
       allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // Validate that the image size isn't too large (if one exists)
+      // This helps prevent abuse and performance issues
+      allow update: if request.auth != null && request.auth.uid == userId && 
+                     (!request.resource.data.keys().hasAny(['photoBase64']) || 
+                      (request.resource.data.keys().hasAny(['photoBase64']) && 
+                       request.resource.data.photoBase64.size() < 1048576)); // Max 1MB for base64 images
     }
     
     // Legacy rules for AI Materials at root level - can be removed later once migration complete

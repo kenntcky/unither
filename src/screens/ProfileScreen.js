@@ -627,7 +627,7 @@ const ProfileScreen = ({ navigation }) => {
               <View style={styles.expandedSection}>
                 <TouchableOpacity 
                   style={styles.menuItem}
-                  onPress={() => handleMenuItemPress('Edit Profile')}
+                  onPress={() => navigation.navigate('EditProfile')}
                 >
                   <Icon name="person" size={24} color={CustomColors.primaryLight} />
                   <Text style={styles.menuItemText}>{t('Edit Profile')}</Text>

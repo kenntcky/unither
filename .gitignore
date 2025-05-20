@@ -62,6 +62,7 @@ yarn-error.log
 # Unrelated Files
 repo.git*/
 bfg.jar
+src/utils/apiKeys.js
 
 # Bundle artifact
 *.jsbundle

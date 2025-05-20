@@ -126,9 +126,17 @@ const ClassMembersScreen = ({ navigation }) => {
   };
 
   const handleMemberPress = (member) => {
+    // If user is admin and not viewing their own profile, show member actions menu
     if (isUserClassAdmin && !member.isCurrentUser) {
       setSelectedMember(member);
       setShowMemberActions(true);
+    } else {
+      // Navigate to profile view for all members
+      navigation.navigate('ProfileView', {
+        userId: member.userId,
+        displayName: member.displayName,
+        role: member.role
+      });
     }
   };
 
@@ -265,46 +273,74 @@ const ClassMembersScreen = ({ navigation }) => {
   };
 
   const renderMemberItem = ({ item, index }) => {
-    // Customize role colors
-    let roleColor;
-    let roleBgColor;
-    
-    switch (item.role.toLowerCase()) {
-      case 'teacher':
-        roleColor = NewColors.textLight;
-        roleBgColor = NewColors.primary;
-        break;
-      case 'admin':
-        roleColor = NewColors.textLight;
-        roleBgColor = NewColors.primary;
-        break;
-      default: // student
-        roleColor = NewColors.textLight;
-        roleBgColor = NewColors.secondary;
-    }
-
-    // Determine if this is a top 3 position
     const isTopThree = index < 3;
+    
+    // Add custom styles for role
+    let roleBgColor, roleColor;
+    if (item.role.toLowerCase() === 'teacher') {
+      roleBgColor = NewColors.primaryLight + '40'; // 40 = 25% opacity
+      roleColor = NewColors.primary;
+    } else {
+      roleBgColor = NewColors.secondaryLight + '40';
+      roleColor = NewColors.secondary;
+    }
+    
+    // Gender icon based on member's gender
+    const renderGenderIcon = () => {
+      if (!item.gender) return null;
+      
+      let iconName = 'person';
+      let iconColor = NewColors.textSecondary;
+      
+      switch(item.gender.toLowerCase()) {
+        case 'male':
+          iconName = 'male';
+          iconColor = '#2196F3'; // Blue for male
+          break;
+        case 'female':
+          iconName = 'female';
+          iconColor = '#E91E63'; // Pink for female
+          break;
+        case 'non-binary':
+          iconName = 'transgender';
+          iconColor = '#9C27B0'; // Purple for non-binary
+          break;
+        default:
+          iconName = 'person';
+          break;
+      }
+      
+      return (
+        <MaterialIcons
+          name={iconName}
+          size={16}
+          color={iconColor}
+          style={styles.genderIcon}
+        />
+      );
+    };
     
     return (
       <TouchableOpacity 
         style={[
-          styles.memberItem,
+          styles.memberItem, 
           isTopThree && styles.topThreeMember,
           item.isCurrentUser && styles.currentUserItem
         ]}
         onPress={() => handleMemberPress(item)}
-        disabled={!isUserClassAdmin || item.isCurrentUser}
         activeOpacity={0.8}
       >
         {renderRankBadge(index + 1)}
         
         <View style={styles.memberInfo}>
           <View style={styles.nameContainer}>
-            <Text style={styles.memberName}>
-              {item.displayName}
-              {item.isCurrentUser && <Text style={styles.currentUser}> ({t('You')})</Text>}
-            </Text>
+            <View style={styles.nameWithGender}>
+              <Text style={styles.memberName}>
+                {item.displayName}
+                {item.isCurrentUser && <Text style={styles.currentUser}> ({t('You')})</Text>}
+              </Text>
+              {renderGenderIcon()}
+            </View>
             <View style={[styles.levelBadge]}>
               <Text style={styles.levelText}>Lvl {item.level}</Text>
             </View>
@@ -318,10 +354,10 @@ const ClassMembersScreen = ({ navigation }) => {
           
           <View style={styles.statsContainer}>
             <Text style={styles.statText}>
-              {t('{exp} XP', { exp: item.totalExp.toLocaleString() })}
+              {item.totalExp.toLocaleString()} XP
             </Text>
             <Text style={styles.statText}>
-              {t('{count} completed', { count: item.completedAssignments.length })}
+              {item.completedAssignments.length} completed
             </Text>
           </View>
         </View>
@@ -652,6 +688,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 4,
+  },
+  nameWithGender: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  genderIcon: {
+    marginLeft: 6,
   },
   memberName: {
     fontSize: 16,

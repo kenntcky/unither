@@ -268,6 +268,37 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Update user profile details
+  const updateUserDetails = async (profileData) => {
+    setLoading(true);
+    try {
+      // Ensure the user is logged in
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Only update the displayName in Auth - not storing photoURL in Auth
+      // since we'll be using the Firestore version for images
+      await currentUser.updateProfile({
+        displayName: profileData.displayName || currentUser.displayName,
+      });
+      
+      // Refresh user object
+      setUser({ ...currentUser });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating user details:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Change password function
   const changePassword = async (currentPassword, newPassword) => {
     setLoading(true);
@@ -324,7 +355,8 @@ export const AuthProvider = ({ children }) => {
     resetPassword,
     completeProfile,
     changePassword,
-    checkClassAdminStatus
+    checkClassAdminStatus,
+    updateUserDetails
   };
 
   return (
@@ -332,4 +364,4 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-}; 
+};

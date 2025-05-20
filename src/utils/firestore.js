@@ -215,6 +215,25 @@ export const getUserClasses = async () => {
       if (!membershipSnapshot.empty) {
         const memberData = membershipSnapshot.docs[0].data();
         
+        // Get the total count of members in this class
+        const membersSnapshot = await firestore()
+          .collection(CLASSES_COLLECTION)
+          .doc(classId)
+          .collection(MEMBERS_SUBCOLLECTION)
+          .get();
+        
+        const memberCount = membersSnapshot.size;
+        
+        // Get the total count of assignments in this class
+        const assignmentsSnapshot = await firestore()
+          .collection(CLASSES_COLLECTION)
+          .doc(classId)
+          .collection(ASSIGNMENTS_COLLECTION)
+          .where('approved', '==', true)
+          .get();
+        
+        const assignmentCount = assignmentsSnapshot.size;
+        
         classes.push({
           id: classId,
           name: classData.name,
@@ -222,7 +241,9 @@ export const getUserClasses = async () => {
           role: memberData.role,
           joinedAt: memberData.joinedAt,
           classCode: classData.classCode,
-          createdBy: classData.createdBy
+          createdBy: classData.createdBy,
+          memberCount: memberCount,
+          assignmentCount: assignmentCount
         });
       }
     }
