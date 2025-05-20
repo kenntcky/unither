@@ -16,6 +16,7 @@ import Colors from '../constants/Colors';
 import { useSubject } from '../context/SubjectContext';
 import { useClass } from '../context/ClassContext';
 import { t } from '../translations';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 const { width } = Dimensions.get('window');
 
@@ -137,7 +138,15 @@ const AddSubjectScreen = ({ navigation }) => {
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
     > 
-      
+              <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton2}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
       <View style={styles.card}>
         <View style={styles.iconContainer}>
           <View style={styles.iconCircle}>
@@ -203,6 +212,26 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 20,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    marginTop: 20,
+  },
+  backButton2: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#8A2BE2',
+    shadowColor: '#6a5acd',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
   },
   headerSection: {
     flexDirection: 'row',

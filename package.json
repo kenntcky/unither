@@ -24,6 +24,7 @@
     "date-fns": "^4.1.0",
     "expo": "^52.0.46",
     "expo-haptics": "^14.1.4",
+    "expo-linear-gradient": "^14.1.4",
     "i18next": "^25.0.2",
     "lottie-react-native": "^7.2.2",
     "nanoid": "^5.1.5",
