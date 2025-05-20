@@ -11,7 +11,8 @@ import {
   Modal,
   Dimensions,
   StatusBar,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -153,7 +154,7 @@ const ClassSelectionScreen = () => {
             </View>
           )}
           
-          <View style={styles.classMetaInfo}>
+          <View style={[styles.classMetaInfo, !isTeacher && styles.fullWidthMetaInfo]}>
             <View style={styles.metaItem}>
               <MaterialIcons name="people" size={16} color={NewColors.textSecondary} />
               <Text style={styles.metaText}>{item.memberCount || '?'} {t('members')}</Text>
@@ -181,7 +182,7 @@ const ClassSelectionScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={NewColors.primaryDark} />
       
       {/* Switching Class Modal */}
@@ -208,91 +209,98 @@ const ClassSelectionScreen = () => {
         </View>
       </Modal>
       
-      {/* Enhanced Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>{t('Your Classes')}</Text>
-          <Text style={styles.subtitle}>
-            {user?.displayName ? `${t('Welcome')}, ${user.displayName}` : t('Select a class to continue')}
-          </Text>
+      <View style={styles.contentContainer}>
+        {/* Enhanced Header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.title}>{t('Your Classes')}</Text>
+            <Text style={styles.subtitle}>
+              {user?.displayName ? `${t('Welcome')}, ${user.displayName}` : t('Select a class to continue')}
+            </Text>
+          </View>
         </View>
-      </View>
 
-      {loading && !refreshing ? (
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color={NewColors.primary} />
-            <Text style={styles.loadingText}>{t('Loading your classes...')}</Text>
+        {loading && !refreshing ? (
+          <View style={styles.loadingContainer}>
+            <View style={styles.loadingCard}>
+              <ActivityIndicator size="large" color={NewColors.primary} />
+              <Text style={styles.loadingText}>{t('Loading your classes...')}</Text>
+            </View>
           </View>
-        </View>
-      ) : classes.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIllustration}>
-            <MaterialIcons name="school" size={80} color={NewColors.primaryLight} />
+        ) : classes.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIllustration}>
+              <MaterialIcons name="school" size={80} color={NewColors.primaryLight} />
+            </View>
+            <Text style={styles.emptyText}>{t('You haven\'t joined any classes yet')}</Text>
+            <Text style={styles.emptySubText}>{t('Create or join a class to get started')}</Text>
+            
+            <View style={styles.emptyButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.emptyButton, styles.createEmptyButton]}
+                onPress={() => navigation.navigate('CreateClass')}
+              >
+                <MaterialIcons name="add" size={20} color={NewColors.textLight} />
+                <Text style={styles.emptyButtonText}>{t('Create Class')}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.emptyButton, styles.joinEmptyButton]}
+                onPress={() => navigation.navigate('JoinClass')}
+              >
+                <MaterialIcons name="group-add" size={20} color={NewColors.textLight} />
+                <Text style={styles.emptyButtonText}>{t('Join Class')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <Text style={styles.emptyText}>{t('You haven\'t joined any classes yet')}</Text>
-          <Text style={styles.emptySubText}>{t('Create or join a class to get started')}</Text>
-          
-          <View style={styles.emptyButtonsContainer}>
+        ) : (
+          <FlatList
+            data={classes}
+            renderItem={renderClassItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={renderListHeader}
+            ListFooterComponent={<View style={styles.listFooter} />}
+          />
+        )}
+
+        {classes.length > 0 && (
+          <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.emptyButton, styles.createEmptyButton]}
+              style={[styles.button, styles.createButton]}
               onPress={() => navigation.navigate('CreateClass')}
+              activeOpacity={0.8}
             >
-              <MaterialIcons name="add" size={20} color={NewColors.textLight} />
-              <Text style={styles.emptyButtonText}>{t('Create Class')}</Text>
+              <MaterialIcons name="add" size={24} color={NewColors.textLight} />
+              <Text style={styles.buttonText}>{t('Create Class')}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.emptyButton, styles.joinEmptyButton]}
+              style={[styles.button, styles.joinButton]}
               onPress={() => navigation.navigate('JoinClass')}
+              activeOpacity={0.8}
             >
-              <MaterialIcons name="group-add" size={20} color={NewColors.textLight} />
-              <Text style={styles.emptyButtonText}>{t('Join Class')}</Text>
+              <MaterialIcons name="group-add" size={24} color={NewColors.textLight} />
+              <Text style={styles.buttonText}>{t('Join Class')}</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      ) : (
-        <FlatList
-          data={classes}
-          renderItem={renderClassItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={renderListHeader}
-        />
-      )}
-
-      {classes.length > 0 && (
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, styles.createButton]}
-            onPress={() => navigation.navigate('CreateClass')}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="add" size={24} color={NewColors.textLight} />
-            <Text style={styles.buttonText}>{t('Create Class')}</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.button, styles.joinButton]}
-            onPress={() => navigation.navigate('JoinClass')}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="group-add" size={24} color={NewColors.textLight} />
-            <Text style={styles.buttonText}>{t('Join Class')}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        )}
+      </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: NewColors.background,
+  },
+  contentContainer: {
+    flex: 1,
+    position: 'relative',
   },
   
   // Modal styles
@@ -309,6 +317,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: width * 0.85,
+    maxWidth: 400,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -341,7 +350,7 @@ const styles = StyleSheet.create({
   // Header styles
   header: {
     backgroundColor: NewColors.primary,
-    paddingTop: 40,
+    paddingTop: Platform.OS === 'ios' ? 20 : 40,
     paddingBottom: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
@@ -350,7 +359,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-    marginBottom: 16,
+    zIndex: 10,
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -368,8 +377,9 @@ const styles = StyleSheet.create({
   
   // List styles
   listHeader: {
-    marginBottom: 16,
     paddingHorizontal: 4,
+    marginTop: 16,
+    marginBottom: 16,
   },
   listHeaderTitle: {
     fontSize: 20,
@@ -383,7 +393,11 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 100, // Extra padding for bottom buttons
+    paddingBottom: 0, // Remove bottom padding since we have ListFooter
+    flexGrow: 1,
+  },
+  listFooter: {
+    height: 100, // Space for button container
   },
   
   // Class card styles
@@ -418,6 +432,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    flexWrap: 'wrap',
   },
   className: {
     fontSize: 18,
@@ -443,6 +458,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(106, 76, 228, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 8,
   },
   classDescription: {
     fontSize: 14,
@@ -454,6 +470,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   codeContainer: {
     flexDirection: 'row',
@@ -462,6 +479,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
+    marginBottom: 4,
   },
   codeLabel: {
     fontSize: 12,
@@ -477,10 +495,15 @@ const styles = StyleSheet.create({
   classMetaInfo: {
     flexDirection: 'row',
   },
+  fullWidthMetaInfo: {
+    width: '100%', 
+    justifyContent: 'flex-start',
+  },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 12,
+    marginRight: 8,
   },
   metaText: {
     fontSize: 12,
@@ -519,6 +542,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    marginBottom: 80, // Add space at bottom to avoid overlapping with buttons
   },
   emptyIllustration: {
     backgroundColor: 'rgba(106, 76, 228, 0.1)',
@@ -579,6 +603,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     padding: 16,
+    paddingHorizontal: 20,
     backgroundColor: NewColors.background,
     borderTopWidth: 1,
     borderTopColor: NewColors.separator,
@@ -591,6 +616,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 8,
+    zIndex: 10,
   },
   button: {
     flex: 1,
