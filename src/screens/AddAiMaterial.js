@@ -532,8 +532,6 @@ ${responseText}`,
       try {
         return await processWithAIMLAPI(apiKey, base64Content, contentType, userMessage, systemMessage)
       } catch (error) {
-        console.warn(`AIMLAPI key ending in ...${apiKey.slice(-4)} failed:`, error.message)
-        // Continue to next key
       }
     }
 
