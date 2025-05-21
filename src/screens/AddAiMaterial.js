@@ -25,18 +25,11 @@ import auth from "@react-native-firebase/auth"
 import { useClass } from "../context/ClassContext"
 import { t } from "../translations"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-<<<<<<< HEAD
 import { getApiKeys, testApiKeys } from '../utils/apiKeys'
 
 // Get API keys with fallback mechanism
 const { AIMLAPI_KEY_1, AIMLAPI_KEY_2, AIMLAPI_KEY_3, GEMINI_API_KEY } = getApiKeys();
 const AIMLAPI_KEYS = [AIMLAPI_KEY_1, AIMLAPI_KEY_2, AIMLAPI_KEY_3];
-=======
-import { AIMLAPI_KEY_1, AIMLAPI_KEY_2, AIMLAPI_KEY_3, GEMINI_API_KEY } from "@env"
-import { GoogleGenAI } from "@google/genai"
-
-const AIMLAPI_KEYS = [AIMLAPI_KEY_1, AIMLAPI_KEY_2, AIMLAPI_KEY_3]
->>>>>>> cad8308f216b2a8c9a96fdcb0d5ebf9274c18071
 
 // Enhanced color palette
 const Colors = {
@@ -73,7 +66,6 @@ const AddAiMaterial = ({ navigation, route }) => {
   const { classId, currentClass } = useClass()
   const currentUser = auth().currentUser
   const [currentStep, setCurrentStep] = useState(1)
-<<<<<<< HEAD
 
   // Test API keys on component mount
   useEffect(() => {
@@ -90,8 +82,6 @@ const AddAiMaterial = ({ navigation, route }) => {
       );
     }
   }, []);
-=======
->>>>>>> cad8308f216b2a8c9a96fdcb0d5ebf9274c18071
 
   // Request necessary permissions on Android
   useEffect(() => {
@@ -344,7 +334,6 @@ const AddAiMaterial = ({ navigation, route }) => {
 
   // Process with Gemini API
   const processWithGeminiAPI = async (base64Content, contentType, userMessage, systemMessage) => {
-<<<<<<< HEAD
     console.log("Falling back to Gemini API using direct HTTP request");
 
     // GEMINI_API_KEY is already loaded through getApiKeys() at the top of the file
@@ -537,95 +526,16 @@ ${responseText}`,
     // Note: This code is unreachable due to returns in the try/catch block above
     // Left here for reference only
     /* 
-=======
-    console.log("Falling back to Gemini API")
-
-    // Initialize the Gemini AI
-    const genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
-
-    // Check if the MIME type is supported by Gemini
-    // Gemini supports primarily image formats and text
-    const supportedMimeTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "text/plain",
-      "application/pdf",
-      "application/json",
-    ]
-
-    const isSupported = supportedMimeTypes.includes(contentType)
-    console.log(`MIME type ${contentType} supported by Gemini: ${isSupported}`)
-
-    // Handle unsupported mime types
-    const actualContentType = contentType
-    const parts = [{ text: `${systemMessage}\n\n${userMessage}` }]
-
-    // Only add the file data if the MIME type is supported
-    if (isSupported) {
-      parts.push({
-        inlineData: {
-          mimeType: actualContentType,
-          data: base64Content,
-        },
-      })
-    } else {
-      // For unsupported types, just use text with a note about the file
-      parts[0].text += `\n\nNote: A file of type ${contentType} was uploaded but cannot be processed directly by the AI.`
-      console.log("Skipping file attachment for unsupported MIME type")
-
-      // Show user-friendly alert about unsupported file type
-      Alert.alert(
-        "Unsupported File Type",
-        `The file type ${contentType} (like .docx) is not supported by the AI. \n\nFor best results, please use PDF, JPG, PNG, or text files.`,
-        [{ text: "OK", onPress: () => console.log("User acknowledged unsupported file format") }],
-      )
-    }
-
-    // Prepare the contents array with text and possibly image
-    const contents = [
-      {
-        role: "user",
-        parts: parts,
-      },
-    ]
-
-    console.log("Sending request to Gemini API")
-
-    // Generate content with text and image
-    const result = await genAI.models.generateContent({
-      model: "gemini-2.5-flash-preview-04-17",
-      contents,
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 4000,
-        responseMimeType: "application/json",
-      },
-    })
-
-    const response = result.response
-    console.log("Gemini API response received")
-
-    // Format response to match the expected structure from AIMLAPI
->>>>>>> cad8308f216b2a8c9a96fdcb0d5ebf9274c18071
     return {
       choices: [
         {
           message: {
-<<<<<<< HEAD
             content: JSON.stringify(parsedResponse),
-=======
-            content: response.text(),
->>>>>>> cad8308f216b2a8c9a96fdcb0d5ebf9274c18071
           },
         },
       ],
     }
-<<<<<<< HEAD
     */
-=======
->>>>>>> cad8308f216b2a8c9a96fdcb0d5ebf9274c18071
   }
 
   // Attempt processing with all available APIs
@@ -635,11 +545,6 @@ ${responseText}`,
       try {
         return await processWithAIMLAPI(apiKey, base64Content, contentType, userMessage, systemMessage)
       } catch (error) {
-<<<<<<< HEAD
-=======
-        console.warn(`AIMLAPI key ending in ...${apiKey.slice(-4)} failed:`, error.message)
-        // Continue to next key
->>>>>>> cad8308f216b2a8c9a96fdcb0d5ebf9274c18071
       }
     }
 
@@ -732,11 +637,7 @@ You SHOULD use markdown formatting in the summary for better readability:
 - Use > for quotes or important information
 - Use tables if needed for structured data
 
-<<<<<<< HEAD
 The number of questions should be proportional to the complexity and length of the material, with a minimal of 5 questions. Make sure you respond with the language that the user is using.`
-=======
-The number of questions should be proportional to the complexity and length of the material, with a minimal of 3 questions. Make sure you respond with the language that the user is using.`
->>>>>>> cad8308f216b2a8c9a96fdcb0d5ebf9274c18071
 
       // Try processing with available APIs
       const responseData = await attemptProcessing(base64Content, contentType, userMessage, systemMessage)
@@ -1657,8 +1558,4 @@ const styles = StyleSheet.create({
   },
 })
 
-<<<<<<< HEAD
 export default AddAiMaterial
-=======
-export default AddAiMaterial
->>>>>>> cad8308f216b2a8c9a96fdcb0d5ebf9274c18071
