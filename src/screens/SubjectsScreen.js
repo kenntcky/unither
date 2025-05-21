@@ -251,6 +251,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.27,
     shadowRadius: 4.65,
     zIndex: 5,
+    marginBottom: 30,
   },
 })
 

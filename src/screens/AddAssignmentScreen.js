@@ -118,6 +118,20 @@ const AddAssignmentScreen = ({ navigation, route }) => {
     }
   }, [groupCount]);
 
+  // Add back button to header
+  useEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity 
+          style={{ marginLeft: 16 }} 
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-back" size={24} color={CustomColors.primary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
   const initializeGroups = () => {
     // Keep existing groups if any, but ensure we have the correct number
     const newGroups = [];
@@ -703,7 +717,15 @@ const AddAssignmentScreen = ({ navigation, route }) => {
   return (
     <ScreenContainer scroll style={styles.container}>
       <View style={styles.formContainer}>
-        <Text style={styles.sectionTitle}>Create Assignment</Text>
+        <View style={styles.titleRow}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color={CustomColors.primary} />
+          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Create Assignment</Text>
+        </View>
         
         <Text style={styles.label}>Title</Text>
         <TextInput
@@ -1109,12 +1131,23 @@ const styles = StyleSheet.create({
   formContainer: {
     padding: 20,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 20,
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  backButton: {
+    marginRight: 20,
+    padding: 8,
+  },
   sectionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: CustomColors.primary,
-    marginBottom: 20,
-    textAlign: 'center',
+    flex: 1,
   },
   label: {
     fontSize: 16,

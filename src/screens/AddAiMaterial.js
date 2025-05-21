@@ -26,6 +26,7 @@ import { useClass } from "../context/ClassContext"
 import { t } from "../translations"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { getApiKeys, testApiKeys } from '../utils/apiKeys'
+import { GoogleGenAI } from "@google/genai"
 
 // Get API keys with fallback mechanism
 const { AIMLAPI_KEY_1, AIMLAPI_KEY_2, AIMLAPI_KEY_3, GEMINI_API_KEY } = getApiKeys();
@@ -522,25 +523,11 @@ ${responseText}`,
       console.error("Error in Gemini API processing:", error);
       throw error;
     }
-
-    // Note: This code is unreachable due to returns in the try/catch block above
-    // Left here for reference only
-    /* 
-    return {
-      choices: [
-        {
-          message: {
-            content: JSON.stringify(parsedResponse),
-          },
-        },
-      ],
-    }
-    */
   }
 
   // Attempt processing with all available APIs
   const attemptProcessing = async (base64Content, contentType, userMessage, systemMessage) => {
-    // // Try each AIMLAPI key
+    // Try each AIMLAPI key
     for (const apiKey of AIMLAPI_KEYS) {
       try {
         return await processWithAIMLAPI(apiKey, base64Content, contentType, userMessage, systemMessage)
@@ -1309,6 +1296,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     flex: 1,
+    marginLeft: 10,
+    textAlign: "left",
   },
   infoCard: {
     backgroundColor: "rgba(65, 105, 225, 0.1)",
@@ -1388,6 +1377,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 24,
+    marginBottom: 100,
   },
   secondaryButton: {
     flex: 1,
@@ -1446,14 +1436,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 16,
     textAlign: "center",
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   summaryRow: {
     flexDirection: "row",

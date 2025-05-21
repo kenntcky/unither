@@ -94,31 +94,65 @@ const PendingItemCard = ({ item, index, onApprove, onReject, loading }) => {
       style={[
         styles.itemContainer,
         {
-          opacity: 1, // Start visible instead of animating
-          transform: [{ translateY: 0 }], // No animation
+          opacity: 1,
+          transform: [{ translateY: 0 }],
         },
       ]}
     >
-      <View style={styles.itemContent}>
-        <View style={styles.itemDetails}>
-          {renderItemDetails()}
-
-          <View style={styles.creatorInfo}>
-            <Icon name="person" size={16} color={Colors.textSecondary} />
-            <Text style={styles.creatorText}>{item.creatorName || t("Unknown user")}</Text>
+      <View style={styles.itemContentWrapper}>
+        {/* Left border accent indicator */}
+        <View style={[styles.itemTypeIndicator, { backgroundColor: item.type === "subject" ? Colors.accent : Colors.primary }]} />
+        
+        <View style={styles.itemContent}>
+          <View style={styles.itemHeader}>
+            <View style={styles.headerBadge}>
+              <Icon 
+                name={item.type === "subject" ? "book" : "assignment"} 
+                size={14} 
+                color="#fff" 
+              />
+              <Text style={styles.headerBadgeText}>
+                {item.type === "subject" ? "Subject" : "Assignment"}
+              </Text>
+            </View>
+            {item.deadline && (
+              <View style={styles.deadlineBadge}>
+                <Icon name="event" size={12} color={Colors.warning} />
+                <Text style={styles.deadlineText}>{formatDate(item.deadline)}</Text>
+              </View>
+            )}
           </View>
-        </View>
 
-        <View style={styles.itemActions}>
-          <TouchableOpacity style={styles.approveButton} onPress={() => onApprove(item)} disabled={loading}>
-            <Icon name="check" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>{t("Approve")}</Text>
-          </TouchableOpacity>
+          <View style={styles.itemDetails}>
+            {renderItemDetails()}
+          </View>
 
-          <TouchableOpacity style={styles.rejectButton} onPress={() => onReject(item)} disabled={loading}>
-            <Icon name="close" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>{t("Reject")}</Text>
-          </TouchableOpacity>
+          <View style={styles.divider} />
+
+          <View style={styles.itemFooter}>
+            <View style={styles.creatorInfo}>
+              <Icon name="person" size={16} color={Colors.textSecondary} />
+              <Text style={styles.creatorText}>{item.creatorName || t("Unknown user")}</Text>
+            </View>
+
+            <View style={styles.itemActions}>
+              <TouchableOpacity 
+                style={[styles.circleButton, styles.rejectCircleButton]} 
+                onPress={() => onReject(item)} 
+                disabled={loading}
+              >
+                <Icon name="close" size={20} color="#fff" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.circleButton, styles.approveCircleButton]} 
+                onPress={() => onApprove(item)} 
+                disabled={loading}
+              >
+                <Icon name="check" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </View>
     </Animated.View>
@@ -155,79 +189,66 @@ const CompletionItemCard = ({ item, index, onApprove, onRejectModal, onViewImage
       style={[
         styles.itemCard,
         {
-          opacity: 1, // Start visible instead of animating
-          transform: [{ translateY: 0 }], // No animation
+          opacity: 1,
+          transform: [{ translateY: 0 }],
         },
       ]}
     >
-      <View style={styles.itemHeader}>
-        <View style={styles.typeLabel}>
-          <Icon name="check-circle" size={16} color="#fff" />
-          <Text style={styles.typeText}>Completion</Text>
+      <View style={styles.completionCardHeader}>
+        <View style={styles.completionBadgeRow}>
+          <View style={styles.completionTypeBadge}>
+            <Icon name="check-circle" size={14} color="#fff" />
+            <Text style={styles.completionBadgeText}>Completion</Text>
+          </View>
+          
+          <Text style={styles.dateText}>{formatDate(item.submittedAt)}</Text>
         </View>
-        <Text style={styles.dateText}>Submitted {formatDate(item.submittedAt)}</Text>
+        
+        <Text style={styles.completionTitle}>{item.assignment?.title || "Unknown Assignment"}</Text>
       </View>
 
-      <Text style={styles.titleText}>{item.assignment?.title || "Unknown Assignment"}</Text>
+      <View style={styles.completionCardContent}>
+        <View style={styles.studentInfoContainer}>
+          <Icon name="person" size={16} color={Colors.textSecondary} />
+          <Text style={styles.studentNameText}>
+            {item.displayName || "Unknown user"}
+          </Text>
+        </View>
 
-      <View style={styles.creatorInfo}>
-        <Icon name="person" size={16} color={Colors.textSecondary} />
-        <Text style={styles.creatorText}>Student: {item.displayName || "Unknown user"}</Text>
-      </View>
+        {(item.base64Image || item.photoUrl) && (
+          <TouchableOpacity
+            style={styles.thumbnailContainer}
+            onPress={() => onViewImage(item.base64Image || item.photoUrl)}
+            activeOpacity={0.9}
+          >
+            <Image
+              source={{ uri: item.base64Image 
+                ? `data:image/jpeg;base64,${item.base64Image}` 
+                : item.photoUrl }}
+              style={styles.thumbnail}
+              resizeMode="cover"
+            />
+            <View style={styles.viewOverlay}>
+              <Icon name="visibility" size={24} color="#fff" />
+              <Text style={styles.viewText}>View Photo</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
-      <View style={styles.rewardContainer}>
-        <Icon name="star" size={16} color={Colors.warning} />
-        <Text style={styles.baseRewardText}>Base: {baseXp} XP</Text>
-      </View>
-
-      <View style={styles.rankInfoContainer}>
-        <Icon name="info-outline" size={14} color={Colors.textSecondary} />
-        <Text style={styles.rankInfoText}>{rankMessage}</Text>
-      </View>
-
-      {item.base64Image && (
-        <TouchableOpacity
-          style={styles.thumbnailContainer}
-          onPress={() => onViewImage(item.base64Image)}
-          activeOpacity={0.9}
-        >
-          <Image
-            source={{ uri: `data:image/jpeg;base64,${item.base64Image}` }}
-            style={styles.thumbnail}
-            resizeMode="cover"
-          />
-          <View style={styles.viewOverlay}>
-            <Icon name="visibility" size={24} color="#fff" />
-            <Text style={styles.viewText}>View Photo</Text>
+        <View style={styles.rewardInfoContainer}>
+          <View style={styles.rewardContainer}>
+            <Icon name="star" size={16} color={Colors.warning} />
+            <Text style={styles.baseRewardText}>Base: {baseXp} XP</Text>
           </View>
-        </TouchableOpacity>
-      )}
 
-      {/* For backward compatibility - support photoUrl as well */}
-      {!item.base64Image && item.photoUrl && (
-        <TouchableOpacity
-          style={styles.thumbnailContainer}
-          onPress={() => onViewImage(item.photoUrl)}
-          activeOpacity={0.9}
-        >
-          <Image source={{ uri: item.photoUrl }} style={styles.thumbnail} resizeMode="cover" />
-          <View style={styles.viewOverlay}>
-            <Icon name="visibility" size={24} color="#fff" />
-            <Text style={styles.viewText}>View Photo</Text>
+          <View style={styles.rankInfoContainer}>
+            <Icon name="info-outline" size={14} color={Colors.textSecondary} />
+            <Text style={styles.rankInfoText}>{rankMessage}</Text>
           </View>
-        </TouchableOpacity>
-      )}
+        </View>
+      </View>
 
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.approveButton]}
-          onPress={() => onApprove(item)}
-          activeOpacity={0.8}
-        >
-          <Icon name="check" size={16} color="#fff" />
-          <Text style={styles.actionButtonText}>Approve</Text>
-        </TouchableOpacity>
-
+      <View style={styles.completionActionsContainer}>
         <TouchableOpacity
           style={[styles.actionButton, styles.rejectButton]}
           onPress={() => onRejectModal(item.id)}
@@ -235,6 +256,15 @@ const CompletionItemCard = ({ item, index, onApprove, onRejectModal, onViewImage
         >
           <Icon name="close" size={16} color="#fff" />
           <Text style={styles.actionButtonText}>Reject</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.approveButton]}
+          onPress={() => onApprove(item)}
+          activeOpacity={0.8}
+        >
+          <Icon name="check" size={16} color="#fff" />
+          <Text style={styles.actionButtonText}>Approve</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -573,7 +603,7 @@ const PendingApprovalsScreen = ({ navigation }) => {
     })
   }
 
-  // Tab navigation component
+  // Tab navigation component with improved UI
   const TabNavigator = () => {
     // Calculate the position of the active indicator
     const indicatorPosition = tabIndicatorAnim.interpolate({
@@ -586,6 +616,12 @@ const PendingApprovalsScreen = ({ navigation }) => {
         {Object.values(TABS).map((tab, index) => (
           <TouchableOpacity key={tab} style={styles.tabButton} onPress={() => setActiveTab(tab)} activeOpacity={0.7}>
             <View style={styles.tabContent}>
+              <Icon 
+                name={tab === TABS.ITEMS ? "category" : "check-circle"} 
+                size={18} 
+                color={activeTab === tab ? Colors.accent : Colors.textSecondary} 
+                style={styles.tabIcon}
+              />
               <Text style={[styles.tabButtonText, activeTab === tab && styles.tabButtonTextActive]}>{tab}</Text>
 
               {tab === TABS.ITEMS && pendingItems.length > 0 && (
@@ -618,7 +654,16 @@ const PendingApprovalsScreen = ({ navigation }) => {
         },
       ]}
     >
-      <Icon name={activeTab === TABS.ITEMS ? "assignment" : "check-circle"} size={48} color={Colors.textSecondary} />
+      <View style={styles.emptyIconContainer}>
+        <Icon 
+          name={activeTab === TABS.ITEMS ? "assignment" : "check-circle"} 
+          size={48} 
+          color={Colors.textSecondary}
+        />
+      </View>
+      <Text style={styles.emptyTitle}>
+        {activeTab === TABS.ITEMS ? "Nothing to approve" : "No completions"}
+      </Text>
       <Text style={styles.emptyText}>
         {activeTab === TABS.ITEMS
           ? "No pending assignments or subjects to approve"
@@ -713,11 +758,16 @@ const PendingApprovalsScreen = ({ navigation }) => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <Icon name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {currentClass
-            ? t("{{className}} Pending Approvals", { className: currentClass.name })
-            : t("Pending Approvals")}
-        </Text>
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.headerTitle}>
+            {currentClass
+              ? t("{{className}} Approvals", { className: currentClass.name })
+              : t("Pending Approvals")}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            Review and manage pending approvals
+          </Text>
+        </View>
       </Animated.View>
 
       <Animated.View
@@ -856,7 +906,7 @@ const styles = StyleSheet.create({
   },
   particlesContainer: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.6,
+    opacity: 0.7,
   },
   particle: {
     position: "absolute",
@@ -864,10 +914,14 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: "rgba(255, 255, 255, 0.6)",
+    shadowColor: "#fff",
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 2,
   },
   header: {
     paddingTop: 50,
-    paddingBottom: 20,
+    paddingBottom: 16,
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -880,34 +934,171 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.2)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
     color: "#fff",
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 2,
+  },
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "rgba(15, 15, 15, 0.7)",
+    position: "relative",
+    height: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.15)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  tabButton: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tabContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabIcon: {
+    marginRight: 8,
+  },
+  tabButtonText: {
+    color: Colors.textSecondary,
+    fontWeight: "500",
+    fontSize: 16,
+  },
+  tabButtonTextActive: {
+    color: Colors.accent,
+    fontWeight: "bold",
+    textShadowColor: Colors.accent,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 3,
+  },
+  tabIndicator: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    width: "50%",
+    height: 4,
+    backgroundColor: Colors.accent,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  badgeContainer: {
+    backgroundColor: Colors.accent,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 8,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "bold",
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   listContainer: {
     padding: 16,
     paddingBottom: 32,
   },
   itemContainer: {
-    backgroundColor: "rgba(30, 30, 30, 0.75)",
+    marginBottom: 20,
     borderRadius: 16,
-    marginBottom: 16,
     overflow: "hidden",
-    elevation: 2,
+    elevation: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  itemContentWrapper: {
+    flexDirection: "row",
+    backgroundColor: "rgba(30, 30, 30, 0.85)",
+    borderRadius: 16,
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  itemTypeIndicator: {
+    width: 6,
+    backgroundColor: Colors.accent,
   },
   itemContent: {
+    flex: 1,
     padding: 16,
   },
-  itemDetails: {
-    marginBottom: 16,
+  itemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  headerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  headerBadgeText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#fff",
+    marginLeft: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
+  },
+  deadlineBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: "rgba(255, 193, 7, 0.15)",
+  },
+  deadlineText: {
+    fontSize: 12,
+    color: Colors.warning,
+    marginLeft: 4,
   },
   itemTitle: {
     fontSize: 18,
@@ -930,10 +1121,19 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginVertical: 12,
+  },
+  itemFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   creatorInfo: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
   },
   creatorText: {
     fontSize: 14,
@@ -942,123 +1142,110 @@ const styles = StyleSheet.create({
   },
   itemActions: {
     flexDirection: "row",
-    justifyContent: "flex-end",
-    marginTop: 8,
-  },
-  approveButton: {
-    flexDirection: "row",
     alignItems: "center",
+  },
+  circleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  approveCircleButton: {
     backgroundColor: Colors.success,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginLeft: 12,
-    shadowColor: Colors.success,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  rejectButton: {
-    flexDirection: "row",
-    alignItems: "center",
+  rejectCircleButton: {
     backgroundColor: Colors.error,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginLeft: 12,
-    shadowColor: Colors.error,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  actionButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "bold",
-    marginLeft: 6,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    marginTop: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: Colors.text,
-    marginTop: 16,
-    textAlign: "center",
-    opacity: 0.8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 10,
-    color: Colors.text,
   },
   itemCard: {
-    backgroundColor: "rgba(30, 30, 30, 0.75)",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    backgroundColor: "rgba(30, 30, 30, 0.85)",
+    borderRadius: 20,
+    marginBottom: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 10,
+    elevation: 5,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    overflow: "hidden",
   },
-  itemHeader: {
+  completionCardHeader: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+  },
+  completionBadgeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  typeLabel: {
+  completionTypeBadge: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.accent,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  typeText: {
-    color: "#fff",
+  completionBadgeText: {
     fontSize: 12,
     fontWeight: "bold",
+    color: "#fff",
     marginLeft: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
-  dateText: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-  },
-  titleText: {
+  completionTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: Colors.text,
-    marginBottom: 12,
   },
-  descriptionText: {
-    color: Colors.textSecondary,
+  completionCardContent: {
+    padding: 16,
+  },
+  studentInfoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  studentNameText: {
     fontSize: 14,
-    marginBottom: 12,
+    color: Colors.text,
+    marginLeft: 8,
+    fontWeight: "500",
   },
   thumbnailContainer: {
     width: "100%",
-    height: 180,
-    borderRadius: 12,
+    height: 200,
+    borderRadius: 16,
     overflow: "hidden",
-    marginVertical: 16,
+    marginBottom: 16,
     position: "relative",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.25)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
   },
   thumbnail: {
     width: "100%",
@@ -1078,10 +1265,118 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     marginTop: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  rewardInfoContainer: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    padding: 12,
+    borderRadius: 10,
+  },
+  rewardContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  baseRewardText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  rankInfoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  rankInfoText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginLeft: 8,
+    fontStyle: "italic",
+  },
+  completionActionsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    flex: 1,
+    marginHorizontal: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  approveButton: {
+    backgroundColor: Colors.success,
+  },
+  rejectButton: {
+    backgroundColor: Colors.error,
+  },
+  actionButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "bold",
+    marginLeft: 6,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+    marginTop: 60,
+  },
+  emptyIconContainer: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: Colors.text,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    opacity: 0.8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    color: Colors.text,
+  },
+  dateText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.85)",
+    backgroundColor: "rgba(0,0,0,0.9)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1096,13 +1391,18 @@ const styles = StyleSheet.create({
     top: 50,
     right: 20,
     zIndex: 10,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     padding: 10,
     borderRadius: 25,
     width: 50,
     height: 50,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 5,
   },
   fullImage: {
     width: "100%",
@@ -1110,21 +1410,26 @@ const styles = StyleSheet.create({
   },
   rejectModalContent: {
     width: "90%",
-    backgroundColor: "rgba(30, 30, 30, 0.95)",
-    borderRadius: 16,
+    backgroundColor: "rgba(25, 25, 25, 0.97)",
+    borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 10,
   },
   rejectModalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
     color: Colors.text,
-    marginBottom: 16,
+    marginBottom: 18,
   },
   reasonInput: {
-    backgroundColor: "rgba(18, 18, 18, 0.6)",
-    borderRadius: 12,
+    backgroundColor: "rgba(15, 15, 15, 0.6)",
+    borderRadius: 16,
     padding: 16,
     color: Colors.text,
     fontSize: 16,
@@ -1132,7 +1437,7 @@ const styles = StyleSheet.create({
     minHeight: 120,
     textAlignVertical: "top",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   modalButtons: {
     flexDirection: "row",
@@ -1140,14 +1445,19 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     borderRadius: 12,
     marginLeft: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
   },
   cancelButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.25)",
   },
   cancelButtonText: {
     color: Colors.text,
@@ -1159,89 +1469,9 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     color: "#fff",
     fontWeight: "bold",
-  },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "rgba(18, 18, 18, 0.6)",
-    position: "relative",
-    height: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-  },
-  tabButton: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tabContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  tabButtonText: {
-    color: Colors.textSecondary,
-    fontWeight: "500",
-    fontSize: 16,
-  },
-  tabButtonTextActive: {
-    color: Colors.accent,
-    fontWeight: "bold",
-  },
-  tabIndicator: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    width: "50%",
-    height: 3,
-    backgroundColor: Colors.accent,
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-  },
-  badgeContainer: {
-    backgroundColor: Colors.accent,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 6,
-  },
-  badgeText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  rewardContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  baseRewardText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    marginLeft: 6,
-  },
-  rankInfoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  rankInfoText: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    marginLeft: 6,
-    fontStyle: "italic",
-  },
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginTop: 16,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginLeft: 12,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 })
 

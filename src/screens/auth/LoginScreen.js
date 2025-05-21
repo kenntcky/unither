@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useRef, useEffect } from "react"
 import {
   StyleSheet,
@@ -16,6 +14,7 @@ import {
   Easing,
   Dimensions,
   ActivityIndicator,
+  Image,
 } from "react-native"
 import Icon from "react-native-vector-icons/MaterialIcons"
 import { useAuth } from "../../context/AuthContext"
@@ -24,6 +23,23 @@ import Colors from "../../constants/Colors"
 import { t } from "../../translations"
 
 const { width } = Dimensions.get("window")
+
+// Custom colors for purple-blue theme
+const customColors = {
+  primary: "#6366F1", // Indigo
+  secondary: "#8B5CF6", // Purple
+  accent: "#4F46E5", // Indigo darker
+  background: "#FFFFFF", // White background
+  text: "#1E293B", // Dark text for white background
+  textSecondary: "#64748B", // Slate for secondary text
+  gradientStart: "#8B5CF6", // Purple
+  gradientMiddle: "#6366F1", // Indigo
+  gradientEnd: "#3B82F6", // Blue
+  error: "#EF4444", // Red
+}
+
+// Import the logo image
+const logoImage = require('../../../assets/icon/UNITHER.png')
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState("")
@@ -47,6 +63,15 @@ const LoginScreen = ({ navigation }) => {
   // Input animations
   const emailInputAnim = useRef(new Animated.Value(0)).current
   const passwordInputAnim = useRef(new Animated.Value(0)).current
+
+  // Bubble animations
+  const bubbleAnimations = Array.from({ length: 15 }).map(() => ({
+    position: { x: Math.random() * width, y: Math.random() * 1000 },
+    scale: Math.random() * 0.5 + 0.5,
+    opacity: Math.random() * 0.4 + 0.1,
+  }))
+
+  const bubbleRefs = useRef(bubbleAnimations.map(() => ({ position: new Animated.ValueXY(), scale: new Animated.Value(1), opacity: new Animated.Value(1) }))).current
 
   useEffect(() => {
     // Initial animations when component mounts
@@ -103,6 +128,71 @@ const LoginScreen = ({ navigation }) => {
         }),
       ]),
     ).start()
+
+    // Animate bubbles
+    bubbleRefs.forEach((bubble, index) => {
+      const duration = 15000 + Math.random() * 10000
+      const delay = Math.random() * 5000
+      
+      // Create random movement pattern
+      const createBubbleAnimation = () => {
+        const newX = Math.random() * width
+        const newY = -100 - Math.random() * 200 // Start from above the screen
+        
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.parallel([
+            Animated.timing(bubble.position, {
+              toValue: { x: newX, y: 1000 }, // Move to bottom of screen
+              duration: duration,
+              easing: Easing.linear,
+              useNativeDriver: true,
+            }),
+            Animated.sequence([
+              Animated.timing(bubble.opacity, {
+                toValue: Math.random() * 0.3 + 0.2,
+                duration: duration / 4,
+                useNativeDriver: true,
+              }),
+              Animated.timing(bubble.opacity, {
+                toValue: Math.random() * 0.2 + 0.1,
+                duration: duration / 2,
+                useNativeDriver: true,
+              }),
+              Animated.timing(bubble.opacity, {
+                toValue: 0,
+                duration: duration / 4,
+                useNativeDriver: true,
+              }),
+            ]),
+            Animated.sequence([
+              Animated.timing(bubble.scale, {
+                toValue: Math.random() * 0.5 + 0.8,
+                duration: duration / 3,
+                useNativeDriver: true,
+              }),
+              Animated.timing(bubble.scale, {
+                toValue: Math.random() * 0.3 + 0.5,
+                duration: duration / 3,
+                useNativeDriver: true,
+              }),
+              Animated.timing(bubble.scale, {
+                toValue: Math.random() * 0.2 + 0.3,
+                duration: duration / 3,
+                useNativeDriver: true,
+              }),
+            ]),
+          ]),
+        ]).start(() => {
+          // Reset position and restart animation
+          bubble.position.setValue({ x: Math.random() * width, y: -100 })
+          bubble.opacity.setValue(0)
+          createBubbleAnimation()
+        })
+      }
+      
+      createBubbleAnimation()
+    })
   }, [])
 
   const validateEmail = () => {
@@ -248,114 +338,43 @@ const LoginScreen = ({ navigation }) => {
   // Interpolate input border colors
   const emailBorderColor = emailInputAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["rgba(255, 255, 255, 0.1)", Colors.accent],
+    outputRange: ["rgba(99, 102, 241, 0.3)", customColors.accent],
   })
 
   const passwordBorderColor = passwordInputAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["rgba(255, 255, 255, 0.1)", Colors.accent],
+    outputRange: ["rgba(99, 102, 241, 0.3)", customColors.accent],
   })
 
   return (
-    <Animated.View style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+    <Animated.View style={[styles.container, { backgroundColor: customColors.background }]}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            opacity: fadeAnim,
-          },
-        ]}
-      >
-        {/* Background gradient */}
+      {/* Floating bubbles */}
+      {bubbleRefs.map((bubble, index) => (
         <Animated.View
+          key={index}
           style={[
-            StyleSheet.absoluteFill,
+            styles.bubble,
             {
-              opacity: 0.6,
               transform: [
-                { 
-                  translateX: backgroundAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-width * 0.2, width * 0.2],
-                  }) 
-                },
-                { 
-                  translateY: backgroundAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-50, 50],
-                  }) 
-                },
-                { 
-                  scale: backgroundAnim.interpolate({
-                    inputRange: [0, 0.5, 1],
-                    outputRange: [1, 1.1, 1],
-                  })
-                },
+                { translateX: bubble.position.x },
+                { translateY: bubble.position.y },
+                { scale: bubble.scale }
               ],
-            },
+              opacity: bubble.opacity,
+              backgroundColor: index % 3 === 0 
+                ? customColors.gradientStart + '80' 
+                : index % 3 === 1 
+                  ? customColors.gradientMiddle + '80'
+                  : customColors.gradientEnd + '80',
+              width: 20 + (index % 4) * 15,
+              height: 20 + (index % 4) * 15,
+              borderRadius: 50,
+            }
           ]}
-        >
-          <LinearGradient
-            colors={[Colors.gradientStart, Colors.gradientMiddle || Colors.primary, Colors.gradientEnd]}
-            style={StyleSheet.absoluteFill}
-            start={{x: 0, y: 0}}
-            end={{x: 1, y: 1}}
-          />
-        </Animated.View>
-
-        {/* Animated background dots */}
-        <Animated.View style={styles.particlesContainer}>
-          {Array.from({ length: 20 }).map((_, index) => {
-            // Create unique animation patterns for each particle
-            const particleSpeed = 1 + Math.random() * 0.5;
-            const particleDirection = index % 2 === 0 ? 1 : -1;
-            
-            return (
-              <Animated.View
-                key={index}
-                style={[
-                  styles.particle,
-                  {
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    width: 4 + Math.random() * 8,
-                    height: 4 + Math.random() * 8,
-                    borderRadius: 12,
-                    backgroundColor: index % 3 === 0 
-                      ? Colors.accent + '40' 
-                      : index % 3 === 1 
-                        ? Colors.gradientStart + '40'
-                        : Colors.gradientEnd + '40',
-                    opacity: Math.random() * 0.5 + 0.1,
-                    transform: [
-                      {
-                        scale: backgroundAnim.interpolate({
-                          inputRange: [0, 0.5, 1],
-                          outputRange: [0.5, 1 + Math.random() * 0.5, 0.5],
-                        }),
-                      },
-                      {
-                        translateX: backgroundAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, 30 * particleDirection * particleSpeed],
-                        }),
-                      },
-                      {
-                        translateY: backgroundAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, -20 + Math.random() * 40],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-            );
-          })}
-        </Animated.View>
-      </Animated.View>
+        />
+      ))}
 
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingView}>
         <ScrollView
@@ -372,11 +391,17 @@ const LoginScreen = ({ navigation }) => {
               },
             ]}
           >
-            <Animated.View style={[styles.logoCircle, { transform: [{ rotate: spin }] }]}>
-              <Icon name="school" size={40} color={Colors.text} />
+            <Animated.View>
+              <Image 
+                source={logoImage} 
+                style={styles.logoImage} 
+                resizeMode="contain"
+              />
             </Animated.View>
-            <Text style={styles.logoText}>unither.</Text>
-            <Text style={styles.tagline}>{t("Your class community in one place")}</Text>
+            <Text style={[styles.logoText, { color: customColors.primary }]}>Unither</Text>
+            <Text style={[styles.tagline, { color: customColors.textSecondary }]}>
+              {t("Your class community in one place")}
+            </Text>
           </Animated.View>
 
           <Animated.View
@@ -385,31 +410,39 @@ const LoginScreen = ({ navigation }) => {
               {
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+                backgroundColor: "white",
+                shadowColor: customColors.gradientMiddle,
+                borderColor: "rgba(99, 102, 241, 0.2)",
               },
             ]}
           >
-            <Text style={styles.title}>{t("Welcome Back")}</Text>
-            <Text style={styles.subtitle}>{t("Access your class assignments & materials")}</Text>
+            <Text style={[styles.title, { color: customColors.primary }]}>{t("Welcome Back")}</Text>
+            <Text style={[styles.subtitle, { color: customColors.textSecondary }]}>
+              {t("Access your class assignments & materials")}
+            </Text>
 
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>{t("Email")}</Text>
+              <Text style={[styles.inputLabel, { color: customColors.text }]}>{t("Email")}</Text>
               <Animated.View
                 style={[
                   styles.inputContainer,
-                  emailError ? styles.inputError : null,
-                  { borderColor: emailFocused ? emailBorderColor : "rgba(255, 255, 255, 0.1)" },
+                  emailError ? [styles.inputError, { borderColor: customColors.error }] : null,
+                  { 
+                    borderColor: emailFocused ? emailBorderColor : "rgba(99, 102, 241, 0.3)",
+                    backgroundColor: "rgba(99, 102, 241, 0.05)" 
+                  },
                 ]}
               >
                 <Icon
                   name="email"
                   size={20}
-                  color={emailFocused ? Colors.accent : Colors.textSecondary}
+                  color={emailFocused ? customColors.accent : customColors.textSecondary}
                   style={styles.inputIcon}
                 />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: customColors.text }]}
                   placeholder={t("Enter your school email")}
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={customColors.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -419,29 +452,34 @@ const LoginScreen = ({ navigation }) => {
                 />
               </Animated.View>
               {emailError ? (
-                <Animated.Text style={[styles.errorText, { opacity: fadeAnim }]}>{emailError}</Animated.Text>
+                <Animated.Text style={[styles.errorText, { opacity: fadeAnim, color: customColors.error }]}>
+                  {emailError}
+                </Animated.Text>
               ) : null}
             </View>
 
             <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>{t("Password")}</Text>
+              <Text style={[styles.inputLabel, { color: customColors.text }]}>{t("Password")}</Text>
               <Animated.View
                 style={[
                   styles.inputContainer,
-                  passwordError ? styles.inputError : null,
-                  { borderColor: passwordFocused ? passwordBorderColor : "rgba(255, 255, 255, 0.1)" },
+                  passwordError ? [styles.inputError, { borderColor: customColors.error }] : null,
+                  { 
+                    borderColor: passwordFocused ? passwordBorderColor : "rgba(99, 102, 241, 0.3)",
+                    backgroundColor: "rgba(99, 102, 241, 0.05)" 
+                  },
                 ]}
               >
                 <Icon
                   name="lock"
                   size={20}
-                  color={passwordFocused ? Colors.accent : Colors.textSecondary}
+                  color={passwordFocused ? customColors.accent : customColors.textSecondary}
                   style={styles.inputIcon}
                 />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: customColors.text }]}
                   placeholder={t("Enter your password")}
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={customColors.textSecondary}
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
@@ -450,17 +488,24 @@ const LoginScreen = ({ navigation }) => {
                 />
               </Animated.View>
               {passwordError ? (
-                <Animated.Text style={[styles.errorText, { opacity: fadeAnim }]}>{passwordError}</Animated.Text>
+                <Animated.Text style={[styles.errorText, { opacity: fadeAnim, color: customColors.error }]}>
+                  {passwordError}
+                </Animated.Text>
               ) : null}
             </View>
 
             <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword} activeOpacity={0.7}>
-              <Text style={styles.forgotPasswordText}>{t("Forgot Password?")}</Text>
+              <Text style={[styles.forgotPasswordText, { color: customColors.textSecondary }]}>
+                {t("Forgot Password?")}
+              </Text>
             </TouchableOpacity>
 
             <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
               <TouchableOpacity
-                style={styles.loginButton}
+                style={[styles.loginButton, { 
+                  backgroundColor: customColors.accent,
+                  shadowColor: customColors.accent 
+                }]}
                 onPress={handleLogin}
                 disabled={loading}
                 activeOpacity={0.9}
@@ -468,33 +513,38 @@ const LoginScreen = ({ navigation }) => {
                 onPressOut={() => handlePressOut(buttonScale)}
               >
                 {loading ? (
-                  <ActivityIndicator color={Colors.text} size="small" />
+                  <ActivityIndicator color="white" size="small" />
                 ) : (
                   <>
-                    <Icon name="school" size={20} color={Colors.text} style={{ marginRight: 8 }} />
-                    <Text style={styles.buttonText}>{t("Log In to Class")}</Text>
+                    <Icon name="school" size={20} color="white" style={{ marginRight: 8 }} />
+                    <Text style={[styles.buttonText, { color: "white" }]}>{t("Log In to Class")}</Text>
                   </>
                 )}
               </TouchableOpacity>
             </Animated.View>
 
             <View style={styles.dividerContainer}>
-              <View style={styles.divider} />
-              <Text style={styles.dividerText}>{t("OR")}</Text>
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: "rgba(99, 102, 241, 0.2)" }]} />
+              <Text style={[styles.dividerText, { color: customColors.textSecondary }]}>{t("OR")}</Text>
+              <View style={[styles.divider, { backgroundColor: "rgba(99, 102, 241, 0.2)" }]} />
             </View>
 
             <Animated.View style={{ transform: [{ scale: googleButtonScale }] }}>
               <TouchableOpacity
-                style={styles.googleButton}
+                style={[styles.googleButton, { 
+                  backgroundColor: "rgba(99, 102, 241, 0.1)",
+                  borderColor: "rgba(99, 102, 241, 0.3)" 
+                }]}
                 onPress={handleGoogleLogin}
                 disabled={loading}
                 activeOpacity={0.9}
                 onPressIn={() => handlePressIn(googleButtonScale)}
                 onPressOut={() => handlePressOut(googleButtonScale)}
               >
-                <Icon name="g-mobiledata" size={24} color={Colors.text} />
-                <Text style={styles.buttonText}>{t("Continue with Google")}</Text>
+                <Icon name="g-mobiledata" size={24} color={customColors.primary} />
+                <Text style={[styles.buttonText, { color: customColors.primary }]}>
+                  {t("Continue with Google")}
+                </Text>
               </TouchableOpacity>
             </Animated.View>
           </Animated.View>
@@ -508,9 +558,13 @@ const LoginScreen = ({ navigation }) => {
               },
             ]}
           >
-            <Text style={styles.signupText}>{t("New to your class?")}</Text>
+            <Text style={[styles.signupText, { color: customColors.textSecondary }]}>
+              {t("New to your class?")}
+            </Text>
             <TouchableOpacity onPress={handleCreateAccount} activeOpacity={0.7}>
-              <Text style={styles.signupLink}>{t("Create Account")}</Text>
+              <Text style={[styles.signupLink, { color: customColors.accent }]}>
+                {t("Create Account")}
+              </Text>
             </TouchableOpacity>
           </Animated.View>
         </ScrollView>
@@ -522,18 +576,14 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#FFFFFF", // White background
   },
-  particlesContainer: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.6,
-  },
-  particle: {
+  bubble: {
     position: "absolute",
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    zIndex: 1,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -550,34 +600,19 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     width: "100%",
   },
-  logoCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-    overflow: "hidden",
-    borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
   logoText: {
     fontSize: 32,
     fontWeight: "bold",
-    color: Colors.text,
     marginBottom: 8,
     letterSpacing: 1,
   },
   tagline: {
-    color: Colors.text,
     fontSize: 16,
     textAlign: "center",
     opacity: 0.9,
     maxWidth: "80%",
   },
   formContainer: {
-    backgroundColor: "rgba(30, 30, 30, 0.75)",
     borderRadius: 24,
     padding: 28,
     marginBottom: 24,
@@ -586,22 +621,19 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 10,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: Colors.text,
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.textSecondary,
     marginBottom: 28,
     textAlign: "center",
   },
@@ -612,33 +644,28 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: Colors.text,
     marginBottom: 8,
     marginLeft: 4,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(18, 18, 18, 0.6)",
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   inputError: {
-    borderColor: Colors.error,
+    borderColor: "#EF4444",
   },
   inputIcon: {
     marginRight: 12,
   },
   input: {
     flex: 1,
-    color: Colors.text,
     fontSize: 16,
   },
   errorText: {
-    color: Colors.error,
     fontSize: 12,
     marginTop: 6,
     marginLeft: 4,
@@ -650,36 +677,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   forgotPasswordText: {
-    color: Colors.text,
     fontSize: 14,
     opacity: 0.8,
   },
   loginButton: {
-    backgroundColor: Colors.accent,
     borderRadius: 16,
     height: 56,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
-    shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   googleButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 16,
     height: 56,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   buttonText: {
-    color: Colors.text,
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -692,10 +713,8 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
   },
   dividerText: {
-    color: Colors.textSecondary,
     paddingHorizontal: 16,
     fontSize: 14,
   },
@@ -705,16 +724,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   signupText: {
-    color: Colors.text,
     fontSize: 14,
     opacity: 0.8,
   },
   signupLink: {
-    color: Colors.accent,
     fontSize: 14,
     fontWeight: "bold",
     marginLeft: 5,
   },
+  logoImage: {
+    width: 100,
+    height: 100,
+    marginTop: 40,
+  },
 })
 
 export default LoginScreen
+

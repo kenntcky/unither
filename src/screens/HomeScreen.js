@@ -458,8 +458,8 @@ const styles = StyleSheet.create({
   },
 header: {
   backgroundColor: '#6A4CE4',
-  borderBottomLeftRadius: 30,
-  borderBottomRightRadius: 30,
+  borderBottomLeftRadius: 24,
+  borderBottomRightRadius: 24,
   paddingTop: 30,
   paddingHorizontal: 20,
   paddingBottom: 20,
@@ -778,6 +778,7 @@ currentClassBanner: {
     position: 'absolute',
     bottom: 90,
     right: 30,
+    marginBottom: 10,
   },
   floatingButton: {
     width: 60,
