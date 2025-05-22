@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import {
   View,
   Text,
@@ -9,13 +9,15 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  TextInput
+  TextInput,
+  Platform
 } from "react-native"
 import MaterialIcons from "react-native-vector-icons/MaterialIcons"
 import Colors from "../constants/Colors"
 import { useAuth } from "../context/AuthContext"
 import { useClass } from "../context/ClassContext"
 import firestore from "@react-native-firebase/firestore"
+import LinearGradient from 'react-native-linear-gradient'
 
 // Collection names
 const GALLERY_COLLECTION = 'gallery'
@@ -41,9 +43,9 @@ const GalleryApprovalScreen = ({ navigation }) => {
     if (currentClass) {
       loadData()
     }
-  }, [currentClass])
+  }, [currentClass, loadData])
   
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       await Promise.all([
@@ -56,9 +58,9 @@ const GalleryApprovalScreen = ({ navigation }) => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [loadPendingApprovals, loadAlbums])
   
-  const loadPendingApprovals = async () => {
+  const loadPendingApprovals = useCallback(async () => {
     try {
       // Check if user is admin
       const isAdmin = await isUserClassAdmin(currentClass.id)
@@ -109,9 +111,9 @@ const GalleryApprovalScreen = ({ navigation }) => {
       console.error('Error loading pending approvals:', error)
       throw error
     }
-  }
+  }, [currentClass, isUserClassAdmin, navigation])
   
-  const loadAlbums = async () => {
+  const loadAlbums = useCallback(async () => {
     try {
       const albumsSnapshot = await firestore()
         .collection('classes')
@@ -129,9 +131,9 @@ const GalleryApprovalScreen = ({ navigation }) => {
       console.error('Error loading albums:', error)
       throw error
     }
-  }
+  }, [currentClass])
   
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
       await loadData()
@@ -140,7 +142,7 @@ const GalleryApprovalScreen = ({ navigation }) => {
     } finally {
       setRefreshing(false)
     }
-  }
+  }, [loadData])
   
   const handleViewImage = (image) => {
     setSelectedImage(image)
@@ -325,7 +327,12 @@ const GalleryApprovalScreen = ({ navigation }) => {
   
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#0D47A1', '#1565C0']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -333,7 +340,7 @@ const GalleryApprovalScreen = ({ navigation }) => {
           <MaterialIcons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Pending Approvals</Text>
-      </View>
+      </LinearGradient>
       
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
@@ -389,9 +396,20 @@ const GalleryApprovalScreen = ({ navigation }) => {
         animationType="slide"
         onRequestClose={() => setRejectModalVisible(false)}
       >
-        <View style={styles.rejectModalContainer}>
+        <View style={styles.modalOverlay}>
           <View style={styles.rejectModalContent}>
-            <Text style={styles.rejectModalTitle}>Reject Image</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Reject Image</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => {
+                  setRejectModalVisible(false)
+                  setSelectedImage(null)
+                }}
+              >
+                <MaterialIcons name="close" size={24} color="#000000" />
+              </TouchableOpacity>
+            </View>
             
             <Text style={styles.reasonLabel}>Reason for rejection (optional):</Text>
             <TextInput
@@ -431,65 +449,82 @@ const GalleryApprovalScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#f5f5f5",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 55 : 40,
+    paddingBottom: 25,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
   },
   backButton: {
     marginRight: 16,
+    padding: 5,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: Colors.text,
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.background,
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 15,
     color: Colors.textSecondary,
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '500',
   },
   listContainer: {
     padding: 16,
   },
   approvalItem: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+    alignItems: 'center',
   },
   imageContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 4,
+    width: 70,
+    height: 70,
+    borderRadius: 8,
     overflow: 'hidden',
+    backgroundColor: Colors.lightBackground,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   thumbnailImage: {
     width: '100%',
     height: '100%',
+    resizeMode: 'cover',
   },
   approvalDetails: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 15,
     justifyContent: 'center',
   },
   submitterName: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: Colors.textPrimary,
   },
   submissionDate: {
@@ -503,35 +538,38 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   actionButtons: {
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
   },
   approveButton: {
-    backgroundColor: '#4CAF50',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    backgroundColor: Colors.success,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginRight: 10,
+    elevation: 2,
   },
   rejectButton: {
-    backgroundColor: '#F44336',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    backgroundColor: Colors.error,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 2,
   },
   emptyContainer: {
-    padding: 32,
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 32,
   },
   emptyText: {
     marginTop: 16,
-    fontSize: 16,
-    color: Colors.textSecondary,
+    fontSize: 18,
+    color: '#2b3a9e',
     textAlign: 'center',
   },
   imageViewerContainer: {
@@ -542,78 +580,98 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 30,
+    top: 40,
     right: 20,
     zIndex: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 20,
-    padding: 6,
+    padding: 8,
   },
   fullImage: {
     width: '100%',
     height: '80%',
   },
-  rejectModalContainer: {
+  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   rejectModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
-    width: '85%',
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
+    elevation: 5,
   },
-  rejectModalTitle: {
-    fontSize: 18,
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray,
+  },
+  modalTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
-    marginBottom: 16,
-    textAlign: 'center',
+    color: Colors.primary,
   },
   reasonLabel: {
-    fontSize: 14,
+    fontSize: 16,
     color: Colors.textPrimary,
     marginBottom: 8,
+    padding: 16,
   },
   reasonInput: {
     borderWidth: 1,
-    borderColor: '#DDDDDD',
-    borderRadius: 4,
+    borderColor: Colors.gray,
+    borderRadius: 8,
     padding: 12,
     minHeight: 100,
     textAlignVertical: 'top',
+    backgroundColor: Colors.lightBackground,
+    fontSize: 16,
+    color: Colors.textPrimary,
+    marginHorizontal: 16,
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
+    justifyContent: 'flex-end',
+    marginTop: 20,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.gray,
   },
   cancelButton: {
     paddingVertical: 10,
     paddingHorizontal: 16,
+    marginRight: 10,
   },
   cancelButtonText: {
     color: Colors.textSecondary,
     fontWeight: 'bold',
+    fontSize: 16,
   },
   confirmButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: Colors.error,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 4,
+    borderRadius: 8,
+    elevation: 2,
   },
   confirmButtonText: {
-    color: '#FFFFFF',
+    color: Colors.white,
     fontWeight: 'bold',
+    fontSize: 16,
   },
   editPreview: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#F0F0F0',
+    backgroundColor: Colors.lightBackground,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 8,
   },
   editLabel: {
     marginTop: 4,
