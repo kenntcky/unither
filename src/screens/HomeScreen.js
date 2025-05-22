@@ -8,7 +8,9 @@ import {
   Alert, 
   ActivityIndicator,
   Animated,
-  Easing
+  Easing,
+  Modal,
+  Pressable
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
@@ -18,6 +20,7 @@ import { t, plural } from '../translations';
 import { useAssignment } from '../context/AssignmentContext';
 import { useClass } from '../context/ClassContext';
 import ScreenContainer from '../components/ScreenContainer';
+import LinearGradient from 'react-native-linear-gradient';
 
 const HomeScreen = ({ navigation }) => {
   const { assignments, refreshAssignments, loading: assignmentsLoading } = useAssignment();
@@ -31,11 +34,22 @@ const HomeScreen = ({ navigation }) => {
     upcoming: 0,
     overdue: 0
   });
+  const [showClassPopup, setShowClassPopup] = useState(false);
+  const popupScaleAnim = useState(new Animated.Value(0.8))[0];
+  const popupOpacityAnim = useState(new Animated.Value(0))[0];
 
   // Animations
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideUpAnim = useState(new Animated.Value(30))[0];
   const pulseAnim = useState(new Animated.Value(1))[0];
+
+  const bubbleColors = [
+    "rgba(99,102,241,0.18)",   // indigo soft
+    "rgba(139,92,246,0.16)",   // purple soft
+    "rgba(236,72,153,0.13)",   // pink soft
+    "rgba(34,211,238,0.13)",   // cyan soft
+    "rgba(59,130,246,0.13)",   // blue soft
+  ]
 
   useEffect(() => {
     // Start animations when component mounts
@@ -136,23 +150,49 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('AddAssignment');
   };
 
+  const openPopup = () => {
+    setShowClassPopup(true);
+    Animated.parallel([
+      Animated.timing(popupScaleAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(popupOpacityAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      })
+    ]).start();
+  };
+
+  const closePopup = () => {
+    Animated.parallel([
+      Animated.timing(popupScaleAnim, {
+        toValue: 0.8,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(popupOpacityAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      })
+    ]).start(() => setShowClassPopup(false));
+  };
+
   const handleGoBackToClassSelection = () => {
-    Alert.alert(
-      'Confirm',
-      'Go back to class selection screen?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'OK', 
-          onPress: () => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'ClassSelection' }],
-            });
-          }
-        }
-      ]
-    );
+    openPopup();
+  };
+
+  const handleConfirmGoBack = () => {
+    closePopup();
+    setTimeout(() => {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'ClassSelection' }],
+      });
+    }, 200);
   };
 
   const formatDate = (dateString) => {
@@ -195,6 +235,40 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
+  // Custom Popup Component
+  const CustomPopup = ({ visible, onCancel, onConfirm }) => (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onCancel}
+    >
+      <View style={styles.popupOverlay}>
+        <Animated.View style={[
+          styles.popupContainer,
+          {
+            transform: [{ scale: popupScaleAnim }],
+            opacity: popupOpacityAnim
+          }
+        ]}>
+          <View style={styles.popupIconWrapper}>
+            <Icon name="help-outline" size={40} color="#6a1b9a" />
+          </View>
+          <Text style={styles.popupTitle}>{t('Are you sure?')}</Text>
+          <Text style={styles.popupDesc}>{t('Go back to class selection screen?')}</Text>
+          <View style={styles.popupButtonRow}>
+            <Pressable style={styles.popupCancelBtn} onPress={onCancel} android_ripple={{color:'#eee'}}>
+              <Text style={styles.popupCancelText}>{t('Cancel')}</Text>
+            </Pressable>
+            <Pressable style={styles.popupOkBtn} onPress={onConfirm} android_ripple={{color:'#fff'}}>
+              <Text style={styles.popupOkText}>{t('OK')}</Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+
   if (isClassSwitching || isInitialLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -208,26 +282,44 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <CustomPopup
+        visible={showClassPopup}
+        onCancel={closePopup}
+        onConfirm={handleConfirmGoBack}
+      />
       <Animated.View 
         style={[
-          styles.header,
+          styles.headerWrapper,
           { 
             opacity: fadeAnim,
             transform: [{ translateY: slideUpAnim }] 
           }
         ]}
       >
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{t('Task Master')}</Text>
-          <Text style={styles.headerSubtitle}>{t('Your School Assignment Tracker')}</Text>
-        </View>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={handleGoBackToClassSelection}
+        <LinearGradient
+          colors={['#6366F1', '#8B5CF6', '#3B82F6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
         >
-          <Icon name="arrow-back" size={24} color="#fff" />
-          <Text style={styles.backButtonText}>{t('Change Class')}</Text>
-        </TouchableOpacity>
+          {/* Bubble dekoratif */}
+          <View style={[styles.headerBubble, { top: 10, left: 30, backgroundColor: 'rgba(255,255,255,0.13)', width: 60, height: 60 }]} />
+          <View style={[styles.headerBubble, { top: 40, right: 40, backgroundColor: 'rgba(255,255,255,0.09)', width: 40, height: 40 }]} />
+          <View style={[styles.headerBubble, { bottom: 10, left: 80, backgroundColor: 'rgba(255,255,255,0.07)', width: 30, height: 30 }]} />
+
+          <View style={styles.headerContent}>
+            <Icon name="assignment" size={32} color="#fff" style={{ marginBottom: 4, textShadowColor: '#0002', textShadowOffset: {width: 0, height: 2}, textShadowRadius: 4 }} />
+            <Text style={styles.headerTitle}>{t('Task Master')}</Text>
+            <Text style={styles.headerSubtitle}>{t('Your School Assignment Tracker')}</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={handleGoBackToClassSelection}
+          >
+            <Icon name="arrow-back" size={24} color="#fff" />
+            <Text style={styles.backButtonText}>{t('Change Class')}</Text>
+          </TouchableOpacity>
+        </LinearGradient>
       </Animated.View>
 
       <ScreenContainer
@@ -456,37 +548,50 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
   },
-header: {
-  backgroundColor: '#6A4CE4',
-  borderBottomLeftRadius: 24,
-  borderBottomRightRadius: 24,
-  paddingTop: 30,
-  paddingHorizontal: 20,
-  paddingBottom: 20,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.3,
-  shadowRadius: 6,
-  elevation: 6, // Untuk Android
-},
-
+  headerWrapper: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: 'hidden',
+    marginBottom: 0,
+  },
+  headerGradient: {
+    paddingTop: 38,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    position: 'relative',
+    minHeight: 140,
+  },
+  headerBubble: {
+    position: 'absolute',
+    borderRadius: 100,
+    zIndex: 0,
+  },
   headerContent: {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 15,
+    marginBottom: 10,
+    zIndex: 1,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 'bold',
     color: '#fff',
     textAlign: 'center',
-    marginBottom: 5,
+    marginBottom: 4,
+    textShadowColor: '#0002',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(255,255,255,0.92)',
     textAlign: 'center',
+    textShadowColor: '#0001',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   backButton: {
     flexDirection: 'row',
@@ -503,27 +608,27 @@ header: {
     marginLeft: 5,
     fontWeight: '600',
   },
-currentClassBanner: {
-  backgroundColor: '#9c4dcc',
-  backgroundImage: 'linear-gradient(135deg, #9c4dcc 0%, #7e2fa7 100%)',
-  padding: 18,
-  marginHorizontal: 20,
-  marginTop: 15,
-  marginBottom: 20,
-  borderRadius: 16,
-  borderWidth: 1,
-  borderColor: 'rgba(255, 255, 255, 0.2)',
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.3,
-  shadowRadius: 8,
-  elevation: 6,
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexDirection: 'row',
-  position: 'relative',
-  overflow: 'hidden',
-},
+  currentClassBanner: {
+    backgroundColor: '#9c4dcc',
+    backgroundImage: 'linear-gradient(135deg, #9c4dcc 0%, #7e2fa7 100%)',
+    padding: 18,
+    marginHorizontal: 20,
+    marginTop: 15,
+    marginBottom: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    position: 'relative',
+    overflow: 'hidden',
+  },
   currentClassText: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -804,6 +909,79 @@ currentClassBanner: {
     fontSize: 16,
     color: '#333',
     fontFamily: 'Roboto-Regular',
+  },
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  popupContainer: {
+    width: 320,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  popupIconWrapper: {
+    backgroundColor: '#f3e7fa',
+    borderRadius: 30,
+    padding: 12,
+    marginBottom: 10,
+  },
+  popupTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#6a1b9a',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Roboto-Bold',
+  },
+  popupDesc: {
+    fontSize: 15,
+    color: '#444',
+    marginBottom: 22,
+    textAlign: 'center',
+    fontFamily: 'Roboto-Regular',
+  },
+  popupButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 8,
+  },
+  popupCancelBtn: {
+    flex: 1,
+    backgroundColor: '#eee',
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginRight: 8,
+    alignItems: 'center',
+  },
+  popupOkBtn: {
+    flex: 1,
+    backgroundColor: '#6a1b9a',
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginLeft: 8,
+    alignItems: 'center',
+  },
+  popupCancelText: {
+    color: '#6a1b9a',
+    fontWeight: 'bold',
+    fontSize: 15,
+    fontFamily: 'Roboto-Medium',
+  },
+  popupOkText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+    fontFamily: 'Roboto-Medium',
   },
 });
 

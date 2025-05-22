@@ -11,6 +11,28 @@ import ScreenContainer from '../components/ScreenContainer';
 import { useAuth } from '../context/AuthContext';
 import { isClassAdmin } from '../utils/firestore';
 
+// Custom color theme with purple, blue, and white - matching the profile screen
+const CustomColors = {
+  primary: '#6A3DE8', // Vibrant purple
+  primaryLight: '#8A6AFF', // Lighter purple
+  primaryDark: '#4A1D96', // Darker purple
+  secondary: '#3D5AFE', // Vibrant blue
+  secondaryLight: '#8187FF', // Lighter blue
+  secondaryDark: '#0031CA', // Darker blue
+  background: '#F8F9FF', // Very light blue-white
+  surface: '#FFFFFF', // Pure white
+  text: '#1A1A2E', // Dark blue-black
+  textSecondary: '#4A4A6A', // Medium blue-gray
+  textTertiary: '#6E7191', // Light blue-gray
+  error: '#FF5252', // Red
+  success: '#4CAF50', // Green
+  warning: '#FFC107', // Amber
+  cardBackground: '#F0F4FF', // Light blue-white
+  border: '#E0E7FF', // Very light blue
+  lightGray: '#D1D5DB', // Light gray for icons
+  accent: '#6A3DE8', // Using primary as accent for consistency
+};
+
 const AssignmentsScreen = ({ navigation, route }) => {
   const { currentClass } = useClass();
   const { user } = useAuth();
@@ -184,16 +206,24 @@ const AssignmentsScreen = ({ navigation, route }) => {
 
   return (
     <ScreenContainer style={styles.container} withTabBarSpacing={false}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Assignments</Text>
+        {currentClass && (
+          <Text style={styles.headerSubtitle}>{currentClass.name}</Text>
+        )}
+      </View>
+      
       <FilterBar
         onFilterChange={handleFilterChange}
         onSortChange={handleSortChange}
         activeFilters={activeFilters}
         activeSort={sortBy}
+        customColors={CustomColors} // Pass custom colors to FilterBar
       />
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={CustomColors.primary} />
           <Text style={styles.loadingText}>Loading assignments...</Text>
         </View>
       ) : (
@@ -202,9 +232,9 @@ const AssignmentsScreen = ({ navigation, route }) => {
             <Icon 
               name={syncedWithCloud ? "cloud-done" : "cloud-off"} 
               size={16} 
-              color={syncedWithCloud ? Colors.success : Colors.warning} 
+              color={syncedWithCloud ? CustomColors.success : CustomColors.warning} 
             />
-            <Text style={[styles.syncStatusText, { color: syncedWithCloud ? Colors.success : Colors.warning }]}>
+            <Text style={[styles.syncStatusText, { color: syncedWithCloud ? CustomColors.success : CustomColors.warning }]}>
               {currentClass && syncedWithCloud 
                 ? `Synced with ${currentClass.name}` 
                 : "Using local assignments"}
@@ -221,13 +251,14 @@ const AssignmentsScreen = ({ navigation, route }) => {
                 onApprove={(id) => handleApprove(id)}
                 onReject={(id) => handleReject(id)}
                 isAdmin={isAdmin}
+                customColors={CustomColors} // Pass custom colors to AssignmentItem
               />
             )}
             keyExtractor={item => item.id}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Icon name="assignment" size={64} color={Colors.lightGray} />
+                <Icon name="assignment" size={64} color={CustomColors.lightGray} />
                 <Text style={styles.emptyText}>No assignments found</Text>
                 <Text style={styles.emptySubText}>
                   {activeFilters.length > 0
@@ -254,7 +285,41 @@ const AssignmentsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background
+    backgroundColor: CustomColors.background
+  },
+  header: {
+    backgroundColor: CustomColors.primary,
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    opacity: 0.9,
+    textAlign: 'center',
   },
   listContent: {
     padding: 16,
@@ -267,11 +332,12 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.accent,
+    backgroundColor: CustomColors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
     shadowColor: "#000",
+    marginBottom: 40,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -287,14 +353,14 @@ const styles = StyleSheet.create({
     marginTop: 50
   },
   emptyText: {
-    fontSize: 18,
+    fontize: 18,
     fontWeight: 'bold',
     marginTop: 12,
-    color: Colors.textSecondary
+    color: CustomColors.textSecondary
   },
   emptySubText: {
     fontSize: 14,
-    color: Colors.textTertiary,
+    color: CustomColors.textTertiary,
     textAlign: 'center',
     marginTop: 8
   },
@@ -306,16 +372,28 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: Colors.textSecondary
+    color: CustomColors.textSecondary
   },
   syncStatusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 8,
-    marginTop: 36,
-    backgroundColor: Colors.cardBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 5,
+    backgroundColor: CustomColors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CustomColors.border,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   syncStatusText: {
     fontSize: 12,
