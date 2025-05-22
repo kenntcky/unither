@@ -28,6 +28,29 @@ import AssignmentCompletionList from '../components/AssignmentCompletionList';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
+// Custom color theme with purple, blue, and white - matching the profile screen
+const CustomColors = {
+  primary: '#6A3DE8', // Vibrant purple
+  primaryLight: '#8A6AFF', // Lighter purple
+  primaryDark: '#4A1D96', // Darker purple
+  secondary: '#3D5AFE', // Vibrant blue
+  secondaryLight: '#8187FF', // Lighter blue
+  secondaryDark: '#0031CA', // Darker blue
+  background: '#F8F9FF', // Very light blue-white
+  surface: '#FFFFFF', // Pure white
+  cardBackground: '#F0F4FF', // Light blue-white
+  text: '#1A1A2E', // Dark blue-black
+  textSecondary: '#4A4A6A', // Medium blue-gray
+  textTertiary: '#6E7191', // Light blue-gray
+  error: '#FF5252', // Red
+  success: '#4CAF50', // Green
+  warning: '#FFC107', // Amber
+  border: '#E0E7FF', // Very light blue
+  lightBackground: '#EDF0FF', // Very light blue for backgrounds
+  accent: '#3D5AFE', // Using secondary blue as accent
+  lightGray: '#D1D5DB', // Light gray for icons
+};
+
 // Tab names
 const TABS = {
   DETAILS: 'Details',
@@ -82,7 +105,17 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     if (assignment) {
-      navigation.setOptions({ title: assignment.title });
+      navigation.setOptions({
+        title: assignment.title,
+        headerLeft: () => (
+          <TouchableOpacity 
+            style={styles.headerBackButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        ),
+      });
       
       // Load completions when assignment is loaded and we're in a class
       if (currentClass) {
@@ -351,7 +384,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
         <View style={styles.membersContainer}>
           {item.members.map(member => (
             <View key={member.userId} style={styles.memberItem}>
-              <Icon name="person" size={16} color={Colors.textSecondary} style={styles.memberIcon} />
+              <Icon name="person" size={16} color={CustomColors.textSecondary} style={styles.memberIcon} />
               <Text style={styles.memberName}>
                 {member.displayName}
                 {member.userId === user?.uid && ' (You)'}
@@ -729,7 +762,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={CustomColors.primary} />
         <Text style={styles.loadingText}>Loading assignment details...</Text>
       </View>
     );
@@ -738,7 +771,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   if (!assignment) {
     return (
       <View style={styles.errorContainer}>
-        <Icon name="error-outline" size={48} color={Colors.error} />
+        <Icon name="error-outline" size={48} color={CustomColors.error} />
         <Text style={styles.errorText}>Assignment not found</Text>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>Go back</Text>
@@ -753,7 +786,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
       <TextInput
         style={styles.commentInput}
         placeholder="Add a comment..."
-        placeholderTextColor={Colors.textSecondary}
+        placeholderTextColor={CustomColors.textSecondary}
         value={newComment}
         onChangeText={setNewComment}
         multiline
@@ -775,11 +808,25 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
 
   return (
     <KeyboardAvoidingView 
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: CustomColors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={80} // Adjust based on your bottom tab bar height
     >
-      {/* Fixed Tab Navigator at the top */}
+      {/* Header with title */}
+      <View style={styles.header}>
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity 
+            style={styles.headerBackButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="arrow-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{assignment.title}</Text>
+        </View>
+        <Text style={styles.headerSubtitle}>{assignment.subjectName}</Text>
+      </View>
+      
+      {/* Fixed Tab Navigator below header */}
       {!isLoading && assignment && (
         <TabNavigator />
       )}
@@ -799,9 +846,9 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Details</Text>
               <View style={styles.detailRow}>
-                <Icon name={assignment.status === ASSIGNMENT_STATUS.FINISHED ? "check-circle" : "hourglass-empty"} size={20} color={assignment.status === ASSIGNMENT_STATUS.FINISHED ? Colors.success : Colors.warning} style={styles.icon} />
+                <Icon name={assignment.status === ASSIGNMENT_STATUS.FINISHED ? "check-circle" : "hourglass-empty"} size={20} color={assignment.status === ASSIGNMENT_STATUS.FINISHED ? CustomColors.success : CustomColors.warning} style={styles.icon} />
                 <Text style={styles.detailLabel}>Status:</Text>
-                <Text style={[styles.detailValue, { color: assignment.status === ASSIGNMENT_STATUS.FINISHED ? Colors.success : Colors.warning }]}>
+                <Text style={[styles.detailValue, { color: assignment.status === ASSIGNMENT_STATUS.FINISHED ? CustomColors.success : CustomColors.warning }]}>
                   {assignment.status}
                 </Text>
               </View>
@@ -810,13 +857,13 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
               {renderCompletionStatusButton()}
               
               <View style={styles.detailRow}>
-                <Icon name="access-time" size={20} color={Colors.textSecondary} style={styles.icon} />
+                <Icon name="access-time" size={20} color={CustomColors.textSecondary} style={styles.icon} />
                 <Text style={styles.detailLabel}>Created:</Text>
                 <Text style={styles.detailValue}>{formatDate(assignment.createdAt)}</Text>
               </View>
               {assignment.updatedAt && (
                 <View style={styles.detailRow}>
-                  <Icon name="update" size={20} color={Colors.textSecondary} style={styles.icon} />
+                  <Icon name="update" size={20} color={CustomColors.textSecondary} style={styles.icon} />
                   <Text style={styles.detailLabel}>Last Updated:</Text>
                   <Text style={styles.detailValue}>{formatDate(assignment.updatedAt)}</Text>
                 </View>
@@ -874,12 +921,12 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
                 
                 {isLoadingComments ? (
                   <View style={styles.centeredContainer}>
-                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <ActivityIndicator size="small" color={CustomColors.primary} />
                     <Text style={styles.loadingText}>Loading comments...</Text>
                   </View>
                 ) : comments.length === 0 ? (
                   <View style={styles.centeredContainer}>
-                    <Icon name="chat-bubble-outline" size={48} color={Colors.textSecondary} />
+                    <Icon name="chat-bubble-outline" size={48} color={CustomColors.textSecondary} />
                     <Text style={styles.noCommentsText}>No comments yet</Text>
                   </View>
                 ) : (
@@ -891,6 +938,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
                         onEdit={handleEditComment}
                         onDelete={handleDeleteComment}
                         isAdmin={isAdmin}
+                        customColors={CustomColors}
                       />
                     ))}
                   </View>
@@ -904,11 +952,12 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
 
         {/* Completions Tab Content */}
         {activeTab === TABS.COMPLETIONS && currentClass && (
-          <View style={styles.section}>
+          <View style={styles.sectionCompletions}>
             <AssignmentCompletionList
               classId={currentClass.id}
               assignmentId={assignmentId}
               assignmentType={assignment.type}
+              customColors={CustomColors}
             />
           </View>
         )}
@@ -926,7 +975,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
             <Text style={styles.modalTitle}>Select a Group</Text>
             
             {isJoining && (
-              <ActivityIndicator size="small" color={Colors.primary} style={styles.joiningIndicator} />
+              <ActivityIndicator size="small" color={CustomColors.primary} style={styles.joiningIndicator} />
             )}
             
             <FlatList
@@ -1048,55 +1097,105 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: CustomColors.background,
+  },
+  header: {
+    backgroundColor: CustomColors.primary,
+    paddingTop: 20,
+    paddingHorizontal: 15,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    justifyContent: 'flex-end',
+    marginTop: 20,
+  },
+  headerBackButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 36,
+    height: 36,
+    marginRight: 10,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    flex: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    opacity: 0.9,
+    textAlign: 'left',
+    marginLeft: 46, // Align with title (back button width + marginRight)
+    marginTop: 5,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: CustomColors.background,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: Colors.background,
+    backgroundColor: CustomColors.background,
   },
   loadingText: {
     marginTop: 8,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
     fontSize: 14,
   },
   errorText: {
     marginTop: 10,
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
   },
   backButton: {
-    color: Colors.accent,
+    color: CustomColors.secondary,
     fontSize: 16,
     fontWeight: 'bold',
     marginTop: 20,
   },
   section: {
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: CustomColors.background,
+    borderRadius: 15,
+    padding: 20,
+    marginVertical: 12,
     marginHorizontal: 16,
-    marginTop: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: CustomColors.secondary,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
-    color: Colors.text,
+    color: CustomColors.text,
   },
   detailRow: {
     flexDirection: 'row',
@@ -1109,55 +1208,57 @@ const styles = StyleSheet.create({
   detailLabel: {
     width: 100,
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
+    fontWeight: '500',
   },
   detailValue: {
     flex: 1,
     fontSize: 14,
-    color: Colors.text,
+    color: CustomColors.text,
   },
   descriptionText: {
     fontSize: 14,
     lineHeight: 20,
-    color: Colors.text,
+    color: CustomColors.text,
   },
   // Group styles
   userGroupInfo: {
     marginTop: 8,
     marginBottom: 12,
-    backgroundColor: Colors.lightBackground,
+    backgroundColor: CustomColors.lightBackground,
     padding: 12,
     borderRadius: 8,
   },
   groupInfoText: {
     fontSize: 14,
-    color: Colors.text,
+    color: CustomColors.text,
     marginBottom: 10,
   },
   highlightText: {
     fontWeight: 'bold',
+    color: CustomColors.primary,
   },
   joinGroupButton: {
-    backgroundColor: Colors.accent,
+    backgroundColor: CustomColors.secondary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     marginVertical: 8,
   },
   joinGroupText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
-    marginLeft: 4,
+    marginLeft: 8,
   },
   leaveGroupButton: {
-    backgroundColor: Colors.error,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 4,
+    backgroundColor: CustomColors.error,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     alignItems: 'center',
   },
   leaveGroupText: {
@@ -1173,10 +1274,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    width: '80%',
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 8,
-    padding: 16,
+    width: '85%',
+    backgroundColor: CustomColors.surface,
+    borderRadius: 12,
+    padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -1184,9 +1285,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: CustomColors.text,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -1199,20 +1300,23 @@ const styles = StyleSheet.create({
   groupSelectItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: CustomColors.border,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: CustomColors.cardBackground,
   },
   groupSelectName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: CustomColors.text,
   },
   groupSelectMembers: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
     marginTop: 4,
   },
   cancelButton: {
-    backgroundColor: Colors.error,
+    backgroundColor: CustomColors.error,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -1234,32 +1338,32 @@ const styles = StyleSheet.create({
   noCommentsText: {
     textAlign: 'center',
     marginVertical: 15,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
     fontStyle: 'italic',
   },
   addCommentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: CustomColors.border,
     padding: 12,
     marginTop: 8,
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: CustomColors.surface,
   },
   commentInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: CustomColors.border,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginRight: 8,
-    backgroundColor: Colors.background,
-    color: Colors.text,
+    backgroundColor: CustomColors.background,
+    color: CustomColors.text,
     fontSize: 14,
   },
   sendButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: CustomColors.secondary,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -1267,19 +1371,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   disabledSendButton: {
-    backgroundColor: Colors.border,
+    backgroundColor: CustomColors.border,
   },
   sendIcon: {
     color: '#fff',
   },
   // Group item styles
   groupItem: {
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: CustomColors.cardBackground,
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.primary,
+    borderLeftColor: CustomColors.secondary,
   },
   groupHeader: {
     flexDirection: 'row',
@@ -1288,16 +1392,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
+    borderBottomColor: CustomColors.border,
   },
   groupName: {
     fontSize: 16, 
     fontWeight: 'bold',
-    color: Colors.text,
+    color: CustomColors.text,
   },
   memberCount: {
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
   },
   membersContainer: {
     paddingLeft: 4,
@@ -1312,11 +1416,11 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 14,
-    color: Colors.text,
+    color: CustomColors.text,
   },
   emptyGroupText: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 8,
@@ -1324,9 +1428,9 @@ const styles = StyleSheet.create({
   // Tab styles
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: Colors.background,
+    backgroundColor: CustomColors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: CustomColors.border,
     elevation: 2, // Shadow for Android
     shadowColor: '#000', // Shadow for iOS
     shadowOffset: { width: 0, height: 2 },
@@ -1341,15 +1445,15 @@ const styles = StyleSheet.create({
   },
   tabButtonActive: {
     borderBottomWidth: 3,
-    borderBottomColor: Colors.primary,
+    borderBottomColor: CustomColors.primary,
   },
   tabButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
   },
   tabButtonTextActive: {
-    color: Colors.primary,
+    color: CustomColors.primary,
     fontWeight: 'bold',
   },
   tabContent: {
@@ -1358,7 +1462,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeContainer: {
-    backgroundColor: Colors.primary,
+    backgroundColor: CustomColors.primary,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -1376,45 +1480,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     marginVertical: 12,
   },
   ongoingStatusButton: {
-    backgroundColor: Colors.accent,
+    backgroundColor: CustomColors.secondary,
   },
   completedStatusButton: {
-    backgroundColor: Colors.success,
+    backgroundColor: CustomColors.success,
   },
   pendingStatusButton: {
-    backgroundColor: Colors.textSecondary,
+    backgroundColor: CustomColors.textSecondary,
   },
   pendingApprovalButton: {
-    backgroundColor: Colors.warning,
+    backgroundColor: CustomColors.warning,
   },
   statusButtonText: {
     color: '#fff',
     fontWeight: 'bold',
-    marginLeft: 4,
+    marginLeft: 8,
+    fontSize: 14,
   },
   photoModalContent: {
     width: '90%',
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 8,
+    backgroundColor: CustomColors.surface,
+    borderRadius: 12,
     padding: 20,
     maxHeight: '80%',
   },
   photoModalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.text,
+    color: CustomColors.text,
     marginBottom: 16,
   },
   photoInstructions: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: CustomColors.textSecondary,
     marginBottom: 20,
+    lineHeight: 20,
   },
   photoButtons: {
     flexDirection: 'row',
@@ -1430,10 +1536,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   cameraButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: CustomColors.primary,
   },
   galleryButton: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: CustomColors.secondary,
   },
   photoButtonText: {
     color: '#fff',
@@ -1453,10 +1559,10 @@ const styles = StyleSheet.create({
   retakeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: CustomColors.primary,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderRadius: 4,
+    borderRadius: 8,
   },
   photoActionButtons: {
     flexDirection: 'row',
@@ -1464,8 +1570,8 @@ const styles = StyleSheet.create({
   },
   cancelPhotoButton: {
     padding: 12,
-    borderRadius: 4,
-    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    backgroundColor: CustomColors.error,
     marginRight: 8,
     flex: 1,
     alignItems: 'center',
@@ -1475,8 +1581,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
-    borderRadius: 4,
-    backgroundColor: Colors.success,
+    borderRadius: 8,
+    backgroundColor: CustomColors.success,
     flex: 2,
   },
   disabledButton: {
@@ -1487,6 +1593,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 4,
   },
+  sectionCompletions: {
+    backgroundColor: CustomColors.secondaryLight,
+    borderRadius: 15,
+    padding: 20,
+    marginVertical: 12,
+    marginHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: CustomColors.primary,
+    borderTopRightRadius: 25,
+    borderBottomRightRadius: 25,
+  },
 });
 
-export default AssignmentDetailsScreen; 
+export default AssignmentDetailsScreen;
