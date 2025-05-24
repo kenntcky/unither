@@ -26,16 +26,22 @@ import { t } from '../translations';
 import ScreenContainer from '../components/ScreenContainer';
 import LevelProgressBar from '../components/LevelProgressBar';
 
-// Custom color theme
+// Custom color theme with purple, blue, and white
 const CustomColors = {
-  primary: '#4F1787', // Rich purple
-  primaryLight: '#22177A', // Medium purple
-  accent: '#3D365C', // Medium purple
-  background: '#F5F5F5', // Off-white
-  surface: '#FFFFFF', // White
-  text: '#000000', // Black
-  textSecondary: '#444444', // Dark gray
+  primary: '#6A3DE8', // Vibrant purple
+  primaryLight: '#8A6AFF', // Lighter purple
+  primaryDark: '#4A1D96', // Darker purple
+  secondary: '#3D5AFE', // Vibrant blue
+  secondaryLight: '#8187FF', // Lighter blue
+  secondaryDark: '#0031CA', // Darker blue
+  background: '#F8F9FF', // Very light blue-white
+  surface: '#FFFFFF', // Pure white
+  text: '#1A1A2E', // Dark blue-black
+  textSecondary: '#4A4A6A', // Medium blue-gray
   error: '#FF5252', // Red
+  success: '#4CAF50', // Green
+  cardBackground: '#F0F4FF', // Light blue-white
+  divider: '#E0E7FF', // Very light blue
 };
 
 // Enable LayoutAnimation for Android
@@ -100,16 +106,16 @@ const Toast = ({ visible, message, type, onDismiss }) => {
   
   switch (type) {
     case 'error':
-      backgroundColor = '#FF5252';
+      backgroundColor = CustomColors.error;
       iconName = 'error';
       break;
     case 'success':
-      backgroundColor = '#4CAF50';
+      backgroundColor = CustomColors.success;
       iconName = 'check-circle';
       break;
     case 'info':
     default:
-      backgroundColor = CustomColors.primaryLight;
+      backgroundColor = CustomColors.secondary;
       iconName = 'info';
       break;
   }
@@ -485,7 +491,7 @@ const ProfileScreen = ({ navigation }) => {
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={CustomColors.accent} />
+        <ActivityIndicator size="large" color={CustomColors.primary} />
       </View>
     );
   }
@@ -498,7 +504,8 @@ const ProfileScreen = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
       >
         <Animated.View style={[styles.header]}>
-          <View style={styles.headerContent}>
+          {/* Centered profile content */}
+          <View style={styles.centeredHeaderContent}>
             <Pressable onPress={handleAvatarPress} style={styles.avatarSection}>
               <Animated.View style={[styles.avatarContainer, { transform: [{ scale: avatarScale }] }]}>
                 {user.photoURL ? (
@@ -562,7 +569,7 @@ const ProfileScreen = ({ navigation }) => {
                 onPress={() => toggleSection('admin')}
               >
                 <View style={styles.sectionTitleContainer}>
-                  <Icon name="admin-panel-settings" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="admin-panel-settings" size={24} color={CustomColors.primary} />
                   <Text style={styles.sectionTitle}>
                     {t('Admin Controls')}
                   </Text>
@@ -580,7 +587,7 @@ const ProfileScreen = ({ navigation }) => {
                     style={styles.menuItem}
                     onPress={handlePendingApprovals}
                   >
-                    <Icon name="approval" size={24} color={CustomColors.accent} />
+                    <Icon name="approval" size={24} color={CustomColors.secondary} />
                     <Text style={styles.menuItemText}>{t('Pending Approvals')}</Text>
                     <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                   </TouchableOpacity>
@@ -589,7 +596,7 @@ const ProfileScreen = ({ navigation }) => {
                     style={styles.menuItem}
                     onPress={handleViewClassMembers}
                   >
-                    <Icon name="manage-accounts" size={24} color={CustomColors.accent} />
+                    <Icon name="manage-accounts" size={24} color={CustomColors.secondary} />
                     <Text style={styles.menuItemText}>{t('Manage Class Members')}</Text>
                     <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                   </TouchableOpacity>
@@ -598,7 +605,7 @@ const ProfileScreen = ({ navigation }) => {
                     style={styles.menuItem}
                     onPress={handleClassSettings}
                   >
-                    <Icon name="settings" size={24} color={CustomColors.accent} />
+                    <Icon name="settings" size={24} color={CustomColors.secondary} />
                     <Text style={styles.menuItemText}>{t('Class Settings')}</Text>
                     <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                   </TouchableOpacity>
@@ -613,7 +620,7 @@ const ProfileScreen = ({ navigation }) => {
               onPress={() => toggleSection('account')}
             >
               <View style={styles.sectionTitleContainer}>
-                <Icon name="person" size={24} color={CustomColors.primaryLight} />
+                <Icon name="person" size={24} color={CustomColors.primary} />
                 <Text style={styles.sectionTitle}>{t('Account')}</Text>
               </View>
               <Icon 
@@ -629,7 +636,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.menuItem}
                   onPress={() => navigation.navigate('EditProfile')}
                 >
-                  <Icon name="person" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="person" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>{t('Edit Profile')}</Text>
                   <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                 </TouchableOpacity>
@@ -638,7 +645,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.menuItem}
                   onPress={() => navigation.navigate('ChangePassword')}
                 >
-                  <Icon name="lock" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="lock" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>{t('Change Password')}</Text>
                   <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                 </TouchableOpacity>
@@ -652,7 +659,7 @@ const ProfileScreen = ({ navigation }) => {
               onPress={() => toggleSection('class')}
             >
               <View style={styles.sectionTitleContainer}>
-                <Icon name="school" size={24} color={CustomColors.primaryLight} />
+                <Icon name="school" size={24} color={CustomColors.primary} />
                 <Text style={styles.sectionTitle}>{t('Class')}</Text>
               </View>
               <Icon 
@@ -668,7 +675,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.menuItem} 
                   onPress={handleViewClassMembers}
                 >
-                  <Icon name="people" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="people" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>{t('Class Members')}</Text>
                   <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                 </TouchableOpacity>
@@ -677,7 +684,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.menuItem}
                   onPress={() => handleMenuItemPress('Class Selection')}
                 >
-                  <Icon name="school" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="school" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>
                     {currentClass 
                       ? `${t('Current Class')}: ${currentClass.name}` 
@@ -695,7 +702,7 @@ const ProfileScreen = ({ navigation }) => {
               onPress={() => toggleSection('preferences')}
             >
               <View style={styles.sectionTitleContainer}>
-                <Icon name="settings" size={24} color={CustomColors.primaryLight} />
+                <Icon name="settings" size={24} color={CustomColors.primary} />
                 <Text style={styles.sectionTitle}>{t('Preferences')}</Text>
               </View>
               <Icon 
@@ -711,7 +718,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.menuItem}
                   onPress={() => handleMenuItemPress('Notifications')}
                 >
-                  <Icon name="notifications" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="notifications" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>{t('Notifications')}</Text>
                   <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                 </TouchableOpacity>
@@ -720,7 +727,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.menuItem}
                   onPress={handleLanguageSettings}
                 >
-                  <Icon name="language" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="language" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>{t('Language')}</Text>
                   <View style={styles.valueContainer}>
                     <Text style={styles.valueText}>{getCurrentLanguageName()}</Text>
@@ -732,7 +739,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.menuItem}
                   onPress={() => handleMenuItemPress('Theme')}
                 >
-                  <Icon name="color-lens" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="color-lens" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>{t('Theme')}</Text>
                   <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                 </TouchableOpacity>
@@ -746,7 +753,7 @@ const ProfileScreen = ({ navigation }) => {
               onPress={() => toggleSection('support')}
             >
               <View style={styles.sectionTitleContainer}>
-                <Icon name="help" size={24} color={CustomColors.primaryLight} />
+                <Icon name="help" size={24} color={CustomColors.primary} />
                 <Text style={styles.sectionTitle}>{t('Support')}</Text>
               </View>
               <Icon 
@@ -762,7 +769,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.menuItem}
                   onPress={() => handleMenuItemPress('Help & Support')}
                 >
-                  <Icon name="help" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="help" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>{t('Help & Support')}</Text>
                   <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                 </TouchableOpacity>
@@ -771,7 +778,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.menuItem}
                   onPress={() => handleMenuItemPress('About Us')}
                 >
-                  <Icon name="info" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="info" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>{t('About Us')}</Text>
                   <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                 </TouchableOpacity>
@@ -785,7 +792,7 @@ const ProfileScreen = ({ navigation }) => {
               onPress={() => toggleSection('experience')}
             >
               <View style={styles.sectionTitleContainer}>
-                <Icon name="emoji-events" size={24} color={CustomColors.primaryLight} />
+                <Icon name="emoji-events" size={24} color={CustomColors.primary} />
                 <Text style={styles.sectionTitle}>{t('Experience & Achievements')}</Text>
               </View>
               <Icon 
@@ -826,7 +833,7 @@ const ProfileScreen = ({ navigation }) => {
                       style={styles.menuItem}
                       onPress={handleViewClassMembers}
                     >
-                      <Icon name="leaderboard" size={24} color={CustomColors.primaryLight} />
+                      <Icon name="leaderboard" size={24} color={CustomColors.secondary} />
                       <Text style={styles.menuItemText}>{t('View Class Leaderboard')}</Text>
                       <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                     </TouchableOpacity>
@@ -848,7 +855,7 @@ const ProfileScreen = ({ navigation }) => {
               onPress={() => toggleSection('classSettings')}
             >
               <View style={styles.sectionTitleContainer}>
-                <Icon name="settings" size={24} color={CustomColors.primaryLight} />
+                <Icon name="settings" size={24} color={CustomColors.primary} />
                 <Text style={styles.sectionTitle}>{t('Class Settings')}</Text>
               </View>
               <Icon 
@@ -864,7 +871,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.menuItem}
                   onPress={handleClassSettings}
                 >
-                  <Icon name="settings" size={24} color={CustomColors.primaryLight} />
+                  <Icon name="settings" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>{t('Class Settings')}</Text>
                   <Text style={styles.menuItemDescription}>{t('Manage class preferences')}</Text>
                 </TouchableOpacity>
@@ -915,6 +922,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: CustomColors.background,
   },
+  scrollContent: {
+    // Add padding if needed
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -924,18 +934,26 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: CustomColors.primary,
     padding: 20,
-    paddingTop: 40,
+    paddingTop: 60,
     paddingBottom: 50,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
-  headerContent: {
-    flexDirection: 'row',
+  // New centered header content
+  centeredHeaderContent: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarSection: {
-    marginRight: 15,
+    marginBottom: 15, // Add space between avatar and text
   },
   avatarContainer: {
-    // No bottom margin now since it's side by side
+    // Shadow for avatar
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
   },
   avatar: {
     width: 100,
@@ -948,7 +966,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: CustomColors.primaryLight,
+    backgroundColor: CustomColors.secondaryDark,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
@@ -960,7 +978,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   userInfoContainer: {
-    flex: 1,
+    alignItems: 'center', // Center text
     justifyContent: 'center',
   },
   name: {
@@ -968,30 +986,35 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+    textAlign: 'center', // Center text
   },
   email: {
     fontSize: 16,
     color: '#FFFFFF',
-    opacity: 0.8,
+    opacity: 0.9,
     marginBottom: 5,
+    textAlign: 'center', // Center text
   },
   content: {
     padding: 15,
+    marginTop: -30, // Overlap with the header
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: CustomColors.surface,
-    marginTop: 5,
     padding: 20,
-    borderRadius: 8,
-    marginBottom: 10,
+    borderRadius: 12,
+    marginBottom: 0,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
-    shadowRadius: 1,
+    shadowRadius: 2,
   },
   sectionTitleContainer: {
     flexDirection: 'row',
@@ -1006,13 +1029,13 @@ const styles = StyleSheet.create({
   sectionContainer: {
     marginBottom: 15,
     backgroundColor: CustomColors.surface,
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
-    elevation: 2, 
+    elevation: 3, 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   expandedSection: {
     backgroundColor: CustomColors.surface,
@@ -1026,15 +1049,20 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     marginLeft: 0,
     borderLeftWidth: 3,
-    borderLeftColor: CustomColors.primary,
+    borderLeftColor: CustomColors.primaryLight,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
+    borderTopColor: CustomColors.divider,
   },
   menuItemText: {
     flex: 1,
     fontSize: 16,
     color: CustomColors.text,
     marginLeft: 15,
+  },
+  menuItemDescription: {
+    fontSize: 12,
+    color: CustomColors.textSecondary,
+    marginTop: 2,
   },
   valueContainer: {
     flexDirection: 'row',
@@ -1047,13 +1075,18 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     backgroundColor: CustomColors.error,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 15,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
     marginBottom: 40,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   logoutText: {
     color: '#FFFFFF',
@@ -1062,13 +1095,18 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   adminBadge: {
-    backgroundColor: CustomColors.accent,
+    backgroundColor: CustomColors.secondary,
     borderRadius: 8,
     padding: 8,
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 25,
-    alignSelf: 'flex-start',
+    alignSelf: 'center', // Center the badge
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   adminBadgeText: {
     color: '#FFFFFF',
@@ -1081,8 +1119,8 @@ const styles = StyleSheet.create({
     bottom: 50,
     left: 20,
     right: 20,
-    backgroundColor: CustomColors.primaryLight,
-    borderRadius: 8,
+    backgroundColor: CustomColors.secondary,
+    borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1122,7 +1160,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(79, 23, 135, 0.1)',
+    backgroundColor: 'rgba(106, 61, 232, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -1145,7 +1183,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   modalButton: {
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
     minWidth: '45%',
     alignItems: 'center',
@@ -1168,21 +1206,23 @@ const styles = StyleSheet.create({
   },
   classLevelInfo: {
     marginTop: 5,
+    alignItems: 'center', // Center text
   },
   classLevelText: {
     fontSize: 14,
     color: '#FFFFFF',
     opacity: 0.9,
+    textAlign: 'center', // Center text
   },
   levelProgressContainer: {
     marginTop: 15,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 10,
   },
   experienceCard: {
     backgroundColor: CustomColors.cardBackground,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 15,
     marginBottom: 10,
     elevation: 2,
@@ -1211,4 +1251,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProfileScreen; 
+export default ProfileScreen;

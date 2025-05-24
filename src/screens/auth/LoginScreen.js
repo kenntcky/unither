@@ -143,7 +143,7 @@ const LoginScreen = ({ navigation }) => {
           Animated.delay(delay),
           Animated.parallel([
             Animated.timing(bubble.position, {
-              toValue: { x: newX, y: 1000 }, // Move to bottom of screen
+              toValue: { x: newX, y: 1000 },
               duration: duration,
               easing: Easing.linear,
               useNativeDriver: true,
@@ -183,12 +183,7 @@ const LoginScreen = ({ navigation }) => {
               }),
             ]),
           ]),
-        ]).start(() => {
-          // Reset position and restart animation
-          bubble.position.setValue({ x: Math.random() * width, y: -100 })
-          bubble.opacity.setValue(0)
-          createBubbleAnimation()
-        })
+        ]).start()
       }
       
       createBubbleAnimation()
