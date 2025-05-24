@@ -60,6 +60,9 @@ const CreateClassScreen = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [maxUsers, setMaxUsers] = useState('30');
+  const [hasTeachers, setHasTeachers] = useState(false);
+  const [maxTeachers, setMaxTeachers] = useState('1');
+  const [creatorRole, setCreatorRole] = useState('student');
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -97,6 +100,17 @@ const CreateClassScreen = () => {
       newErrors.maxUsers = t('Maximum users must be between 1 and 100');
     }
     
+    if (hasTeachers) {
+      const maxTeachersNum = parseInt(maxTeachers, 10);
+      if (isNaN(maxTeachersNum) || maxTeachersNum < 1 || maxTeachersNum > 10) {
+        newErrors.maxTeachers = t('Maximum teachers must be between 1 and 10');
+      }
+      
+      if (maxTeachersNum >= maxUsersNum) {
+        newErrors.maxTeachers = t('Maximum teachers must be less than maximum students');
+      }
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -107,7 +121,10 @@ const CreateClassScreen = () => {
     const classData = {
       name: name.trim(),
       description: description.trim(),
-      maxUsers: parseInt(maxUsers, 10)
+      maxUsers: parseInt(maxUsers, 10),
+      hasTeachers: hasTeachers,
+      maxTeachers: hasTeachers ? parseInt(maxTeachers, 10) : 0,
+      creatorRole: creatorRole
     };
 
     const result = await createClass(classData);
@@ -240,6 +257,88 @@ const CreateClassScreen = () => {
             {errors.maxUsers && <Text style={styles.errorText}>{errors.maxUsers}</Text>}
           </View>
 
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconContainer}>
+              <MaterialIcons name="admin-panel-settings" size={24} color={NewColors.primary} />
+            </View>
+            <Text style={styles.sectionTitle}>{t('Role Settings')}</Text>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>{t('Your Role in this Class')}</Text>
+            <View style={styles.roleButtonsContainer}>
+              <TouchableOpacity 
+                style={[styles.roleButton, creatorRole === 'student' && styles.roleButtonActive]}
+                onPress={() => {
+                  setCreatorRole('student');
+                }}
+              >
+                <MaterialIcons 
+                  name="person" 
+                  size={24} 
+                  color={creatorRole === 'student' ? NewColors.textLight : NewColors.primary} 
+                />
+                <Text style={[styles.roleButtonText, creatorRole === 'student' && styles.roleButtonTextActive]}>
+                  {t('Student (Class Admin)')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.roleButton, creatorRole === 'teacher' && styles.roleButtonActive]}
+                onPress={() => {
+                  setCreatorRole('teacher');
+                  setHasTeachers(true);
+                }}
+              >
+                <MaterialIcons 
+                  name="school" 
+                  size={24} 
+                  color={creatorRole === 'teacher' ? NewColors.textLight : NewColors.primary} 
+                />
+                <Text style={[styles.roleButtonText, creatorRole === 'teacher' && styles.roleButtonTextActive]}>
+                  {t('Teacher')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <View style={styles.toggleContainer}>
+              <Text style={styles.label}>{t('Will there be teachers in this class?')}</Text>
+              <TouchableOpacity
+                style={[styles.toggleButton, hasTeachers && styles.toggleButtonActive]}
+                onPress={() => setHasTeachers(!hasTeachers)}
+                disabled={creatorRole === 'teacher'}
+              >
+                <View style={[styles.toggleDot, hasTeachers && styles.toggleDotActive]} />
+              </TouchableOpacity>
+            </View>
+            
+            {hasTeachers && (
+              <View style={styles.maxTeachersContainer}>
+                <Text style={styles.sublabel}>{t('Maximum Number of Teachers')}</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={[styles.input, errors.maxTeachers && styles.inputError]}
+                    placeholder={t('Enter maximum number of teachers')}
+                    placeholderTextColor={NewColors.textSecondary}
+                    value={maxTeachers}
+                    onChangeText={setMaxTeachers}
+                    keyboardType="numeric"
+                    maxLength={2}
+                  />
+                  <MaterialIcons 
+                    name="people" 
+                    size={20} 
+                    color={NewColors.primary} 
+                    style={styles.inputIcon}
+                  />
+                </View>
+                {errors.maxTeachers && <Text style={styles.errorText}>{errors.maxTeachers}</Text>}
+              </View>
+            )}
+          </View>
+
           <View style={styles.infoBox}>
             <MaterialIcons name="info" size={24} color={NewColors.accent} style={styles.infoIcon} />
             <Text style={styles.infoText}>
@@ -274,6 +373,77 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: NewColors.background,
+  },
+  
+  // Role selection styles
+  roleButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  roleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: NewColors.cardBackgroundAlt,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: NewColors.inputBorder,
+    width: '48%',
+  },
+  roleButtonActive: {
+    backgroundColor: NewColors.primary,
+    borderColor: NewColors.primary,
+  },
+  roleButtonText: {
+    marginLeft: 8,
+    fontSize: 15,
+    color: NewColors.textPrimary,
+    fontWeight: '500',
+  },
+  roleButtonTextActive: {
+    color: NewColors.textLight,
+  },
+  
+  // Toggle styles
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  toggleButton: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: NewColors.separator,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  toggleButtonActive: {
+    backgroundColor: NewColors.primary,
+  },
+  toggleDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    alignSelf: 'flex-start',
+  },
+  toggleDotActive: {
+    alignSelf: 'flex-end',
+  },
+  maxTeachersContainer: {
+    marginTop: 4,
+  },
+  sublabel: {
+    fontSize: 14,
+    marginBottom: 8,
+    color: NewColors.textSecondary,
+    fontWeight: '500',
   },
   
   // Enhanced Header

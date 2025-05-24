@@ -62,6 +62,8 @@ export const createClass = async (classData) => {
       name: classData.name,
       description: classData.description,
       maxUsers: classData.maxUsers || 30,
+      hasTeachers: classData.hasTeachers || false,
+      maxTeachers: classData.hasTeachers ? (classData.maxTeachers || 1) : 0,
       createdBy: currentUser.uid,
       createdAt: firestore.FieldValue.serverTimestamp(),
       updatedAt: firestore.FieldValue.serverTimestamp(),
@@ -70,14 +72,20 @@ export const createClass = async (classData) => {
       requireCompletionApproval: classData.requireCompletionApproval || false
     });
 
-    // Add the creator as a member with role "teacher" (displayed as "Admin" in UI)
+    // Add the creator with the specified role (teacher or student)
+    // Note: Both roles have admin privileges when they're the creator
+    // 'teacher' role is considered a super admin with additional privileges
+    const creatorRole = classData.creatorRole === 'teacher' ? 'teacher' : 'student';
+    
     await firestore()
       .collection(CLASSES_COLLECTION)
       .doc(classRef.id)
       .collection(MEMBERS_SUBCOLLECTION)
       .add({
         userId: currentUser.uid,
-        role: 'teacher', // 'teacher' role has admin privileges, displayed as "Admin" in UI
+        role: creatorRole,
+        isAdmin: true, // Always true for the creator
+        isCreator: true, // Mark as the creator
         joinedAt: firestore.FieldValue.serverTimestamp(),
         displayName: currentUser.displayName || '',
         email: currentUser.email || ''
@@ -239,6 +247,7 @@ export const getUserClasses = async () => {
           name: classData.name,
           description: classData.description,
           role: memberData.role,
+          isAdmin: memberData.isAdmin === true || memberData.role === 'teacher',
           joinedAt: memberData.joinedAt,
           classCode: classData.classCode,
           createdBy: classData.createdBy,
@@ -1085,7 +1094,8 @@ export const isClassAdmin = async (classId, userId = null) => {
     }
     
     const memberData = membershipSnapshot.docs[0].data();
-    return memberData.role === 'teacher'; // Teacher role has admin privileges
+    // Check if user has the isAdmin flag OR is a teacher
+    return memberData.isAdmin === true || memberData.role === 'teacher';
   } catch (error) {
     console.error('Error checking class admin status:', error);
     return false;

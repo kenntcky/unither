@@ -20,7 +20,6 @@ import ImageResizer from 'react-native-image-resizer';
 import RNFetchBlob from 'rn-fetch-blob';
 import firestore from '@react-native-firebase/firestore';
 import { t } from '../translations';
-import ScreenContainer from '../components/ScreenContainer';
 
 // Custom color theme
 const Colors = {

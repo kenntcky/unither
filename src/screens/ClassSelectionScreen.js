@@ -61,16 +61,17 @@ const ClassSelectionScreen = () => {
   const [switchingToClass, setSwitchingToClass] = useState(null);
 
   useEffect(() => {
-    if (isClassSwitching) {
+    // When isClassSwitching changes from true to false
+    if (!isClassSwitching && isSwitching) {
+      console.log('Class switching completed, navigating to Main');
+      setTimeout(() => {
+        setIsSwitching(false);
+        setSwitchingToClass(null);
+        navigation.replace('Main');
+      }, 500);
+    } else if (isClassSwitching) {
+      // When class switching starts
       setIsSwitching(true);
-    } else {
-      if (isSwitching && switchingToClass) {
-        setTimeout(() => {
-          setIsSwitching(false);
-          setSwitchingToClass(null);
-          navigation.replace('Main');
-        }, 500);
-      }
     }
   }, [isClassSwitching, isSwitching, switchingToClass]);
 
@@ -113,12 +114,28 @@ const ClassSelectionScreen = () => {
 
   const renderClassItem = ({ item }) => {
     const isTeacher = item.role === 'teacher';
+    const isAdmin = item.isAdmin;
+    
+    // Determine card style and role text based on teacher/admin status
+    let cardStyle = styles.studentCard;
+    let badgeColor = NewColors.studentBadge;
+    let roleText = t('Student');
+    
+    if (isTeacher) {
+      cardStyle = styles.teacherCard;
+      badgeColor = NewColors.teacherBadge;
+      roleText = t('Teacher');
+    } else if (isAdmin) {
+      cardStyle = styles.teacherCard; // Use the same style as teacher for admin
+      badgeColor = NewColors.teacherBadge;
+      roleText = t('Admin');
+    }
     
     return (
       <TouchableOpacity
         style={[
           styles.classCard,
-          isTeacher ? styles.teacherCard : styles.studentCard
+          cardStyle
         ]}
         onPress={() => handleClassSelect(item)}
         activeOpacity={0.8}
@@ -128,9 +145,9 @@ const ClassSelectionScreen = () => {
             <Text style={styles.className} numberOfLines={1}>{item.name}</Text>
             <View style={[
               styles.roleBadge, 
-              { backgroundColor: isTeacher ? NewColors.teacherBadge : NewColors.studentBadge }
+              { backgroundColor: badgeColor }
             ]}>
-              <Text style={styles.roleText}>{isTeacher ? t('Teacher') : t('Student')}</Text>
+              <Text style={styles.roleText}>{roleText}</Text>
             </View>
           </View>
           <View style={styles.arrowContainer}>
@@ -147,7 +164,7 @@ const ClassSelectionScreen = () => {
         </Text>
         
         <View style={styles.classFooter}>
-          {isTeacher && (
+          {(isTeacher || isAdmin) && (
             <View style={styles.codeContainer}>
               <Text style={styles.codeLabel}>{t('Class Code')}:</Text>
               <Text style={styles.codeValue}>{item.classCode}</Text>
@@ -198,9 +215,7 @@ const ClassSelectionScreen = () => {
               <ActivityIndicator size="large" color={NewColors.primary} />
             </View>
             <Text style={styles.modalTitle}>
-              {switchingToClass ? 
-                `${t('Switching to')}` : 
-                t('Switching class...')}
+              {switchingToClass ? t('Switching to') : t('Please wait...')}
             </Text>
             {switchingToClass && (
               <Text style={styles.modalClassname}>{switchingToClass}</Text>

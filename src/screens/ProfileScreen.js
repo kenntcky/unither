@@ -636,7 +636,7 @@ const ProfileScreen = ({ navigation }) => {
                 
                 <TouchableOpacity 
                   style={styles.menuItem}
-                  onPress={() => handleMenuItemPress('Change Password')}
+                  onPress={() => navigation.navigate('ChangePassword')}
                 >
                   <Icon name="lock" size={24} color={CustomColors.primaryLight} />
                   <Text style={styles.menuItemText}>{t('Change Password')}</Text>

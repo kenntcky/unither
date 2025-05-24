@@ -1,14 +1,12 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import auth from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeFirebase } from '../utils/firebase';
 import { 
   createOrUpdateUserProfile, 
   getUserProfile, 
   isClassAdmin
 } from '../utils/firestore';
-import { GENDER_TYPES } from '../constants/UserTypes';
 
 const AuthContext = createContext();
 
