@@ -309,7 +309,7 @@ const HomeScreen = ({ navigation }) => {
 
           <View style={styles.headerContent}>
             <Icon name="assignment" size={32} color="#fff" style={{ marginBottom: 4, textShadowColor: '#0002', textShadowOffset: {width: 0, height: 2}, textShadowRadius: 4 }} />
-            <Text style={styles.headerTitle}>{t('Task Master')}</Text>
+            <Text style={styles.headerTitle}>{t('Unither')}</Text>
             <Text style={styles.headerSubtitle}>{t('Your School Assignment Tracker')}</Text>
           </View>
           <TouchableOpacity 
