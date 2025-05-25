@@ -20,7 +20,7 @@ const COLORS = {
   modalOverlay: "rgba(0, 0, 0, 0.5)",
 }
 
-const SubjectItem = ({ subject, onPress, onAddAssignment, onEdit, onDelete }) => {
+const SubjectItem = ({ subject, onPress, onAddAssignment, onEdit, onDelete, onManageTeachers }) => {
   const [showOptions, setShowOptions] = useState(false)
 
   // Generate a lighter shade of the subject color for the background
@@ -95,6 +95,17 @@ const SubjectItem = ({ subject, onPress, onAddAssignment, onEdit, onDelete }) =>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowOptions(false)}>
           <View style={styles.optionsContainer}>
             <Text style={styles.optionsTitle}>{subject.name}</Text>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                setShowOptions(false)
+                onManageTeachers(subject.id, subject.name)
+              }}
+            >
+              <Icon name="people" size={20} color={COLORS.primary} />
+              <Text style={styles.optionText}>{t("Manage Teachers")}</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.optionItem}

@@ -9,14 +9,11 @@ import {
   Alert,
   Modal,
   StatusBar,
-  Image
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Colors from '../constants/Colors';
 import { useClass } from '../context/ClassContext';
 import { useAuth } from '../context/AuthContext';
 import { 
-  getClassMembers, 
   isClassAdmin, 
   setClassRole, 
   removeClassMember,
@@ -167,6 +164,7 @@ const ClassMembersScreen = ({ navigation }) => {
     else setSortOrder('level');
   };
 
+  // Function to promote a user to teacher role
   const handlePromoteToTeacher = async () => {
     if (!selectedMember) return;
     
@@ -174,13 +172,35 @@ const ClassMembersScreen = ({ navigation }) => {
     try {
       const result = await setClassRole(currentClass.id, selectedMember.userId, 'teacher');
       if (result.success) {
+        Alert.alert(t('Success'), t('Member is now a teacher'));
+        loadMembers();
+      } else {
+        Alert.alert(t('Error'), result.error || t('Failed to update member role'));
+      }
+    } catch (error) {
+      console.error('Error promoting member to teacher:', error);
+      Alert.alert(t('Error'), t('An unexpected error occurred'));
+    } finally {
+      setLoading(false);
+      setShowMemberActions(false);
+    }
+  };
+  
+  // Function to promote a user to admin role
+  const handlePromoteToAdmin = async () => {
+    if (!selectedMember) return;
+    
+    setLoading(true);
+    try {
+      const result = await setClassRole(currentClass.id, selectedMember.userId, 'admin');
+      if (result.success) {
         Alert.alert(t('Success'), t('Member is now a class administrator'));
         loadMembers();
       } else {
         Alert.alert(t('Error'), result.error || t('Failed to update member role'));
       }
     } catch (error) {
-      console.error('Error promoting member:', error);
+      console.error('Error promoting member to admin:', error);
       Alert.alert(t('Error'), t('An unexpected error occurred'));
     } finally {
       setLoading(false);
@@ -364,7 +384,7 @@ const ClassMembersScreen = ({ navigation }) => {
         
         <View style={[styles.roleBadge, { backgroundColor: roleBgColor }]}>
           <Text style={[styles.roleText, { color: roleColor }]}>
-            {item.role.toLowerCase() === 'teacher' ? t('Admin') : t(item.role.charAt(0).toUpperCase() + item.role.slice(1))}
+            {t(item.role.charAt(0).toUpperCase() + item.role.slice(1))}
           </Text>
         </View>
         
@@ -483,17 +503,47 @@ const ClassMembersScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
             
-            {selectedMember?.role === 'student' ? (
-              <TouchableOpacity style={styles.modalOption} onPress={handlePromoteToTeacher}>
-                <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(106, 76, 228, 0.15)' }]}>
-                  <MaterialIcons name="admin-panel-settings" size={22} color={NewColors.primary} />
-                </View>
-                <Text style={styles.modalOptionText}>{t('Make Class Admin')}</Text>
-              </TouchableOpacity>
-            ) : (
+            {/* Role Management Options */}
+            {selectedMember?.role === 'student' && (
+              <>
+                <TouchableOpacity style={styles.modalOption} onPress={handlePromoteToTeacher}>
+                  <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(58, 142, 255, 0.15)' }]}>
+                    <MaterialIcons name="school" size={22} color={NewColors.secondary} />
+                  </View>
+                  <Text style={styles.modalOptionText}>{t('Make Teacher')}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.modalOption} onPress={handlePromoteToAdmin}>
+                  <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(106, 76, 228, 0.15)' }]}>
+                    <MaterialIcons name="admin-panel-settings" size={22} color={NewColors.primary} />
+                  </View>
+                  <Text style={styles.modalOptionText}>{t('Make Admin')}</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            
+            {selectedMember?.role === 'teacher' && (
+              <>
+                <TouchableOpacity style={styles.modalOption} onPress={handlePromoteToAdmin}>
+                  <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(106, 76, 228, 0.15)' }]}>
+                    <MaterialIcons name="admin-panel-settings" size={22} color={NewColors.primary} />
+                  </View>
+                  <Text style={styles.modalOptionText}>{t('Make Admin')}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.modalOption} onPress={handleDemoteToStudent}>
+                  <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(255, 170, 68, 0.15)' }]}>
+                    <MaterialIcons name="person" size={22} color={NewColors.warning} />
+                  </View>
+                  <Text style={styles.modalOptionText}>{t('Demote to Student')}</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            
+            {selectedMember?.role === 'admin' && (
               <TouchableOpacity style={styles.modalOption} onPress={handleDemoteToStudent}>
-                <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(58, 142, 255, 0.15)' }]}>
-                  <MaterialIcons name="person" size={22} color={NewColors.secondary} />
+                <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(255, 170, 68, 0.15)' }]}>
+                  <MaterialIcons name="person" size={22} color={NewColors.warning} />
                 </View>
                 <Text style={styles.modalOptionText}>{t('Remove Admin Rights')}</Text>
               </TouchableOpacity>

@@ -215,25 +215,33 @@ const CompletionItemCard = ({ item, index, onApprove, onRejectModal, onViewImage
           </Text>
         </View>
 
-        {(item.base64Image || item.photoUrl) && (
+        {/* Handle single image or images array */}
+        {((item.image || item.base64Image || item.photoUrl || (item.images && item.images.length > 0)) && (
           <TouchableOpacity
             style={styles.thumbnailContainer}
-            onPress={() => onViewImage(item.base64Image || item.photoUrl)}
+            onPress={() => {
+              // Pass the whole item to the viewer so it can handle multiple images if needed
+              onViewImage(item);
+            }}
             activeOpacity={0.9}
           >
             <Image
-              source={{ uri: item.base64Image 
-                ? `data:image/jpeg;base64,${item.base64Image}` 
-                : item.photoUrl }}
+              source={{ uri: item.images && item.images.length > 0
+                ? `data:image/jpeg;base64,${item.images[0].base64Image}`
+                : item.image
+                  ? `data:image/jpeg;base64,${item.image}`
+                  : item.base64Image
+                    ? `data:image/jpeg;base64,${item.base64Image}`
+                    : item.photoUrl }}
               style={styles.thumbnail}
               resizeMode="cover"
             />
             <View style={styles.viewOverlay}>
               <Icon name="visibility" size={24} color="#fff" />
-              <Text style={styles.viewText}>View Photo</Text>
+              <Text style={styles.viewText}>{item.images && item.images.length > 1 ? `View Photos (${item.images.length})` : 'View Photo'}</Text>
             </View>
           </TouchableOpacity>
-        )}
+        ))}
 
         <View style={styles.rewardInfoContainer}>
           <View style={styles.rewardContainer}>
@@ -299,20 +307,39 @@ const PendingApprovalsScreen = ({ navigation }) => {
 
   // Check if user is admin for this class and load pending items
   useEffect(() => {
-    const checkAdminAndLoadItems = async () => {
+    const checkRoleAndLoadItems = async () => {
       if (!currentClass || !user) {
         return
       }
 
       try {
-        const isTeacher = await isClassAdmin(currentClass.id, user.uid)
-        setIsClassTeacher(isTeacher)
+        // Check if user is an admin or a teacher
+        // Get user's role in the class
+        const firestore = require('@react-native-firebase/firestore').default;
+        const memberQuery = await firestore()
+          .collection('classes')
+          .doc(currentClass.id)
+          .collection('members')
+          .where('userId', '==', user.uid)
+          .limit(1)
+          .get();
+        
+        if (memberQuery.empty) {
+          throw new Error('You are not a member of this class');
+        }
+        
+        const memberData = memberQuery.docs[0].data();
+        const isAdmin = memberData.role === 'admin';
+        const isTeacher = memberData.role === 'teacher';
+        
+        setIsClassTeacher(isAdmin || isTeacher);
 
-        if (isTeacher) {
-          loadPendingItems()
-          loadPendingCompletions()
+        if (isAdmin || isTeacher) {
+          console.log(`User role detected: ${isAdmin ? 'Admin' : 'Teacher'}`);
+          loadPendingItems();
+          loadPendingCompletions();
         } else {
-          Alert.alert(t("Access Denied"), t("Only class administrators can access this screen."), [
+          Alert.alert(t("Access Denied"), t("Only class administrators and teachers can access this screen."), [
             { text: "OK", onPress: () => navigation.goBack() },
           ])
         }
@@ -321,7 +348,7 @@ const PendingApprovalsScreen = ({ navigation }) => {
       }
     }
 
-    checkAdminAndLoadItems()
+    checkRoleAndLoadItems()
 
     // Start animations
     Animated.parallel([
@@ -564,8 +591,27 @@ const PendingApprovalsScreen = ({ navigation }) => {
     }
   }
 
-  const viewCompletionImage = (image) => {
-    setSelectedImage(image)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  const viewCompletionImage = (item) => {
+    // Reset current image index
+    setCurrentImageIndex(0);
+    
+    // Store the selected item or its image in state
+    if (item.images && item.images.length > 0) {
+      // For multiple images, store the whole item
+      setSelectedImage(item);
+    } else if (item.image) {
+      // For single image in image field
+      setSelectedImage(item.image);
+    } else if (item.base64Image) {
+      // For single image in base64Image field
+      setSelectedImage(item.base64Image);
+    } else if (item.photoUrl) {
+      // For single image in photoUrl field
+      setSelectedImage(item.photoUrl);
+    }
+    
     setImageModalVisible(true)
 
     // Reset and animate modal appearance
@@ -818,11 +864,42 @@ const PendingApprovalsScreen = ({ navigation }) => {
             <TouchableOpacity style={styles.closeButton} onPress={closeImageModal} activeOpacity={0.7}>
               <Icon name="close" size={24} color="#fff" />
             </TouchableOpacity>
-
-            {selectedImage && (
+            
+            {/* Render image based on whether it's a single image or multiple images */}
+            {selectedImage && typeof selectedImage === 'object' && selectedImage.images && selectedImage.images.length > 0 ? (
+              <View style={styles.multipleImagesContainer}>
+                <Image
+                  source={{ uri: `data:image/jpeg;base64,${selectedImage.images[currentImageIndex].base64Image}` }}
+                  style={styles.fullImage}
+                  resizeMode="contain"
+                />
+                
+                {selectedImage.images.length > 1 && (
+                  <View style={styles.imageNavigationContainer}>
+                    <TouchableOpacity
+                      style={[styles.navButton, currentImageIndex === 0 && styles.navButtonDisabled]}
+                      onPress={() => setCurrentImageIndex(Math.max(0, currentImageIndex - 1))}
+                      disabled={currentImageIndex === 0}
+                    >
+                      <Icon name="chevron-left" size={30} color="#fff" />
+                    </TouchableOpacity>
+                    
+                    <Text style={styles.imageCounter}>{currentImageIndex + 1} / {selectedImage.images.length}</Text>
+                    
+                    <TouchableOpacity
+                      style={[styles.navButton, currentImageIndex === selectedImage.images.length - 1 && styles.navButtonDisabled]}
+                      onPress={() => setCurrentImageIndex(Math.min(selectedImage.images.length - 1, currentImageIndex + 1))}
+                      disabled={currentImageIndex === selectedImage.images.length - 1}
+                    >
+                      <Icon name="chevron-right" size={30} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            ) : (
               <Image
                 source={
-                  selectedImage.startsWith("http")
+                  typeof selectedImage === 'string' && selectedImage.startsWith("http")
                     ? { uri: selectedImage }
                     : { uri: `data:image/jpeg;base64,${selectedImage}` }
                 }
@@ -897,6 +974,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  multipleImagesContainer: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageNavigationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingVertical: 10,
+    borderRadius: 25,
+    marginHorizontal: 50,
+  },
+  navButton: {
+    width: 50,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 25,
+  },
+  navButtonDisabled: {
+    opacity: 0.4,
+  },
+  imageCounter: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginHorizontal: 15,
   },
   centered: {
     flex: 1,

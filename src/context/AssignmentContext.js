@@ -504,15 +504,32 @@ export const AssignmentProvider = ({ children }) => {
       // Check if the current class requires approval for completions
       // This should be a property on the class object (requiresCompletionApproval)
       const requiresApproval = currentClass.requireCompletionApproval;
+
+      // Check if the assignment belongs to a subject with teachers assigned
+      const { getSubjectTeachers } = require('../utils/firestore');
+      let requiresTeacherApproval = false;
       
-      // If marking as complete and requires approval, use the approval flow instead of direct update
-      if (newStatus === 'Selesai' && requiresApproval) {
+      if (assignment.subjectId) {
+        try {
+          // Get teachers for this subject
+          const subjectTeachers = await getSubjectTeachers(targetClassId, assignment.subjectId);
+          if (subjectTeachers && subjectTeachers.length > 0) {
+            requiresTeacherApproval = true;
+            console.log(`Assignment belongs to subject with ${subjectTeachers.length} teachers - requires teacher approval`);
+          }
+        } catch (error) {
+          console.error('Error checking for subject teachers:', error);
+        }
+      }
+      
+      // If marking as complete and requires approval (class-wide or teacher-specific), use the approval flow
+      if (newStatus === 'Selesai' && (requiresApproval || requiresTeacherApproval)) {
         // Return with flag indicating approval is needed
         // The UI layer (AssignmentDetailsScreen) should handle showing the photo upload modal
         return { 
           success: false, 
           requiresApproval: true,
-          error: 'This class requires approval for assignment completions' 
+          error: requiresTeacherApproval ? 'This assignment requires teacher approval' : 'This class requires approval for assignment completions'
         };
       }
       

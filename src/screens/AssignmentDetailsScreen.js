@@ -21,12 +21,13 @@ import { getAssignments, updateAssignment as updateLocalAssignment } from '../ut
 import { ASSIGNMENT_STATUS, ASSIGNMENT_GROUP_TYPE } from '../constants/Types';
 import { useAuth } from '../context/AuthContext';
 import { useAssignment } from '../context/AssignmentContext';
-import { findAssignmentByInternalId, updateClassAssignment, addCommentToAssignment, getAssignmentComments, updateComment, deleteComment, subscribeToAssignmentComments, isClassAdmin, getAssignmentCompletions, submitCompletionForApproval, getClassDetails } from '../utils/firestore';
+import { findAssignmentByInternalId, updateClassAssignment, addCommentToAssignment, getAssignmentComments, updateComment, deleteComment, subscribeToAssignmentComments, isClassAdmin, getAssignmentCompletions, submitCompletionForApproval, getClassDetails, CLASSES_COLLECTION, SUBJECTS_COLLECTION } from '../utils/firestore';
 import { useClass } from '../context/ClassContext';
 import CommentItem from '../components/CommentItem';
 import AssignmentCompletionList from '../components/AssignmentCompletionList';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import firestore from '@react-native-firebase/firestore';
 
 // Custom color theme with purple, blue, and white - matching the profile screen
 const CustomColors = {
@@ -87,7 +88,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   // Class requires approval for completions
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [photoSelectionVisible, setPhotoSelectionVisible] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [isSubmittingCompletion, setIsSubmittingCompletion] = useState(false);
   const [hasPendingApproval, setHasPendingApproval] = useState(false);
 
@@ -207,6 +208,36 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
         if (foundAssignment) {
           console.log(`Found assignment after diagnosis: ${foundAssignment.id}`);
           setAssignment(foundAssignment);
+          setIsLoading(false);
+          return;
+        }
+        
+        const assignmentDetails = diagnosisResult.success ? diagnosisResult.assignment : null;
+
+        if (assignmentDetails) {
+          console.log(`Found assignment through diagnosis: ${assignmentDetails.id}`);
+          
+          // If we have a subject ID but no subject name, try to fetch it
+          if (assignmentDetails.subjectId && !assignmentDetails.subjectName) {
+            try {
+              const { firestore } = require('@react-native-firebase/firestore');
+              const subjectDoc = await firestore()
+                .collection('classes')
+                .doc(currentClass.id)
+                .collection('subjects')
+                .doc(assignmentDetails.subjectId)
+                .get();
+                
+              if (subjectDoc.exists) {
+                assignmentDetails.subjectName = subjectDoc.data().name || '';
+                console.log(`Fetched subject name: ${assignmentDetails.subjectName}`);
+              }
+            } catch (error) {
+              console.error('Error fetching subject name:', error);
+            }
+          }
+          
+          setAssignment(assignmentDetails);
           setIsLoading(false);
           return;
         }
@@ -624,6 +655,11 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   // Take a photo with camera
   const takePhoto = async () => {
     try {
+      if (selectedPhotos.length >= 5) {
+        Alert.alert('Maximum Photos', 'You can only upload up to 5 photos.');
+        return;
+      }
+      
       const result = await launchCamera({
         mediaType: 'photo',
         quality: 0.8,
@@ -639,7 +675,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
       }
       
       if (result.assets && result.assets.length > 0) {
-        setSelectedPhoto(result.assets[0]);
+        setSelectedPhotos(prevPhotos => [...prevPhotos, result.assets[0]]);
       }
     } catch (error) {
       console.error('Error taking photo:', error);
@@ -650,9 +686,16 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   // Pick a photo from gallery
   const pickPhoto = async () => {
     try {
+      if (selectedPhotos.length >= 5) {
+        Alert.alert('Maximum Photos', 'You can only upload up to 5 photos.');
+        return;
+      }
+
       const result = await launchImageLibrary({
         mediaType: 'photo',
         quality: 0.8,
+        selectionLimit: Math.min(5 - selectedPhotos.length, 5), // Allow selecting multiple photos up to 5 total
+        includeBase64: false, // We'll process in submitCompletionWithPhoto to avoid memory issues
       });
       
       if (result.didCancel) {
@@ -664,7 +707,8 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
       }
       
       if (result.assets && result.assets.length > 0) {
-        setSelectedPhoto(result.assets[0]);
+        // Add all selected images to the array
+        setSelectedPhotos(prevPhotos => [...prevPhotos, ...result.assets]);
       }
     } catch (error) {
       console.error('Error picking photo:', error);
@@ -674,14 +718,21 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   
   // Submit completion with photo evidence
   const submitCompletionWithPhoto = async () => {
-    if (!selectedPhoto || !currentClass || !assignment) return;
+    if (selectedPhotos.length === 0 || !currentClass || !assignment) {
+      Alert.alert('Error', 'Please select at least one photo');
+      return;
+    }
     
     setIsSubmittingCompletion(true);
     try {
+      // Extract URIs from the selected photos
+      const photoUris = selectedPhotos.map(photo => photo.uri);
+      
+      // Now we pass an array of photo URIs instead of a single URI
       const result = await submitCompletionForApproval(
         currentClass.id, 
         assignment.id, 
-        selectedPhoto.uri
+        photoUris // Pass array of URIs
       );
       
       if (result.success) {
@@ -691,7 +742,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
           [{ text: 'OK', onPress: () => setPhotoSelectionVisible(false) }]
         );
         setHasPendingApproval(true);
-        setSelectedPhoto(null);
+        setSelectedPhotos([]); // Clear all selected photos
       } else {
         Alert.alert('Error', result.error || 'Failed to submit completion');
       }
@@ -706,7 +757,12 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   // Cancel photo submission
   const cancelPhotoSubmission = () => {
     setPhotoSelectionVisible(false);
-    setSelectedPhoto(null);
+    setSelectedPhotos([]);
+  };
+  
+  // Remove a photo from the selected photos
+  const removePhoto = (indexToRemove) => {
+    setSelectedPhotos(prevPhotos => prevPhotos.filter((_, index) => index !== indexToRemove));
   };
 
   // Add completionStatusButton to render function at the appropriate place:
@@ -806,6 +862,90 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
     </View>
   );
 
+  // Subject Name Display Component - reusing the same logic from AssignmentItem.js
+  function SubjectNameDisplay({ assignment, style }) {
+    const [subjectName, setSubjectName] = useState(assignment.subjectName || '');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const { currentClass } = useClass();
+    const currentClassId = currentClass?.id;
+    
+    useEffect(() => {
+      // If we already have a subject name, no need to fetch
+      if (assignment.subjectName) {
+        setSubjectName(assignment.subjectName);
+        return;
+      }
+      
+      // If we have a subject ID but no name, fetch the name
+      if (assignment.subjectId && !subjectName && !loading) {
+        setLoading(true);
+        
+        // Try to get the class ID from various sources
+        const classId = assignment.classId || currentClassId;
+        
+        console.log(`Attempting to fetch subject name. Subject ID: ${assignment.subjectId}, Class ID: ${classId}`);
+        
+        if (!classId) {
+          console.warn('Cannot fetch subject name: Missing classId');
+          setError('Missing Class ID');
+          setLoading(false);
+          return;
+        }
+        
+        // The issue is that the subjectId in the assignment is NOT the document ID,
+        // but rather a field called 'id' within the subject document
+        // So we need to query for the subject where id == assignment.subjectId
+        firestore()
+          .collection(CLASSES_COLLECTION)
+          .doc(classId)
+          .collection(SUBJECTS_COLLECTION)
+          .where('id', '==', assignment.subjectId)
+          .limit(1)
+          .get()
+          .then(querySnapshot => {
+            console.log('Subject query result:', {
+              empty: querySnapshot.empty,
+              size: querySnapshot.size,
+              query: `WHERE id == ${assignment.subjectId}`
+            });
+            
+            if (!querySnapshot.empty) {
+              // Get the first matching document
+              const subjectDoc = querySnapshot.docs[0];
+              const data = subjectDoc.data();
+              console.log('Found subject data:', data);
+              
+              // Use the name from the document
+              const name = data.name || 'Unnamed Subject';
+              console.log(`Got subject name: ${name}`);
+              setSubjectName(name);
+            } else {
+              console.warn(`No subject found with id field matching ${assignment.subjectId}`);
+              setError(`Subject not found`);
+            }
+          })
+          .catch(error => {
+            console.error('Error fetching subject:', error);
+            setError('Error fetching subject');
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      }
+    }, [assignment, currentClassId, subjectName, loading]);
+    
+    if (loading) {
+      return <Text style={[style, { color: CustomColors.textTertiary }]}>Loading subject...</Text>;
+    }
+    
+    if (error) {
+      return <Text style={[style, { color: CustomColors.error }]}>{error}</Text>;
+    }
+    
+    return <Text style={style}>{subjectName || 'No Subject'}</Text>;
+  }
+
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1, backgroundColor: CustomColors.background }}
@@ -823,7 +963,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{assignment.title}</Text>
         </View>
-        <Text style={styles.headerSubtitle}>{assignment.subjectName}</Text>
+        <SubjectNameDisplay assignment={assignment} style={styles.headerSubtitle} />
       </View>
       
       {/* Fixed Tab Navigator below header */}
@@ -845,6 +985,13 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
             {/* Assignment Details */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Details</Text>
+              {assignment.subjectId && (
+                <View style={styles.detailRow}>
+                  <Icon name="book" size={20} color={CustomColors.textPrimary} style={styles.icon} />
+                  <Text style={styles.detailLabel}>Subject:</Text>
+                  <SubjectNameDisplay assignment={assignment} style={styles.detailValue} />
+                </View>
+              )}
               <View style={styles.detailRow}>
                 <Icon name={assignment.status === ASSIGNMENT_STATUS.FINISHED ? "check-circle" : "hourglass-empty"} size={20} color={assignment.status === ASSIGNMENT_STATUS.FINISHED ? CustomColors.success : CustomColors.warning} style={styles.icon} />
                 <Text style={styles.detailLabel}>Status:</Text>
@@ -1019,24 +1166,55 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
             <Text style={styles.photoModalTitle}>Submit Completion Evidence</Text>
             
             <Text style={styles.photoInstructions}>
-              Take a photo of your completed assignment to submit for approval.
+              {selectedPhotos.length === 0 
+                ? 'Take photos of your completed assignment to submit for approval.' 
+                : `You can upload up to ${5 - selectedPhotos.length} more photo${5 - selectedPhotos.length !== 1 ? 's' : ''}.`}
             </Text>
             
-            {selectedPhoto ? (
-              <View style={styles.selectedPhotoContainer}>
-                <Image 
-                  source={{ uri: selectedPhoto.uri }} 
-                  style={styles.selectedPhoto} 
-                  resizeMode="contain"
+            {selectedPhotos.length > 0 ? (
+              <View style={styles.selectedPhotosContainer}>
+                <FlatList
+                  data={selectedPhotos}
+                  renderItem={({ item, index }) => (
+                    <View style={styles.photoItem}>
+                      <Image 
+                        source={{ uri: item.uri }} 
+                        style={styles.thumbnailPhoto} 
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity
+                        style={styles.removePhotoButton}
+                        onPress={() => removePhoto(index)}
+                      >
+                        <Icon name="close" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  keyExtractor={(item, index) => index.toString()}
+                  horizontal
+                  contentContainerStyle={styles.photosList}
+                  showsHorizontalScrollIndicator={false}
                 />
                 
-                <TouchableOpacity
-                  style={styles.retakeButton}
-                  onPress={() => setSelectedPhoto(null)}
-                >
-                  <Icon name="replay" size={16} color="#fff" />
-                  <Text style={styles.photoButtonText}>Retake</Text>
-                </TouchableOpacity>
+                {selectedPhotos.length < 5 && (
+                  <View style={styles.photoButtons}>
+                    <TouchableOpacity
+                      style={[styles.photoButton, styles.cameraButton, styles.smallPhotoButton]}
+                      onPress={takePhoto}
+                    >
+                      <Icon name="camera-alt" size={18} color="#fff" />
+                      <Text style={styles.smallPhotoButtonText}>Add Photo</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[styles.photoButton, styles.galleryButton, styles.smallPhotoButton]}
+                      onPress={pickPhoto}
+                    >
+                      <Icon name="photo-library" size={18} color="#fff" />
+                      <Text style={styles.smallPhotoButtonText}>Add from Gallery</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             ) : (
               <View style={styles.photoButtons}>
@@ -1067,7 +1245,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               
-              {selectedPhoto && (
+              {selectedPhotos.length > 0 && (
                 <TouchableOpacity
                   style={[
                     styles.submitPhotoButton,
@@ -1081,7 +1259,9 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
                   ) : (
                     <>
                       <Icon name="check" size={16} color="#fff" />
-                      <Text style={styles.submitButtonText}>Submit</Text>
+                      <Text style={styles.submitButtonText}>
+                        Submit {selectedPhotos.length > 1 ? `${selectedPhotos.length} Photos` : 'Photo'}
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -1290,6 +1470,53 @@ const styles = StyleSheet.create({
     color: CustomColors.text,
     marginBottom: 16,
     textAlign: 'center',
+  },
+  photoModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: CustomColors.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  selectedPhotosContainer: {
+    marginVertical: 15,
+    width: '100%',
+  },
+  photosList: {
+    paddingVertical: 10,
+  },
+  photoItem: {
+    margin: 5,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  thumbnailPhoto: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  smallPhotoButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 120,
+  },
+  smallPhotoButtonText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
   joiningIndicator: {
     marginBottom: 16,

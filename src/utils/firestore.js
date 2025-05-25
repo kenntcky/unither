@@ -403,7 +403,7 @@ export const getClassAssignments = async (classId, includePending = false) => {
     } 
     // Admins requesting pending items see all items, including pending ones
     else if (isAdmin && includePending) {
-      // No additional filter needed - will return all assignments
+      // query = query.where('approved', '==', false);
     } 
     // Non-admins requesting pending items only see their own pending items plus approved ones
     else if (!isAdmin && includePending) {
@@ -681,17 +681,62 @@ export const subscribeToClassAssignments = (classId, onUpdate) => {
           .doc(classId)
           .collection(ASSIGNMENTS_COLLECTION)
           .orderBy('createdAt', 'desc')
-          .onSnapshot(snapshot => {
+          .onSnapshot(async snapshot => {
+            // Create a map to store subject names by ID for efficient lookup
+            const subjectNames = {};
+            
+            // Get unique subject IDs from all assignments
+            const subjectIds = [...new Set(
+              snapshot.docs
+                .map(doc => doc.data().subjectId)
+                .filter(id => id) // Filter out undefined or null IDs
+            )];
+            
+            // Fetch all subject documents in batch if there are any subject IDs
+            if (subjectIds.length > 0) {
+              try {
+                // Create batch queries for each subject
+                const subjectQueries = await Promise.all(
+                  subjectIds.map(subjectId => 
+                    firestore()
+                      .collection(CLASSES_COLLECTION)
+                      .doc(classId)
+                      .collection(SUBJECTS_COLLECTION)
+                      .doc(subjectId)
+                      .get()
+                  )
+                );
+                
+                // Create a mapping of subject ID to name
+                subjectQueries.forEach(subjectDoc => {
+                  if (subjectDoc.exists) {
+                    const subjectData = subjectDoc.data();
+                    subjectNames[subjectDoc.id] = subjectData.name || '';
+                  }
+                });
+              } catch (error) {
+                console.error('Error fetching subjects for assignments:', error);
+              }
+            }
+            
+            // Process assignment documents with subject names
             const assignments = snapshot.docs.map(doc => {
               const data = doc.data();
               
               // Preserve the original 'id' field if it exists, otherwise use the document ID
               const assignmentId = data.id || doc.id;
               
+              // Look up subject name if there's a subject ID
+              let subjectName = '';
+              if (data.subjectId && subjectNames[data.subjectId]) {
+                subjectName = subjectNames[data.subjectId];
+              }
+              
               return {
                 id: assignmentId,
                 documentId: doc.id, // Store the Firestore document ID separately
                 ...data,
+                subjectName, // Add the subject name
                 createdAt: data.createdAt && typeof data.createdAt.toDate === 'function' 
                   ? data.createdAt.toDate().toISOString() 
                   : new Date().toISOString(),
@@ -908,6 +953,361 @@ export const updateClassSubject = async (classId, subjectId, updatedData) => {
   }
 };
 
+// Assign a teacher to a subject
+export const assignTeacherToSubject = async (classId, subjectId, teacherId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Check if user is an admin or the teacher being assigned
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+    const isSelfAssignment = currentUser.uid === teacherId;
+    
+    if (!isAdmin && !isSelfAssignment) {
+      throw new Error('You do not have permission to assign teachers to this subject');
+    }
+    
+    // Check if the user being assigned is actually a teacher
+    const memberSnapshot = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(MEMBERS_SUBCOLLECTION)
+      .where('userId', '==', teacherId)
+      .limit(1)
+      .get();
+      
+    if (memberSnapshot.empty) {
+      throw new Error('User is not a member of this class');
+    }
+    
+    const memberData = memberSnapshot.docs[0].data();
+    if (memberData.role !== 'teacher' && memberData.role !== 'admin') {
+      throw new Error('Only teachers and admins can be assigned to subjects');
+    }
+    
+    // First, find the subject document by its field ID
+    console.log(`Finding subject with field ID ${subjectId} in class ${classId}`);
+    const subjectsQuery = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(SUBJECTS_COLLECTION)
+      .where('id', '==', subjectId)
+      .get();
+      
+    if (subjectsQuery.empty) {
+      console.warn(`Subject with field ID ${subjectId} not found in class ${classId}`);
+      return {
+        success: false,
+        error: 'Subject not found or was recently deleted'
+      };
+    }
+    
+    // Get the first matching document
+    const subjectDoc = subjectsQuery.docs[0];
+    const subjectRef = subjectDoc.ref; // Get the reference to use for updates
+    const subjectData = subjectDoc.data();
+    
+    console.log(`Found subject: ${JSON.stringify(subjectData)}`);
+    
+    const teachers = subjectData.teachers || [];
+    
+    // Check if teacher is already assigned
+    if (teachers.includes(teacherId)) {
+      return {
+        success: true,
+        message: 'Teacher is already assigned to this subject'
+      };
+    }
+    
+    // Add the teacher to the subject
+    await subjectRef.update({
+      teachers: firestore.FieldValue.arrayUnion(teacherId),
+      updatedAt: firestore.FieldValue.serverTimestamp(),
+      updatedBy: currentUser.uid
+    });
+    
+    return {
+      success: true,
+      message: 'Teacher assigned successfully'
+    };
+  } catch (error) {
+    console.error('Error assigning teacher to subject:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Remove a teacher from a subject
+export const removeTeacherFromSubject = async (classId, subjectId, teacherId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Check if user is an admin or the teacher being removed
+    const isAdmin = await isClassAdmin(classId, currentUser.uid);
+    const isSelfRemoval = currentUser.uid === teacherId;
+    
+    if (!isAdmin && !isSelfRemoval) {
+      throw new Error('You do not have permission to remove teachers from this subject');
+    }
+    
+    // First, find the subject document by its field ID
+    console.log(`Finding subject with field ID ${subjectId} in class ${classId} to remove teacher`);
+    const subjectsQuery = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(SUBJECTS_COLLECTION)
+      .where('id', '==', subjectId)
+      .get();
+      
+    if (subjectsQuery.empty) {
+      console.warn(`Subject with field ID ${subjectId} not found in class ${classId}`);
+      return {
+        success: false,
+        error: 'Subject not found or was recently deleted'
+      };
+    }
+    
+    // Get the first matching document
+    const subjectDoc = subjectsQuery.docs[0];
+    const subjectRef = subjectDoc.ref; // Get the reference to use for updates
+    const subjectData = subjectDoc.data();
+    
+    const teachers = subjectData.teachers || [];
+    
+    // Check if teacher is assigned
+    if (!teachers.includes(teacherId)) {
+      return {
+        success: true,
+        message: 'Teacher is not assigned to this subject'
+      };
+    }
+    
+    // Remove the teacher from the subject
+    await subjectRef.update({
+      teachers: firestore.FieldValue.arrayRemove(teacherId),
+      updatedAt: firestore.FieldValue.serverTimestamp(),
+      updatedBy: currentUser.uid
+    });
+    
+    return {
+      success: true,
+      message: 'Teacher removed successfully'
+    };
+  } catch (error) {
+    console.error('Error removing teacher from subject:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+// Get all teachers for a subject
+export const getSubjectTeachers = async (classId, subjectId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Get the subject data by querying for the field ID
+    console.log(`Getting teachers for subject with field ID ${subjectId} in class ${classId}`);
+    const subjectsQuery = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(SUBJECTS_COLLECTION)
+      .where('id', '==', subjectId)
+      .get();
+      
+    if (subjectsQuery.empty) {
+      console.warn(`Subject with field ID ${subjectId} not found in class ${classId}`);
+      return []; // Return empty array instead of throwing error
+    }
+    
+    // Get the first matching document
+    const subjectDoc = subjectsQuery.docs[0];
+    const subjectData = subjectDoc.data();
+    console.log(`Found subject data: ${JSON.stringify(subjectData)}`);
+    
+    const teacherIds = subjectData.teachers || [];
+    console.log(`Teacher IDs from subject: ${JSON.stringify(teacherIds)}`);
+    
+    if (teacherIds.length === 0) {
+      return [];
+    }
+    
+    console.log(`Getting teachers for subject ${subjectId}, teacher IDs: ${JSON.stringify(teacherIds)}`);
+    
+    let teachersSnapshot;
+    try {
+      teachersSnapshot = await firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(MEMBERS_SUBCOLLECTION)
+        .where('userId', 'in', teacherIds)
+        .get();
+        
+      console.log(`Found ${teachersSnapshot.size} matching teachers in the members collection`);
+    } catch (error) {
+      console.error('Error querying for teachers:', error);
+      
+      // Fallback: get all members and filter manually if the 'in' query fails
+      const allMembersSnapshot = await firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(MEMBERS_SUBCOLLECTION)
+        .get();
+        
+      console.log(`Fallback: fetched ${allMembersSnapshot.size} total members to filter manually`);
+      
+      // Create a filtered snapshot equivalent
+      const filteredDocs = allMembersSnapshot.docs.filter(doc => {
+        const data = doc.data();
+        return teacherIds.includes(data.userId);
+      });
+      
+      console.log(`Manually filtered to ${filteredDocs.length} matching teachers`);
+      
+      // Create a simulated snapshot to use in the rest of the function
+      teachersSnapshot = {
+        empty: filteredDocs.length === 0,
+        size: filteredDocs.length,
+        forEach: callback => filteredDocs.forEach(callback)
+      };
+    }
+      
+    const teachers = [];
+    
+    teachersSnapshot.forEach(doc => {
+      const data = doc.data();
+      teachers.push({
+        id: data.userId,
+        displayName: data.displayName || '',
+        photoURL: data.photoURL || '',
+        role: data.role || 'teacher'
+      });
+    });
+    
+    return teachers;
+  } catch (error) {
+    console.error('Error getting subject teachers:', error);
+    return [];
+  }
+};
+
+// Get all available teachers for a class (not already assigned to the subject)
+export const getAvailableTeachers = async (classId, subjectId) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Get all teachers in the class (excluding admins per user request)
+    console.log(`Looking for available teachers in class ${classId} for subject ${subjectId}`);
+    
+    let teachersSnapshot;
+    try {
+      // Only query for teachers, not admins (as requested)
+      teachersSnapshot = await firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(MEMBERS_SUBCOLLECTION)
+        .where('role', '==', 'teacher')
+        .get();
+        
+      console.log(`Found ${teachersSnapshot.size} potential teachers with role query`);
+    } catch (error) {
+      console.error('Error in role-based query:', error);
+      
+      // Fallback: get all members and filter by role manually
+      const allMembersSnapshot = await firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(MEMBERS_SUBCOLLECTION)
+        .get();
+      
+      console.log(`Fallback: fetched ${allMembersSnapshot.size} total members to filter manually`);
+      
+      // Create a filtered docs array - only include teachers, not admins
+      const filteredDocs = allMembersSnapshot.docs.filter(doc => {
+        const data = doc.data();
+        return data.role === 'teacher';
+      });
+      
+      console.log(`Found ${filteredDocs.length} teachers through manual filtering`);
+      
+      // Create a simulated snapshot
+      teachersSnapshot = {
+        empty: filteredDocs.length === 0,
+        size: filteredDocs.length,
+        docs: filteredDocs,
+        forEach: callback => filteredDocs.forEach(callback)
+      };
+    }
+    
+    if (teachersSnapshot.empty) {
+      return [];
+    }
+    
+    // Find the subject by its field ID
+    console.log(`Getting available teachers for subject with field ID ${subjectId} in class ${classId}`);
+    const subjectsQuery = await firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(SUBJECTS_COLLECTION)
+      .where('id', '==', subjectId)
+      .get();
+        
+    if (subjectsQuery.empty) {
+      console.warn(`Subject with field ID ${subjectId} not found in class ${classId}`);
+      return []; // Return empty array instead of throwing error
+    }
+      
+    // Get the first matching document
+    const subjectDoc = subjectsQuery.docs[0];
+    
+    const subjectData = subjectDoc.data();
+    const assignedTeacherIds = subjectData.teachers || [];
+    
+    // Filter out already assigned teachers
+    const availableTeachers = [];
+    
+    console.log(`Checking ${teachersSnapshot.size} teachers against ${assignedTeacherIds.length} assigned teachers`);
+    
+    teachersSnapshot.forEach(doc => {
+      const data = doc.data();
+      console.log(`Checking teacher: ${data.displayName}, userId=${data.userId}, role=${data.role}`);
+      
+      // Only include if not already assigned
+      if (!assignedTeacherIds.includes(data.userId)) {
+        console.log(`Teacher ${data.displayName} is available for assignment`);
+        availableTeachers.push({
+          id: data.userId,
+          displayName: data.displayName || '',
+          photoURL: data.photoURL || '',
+          image: data.image || null, // Include profile image from base64 string if available
+          role: data.role || 'teacher'
+        });
+      } else {
+        console.log(`Teacher ${data.displayName} is already assigned`);
+      }
+    });
+    
+    return availableTeachers;
+  } catch (error) {
+    console.error('Error getting available teachers:', error);
+    return [];
+  }
+};
+
 // Delete a subject
 export const deleteClassSubject = async (classId, subjectId) => {
   try {
@@ -989,6 +1389,45 @@ export const subscribeToClassSubjects = (classId, onUpdate) => {
     return unsubscribe;
   } catch (error) {
     console.error('Error setting up subject listener:', error);
+    return () => {};
+  }
+};
+
+// Set up real-time listener for assignments in a class
+export const subscribeToClassAssignmentUpdates = (classId, onUpdate) => {
+  try {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    const unsubscribe = firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .orderBy('createdAt', 'desc')
+      .onSnapshot(snapshot => {
+        const assignments = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt && typeof data.createdAt.toDate === 'function' 
+              ? data.createdAt.toDate().toISOString() 
+              : new Date().toISOString(),
+            updatedAt: data.updatedAt && typeof data.updatedAt.toDate === 'function' 
+              ? data.updatedAt.toDate().toISOString() 
+              : new Date().toISOString()
+          };
+        });
+        onUpdate(assignments);
+      }, error => {
+        console.error('Error in assignment listener:', error);
+      });
+
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error setting up assignment listener:', error);
     return () => {};
   }
 };
@@ -1095,14 +1534,14 @@ export const isClassAdmin = async (classId, userId = null) => {
     
     const memberData = membershipSnapshot.docs[0].data();
     // Check if user has the isAdmin flag OR is a teacher
-    return memberData.isAdmin === true || memberData.role === 'teacher';
+    return memberData.role === 'admin' || memberData.role === 'teacher';
   } catch (error) {
     console.error('Error checking class admin status:', error);
     return false;
   }
 };
 
-// Set a user's role in a class (teacher = admin, student = regular user)
+// Set a user's role in a class (admin, teacher, or student)
 export const setClassRole = async (classId, targetUserId, role = 'student') => {
   try {
     const currentUser = auth().currentUser;
@@ -2300,7 +2739,8 @@ export const getAssignmentCompletions = async (classId, assignmentId) => {
 };
 
 // Submit assignment completion for approval
-export const submitCompletionForApproval = async (classId, assignmentId, photoUri) => {
+// Now accepts an array of photo URIs to support multiple images
+export const submitCompletionForApproval = async (classId, assignmentId, photoUris) => {
   try {
     const currentUser = auth().currentUser;
     if (!currentUser) {
@@ -2335,102 +2775,155 @@ export const submitCompletionForApproval = async (classId, assignmentId, photoUr
     let compressedImageSize = 0;
     
     try {
-      // First, clean the URI if needed
-      const cleanUri = photoUri.startsWith('file://') ? photoUri : `file://${photoUri}`;
+      // Check if photoUris is an array, if not, convert it to an array
+      const photoUrisArray = Array.isArray(photoUris) ? photoUris : [photoUris];
       
-      // Resize and compress the image to a maximum dimension of 1000x1000 and 80% quality
-      // These values provide a good balance between quality and file size
-      console.log('Resizing image...');
-      const resizedImage = await ImageResizer.createResizedImage(
-        cleanUri,            // uri
-        1000,                // maxWidth
-        1000,                // maxHeight
-        'JPEG',              // compressFormat
-        80,                  // quality (0-100)
-        0,                   // rotation
-        null,                // outputPath (null = temp file)
-        false,               // keepMeta
-        { onlyScaleDown: true }  // options
-      );
+      if (photoUrisArray.length === 0) {
+        throw new Error('At least one photo is required for assignment completion');
+      }
       
-      console.log('Image resized successfully:', resizedImage.uri);
-      originalImageSize = resizedImage.size || 0;
+      // Process each image in the array
+      const processedImages = [];
       
-      // Now convert the resized image to base64
-      const fs = RNFetchBlob.fs;
-      const realPath = resizedImage.uri.replace('file://', '');
-      base64Image = await fs.readFile(realPath, 'base64');
+      // Process each image (up to 5 max)
+      const maxImages = Math.min(photoUrisArray.length, 5); // Limit to 5 images max
       
-      compressedImageSize = base64Image.length;
-      console.log(`Image sizes - Original: ${originalImageSize} bytes, Base64: ${compressedImageSize} bytes`);
-      
-      // If still too large for Firestore (approaching 1MB limit), reduce quality further
-      if (base64Image.length > 750 * 1024) {
-        console.log('Image still too large after resizing, compressing further...');
-    
-        // Create a new resized image with lower quality
-        const furtherResizedImage = await ImageResizer.createResizedImage(
-          resizedImage.uri,    // uri
-          800,                 // maxWidth
-          800,                 // maxHeight
+      for (let i = 0; i < maxImages; i++) {
+        const photoUri = photoUrisArray[i];
+        console.log(`Processing image ${i+1} of ${maxImages}`);
+        
+        // First, clean the URI if needed
+        const cleanUri = photoUri.startsWith('file://') ? photoUri : `file://${photoUri}`;
+        
+        // Resize and compress the image to a maximum dimension of 1000x1000 and 80% quality
+        console.log('Resizing image...');
+        const resizedImage = await ImageResizer.createResizedImage(
+          cleanUri,            // uri
+          1000,                // maxWidth
+          1000,                // maxHeight
           'JPEG',              // compressFormat
-          50,                  // quality (0-100) - much lower quality
+          80,                  // quality (0-100)
           0,                   // rotation
-          null,                // outputPath
+          null,                // outputPath (null = temp file)
           false,               // keepMeta
           { onlyScaleDown: true }  // options
         );
         
-        const furtherRealPath = furtherResizedImage.uri.replace('file://', '');
-        base64Image = await fs.readFile(furtherRealPath, 'base64');
-        compressedImageSize = base64Image.length;
+        console.log('Image resized successfully:', resizedImage.uri);
+        const currentOriginalSize = resizedImage.size || 0;
         
-        console.log(`Further compressed image: ${compressedImageSize} bytes`);
-    
-        // Clean up temporary files
+        // Now convert the resized image to base64
+        const fs = RNFetchBlob.fs;
+        const realPath = resizedImage.uri.replace('file://', '');
+        let currentBase64Image = await fs.readFile(realPath, 'base64');
+        
+        let currentCompressedSize = currentBase64Image.length;
+        console.log(`Image sizes - Original: ${currentOriginalSize} bytes, Base64: ${currentCompressedSize} bytes`);
+        
+        // If still too large for Firestore (approaching 1MB limit), reduce quality further
+        if (currentBase64Image.length > 750 * 1024) {
+          console.log('Image still too large after resizing, compressing further...');
+      
+          // Create a new resized image with lower quality
+          const furtherResizedImage = await ImageResizer.createResizedImage(
+            resizedImage.uri,    // uri
+            800,                 // maxWidth
+            800,                 // maxHeight
+            'JPEG',              // compressFormat
+            50,                  // quality (0-100) - much lower quality
+            0,                   // rotation
+            null,                // outputPath
+            false,               // keepMeta
+            { onlyScaleDown: true }  // options
+          );
+          
+          const furtherRealPath = furtherResizedImage.uri.replace('file://', '');
+          currentBase64Image = await fs.readFile(furtherRealPath, 'base64');
+          currentCompressedSize = currentBase64Image.length;
+          
+          console.log(`Further compressed image: ${currentCompressedSize} bytes`);
+      
+          // Clean up temporary files
+          try {
+            await fs.unlink(furtherRealPath);
+          } catch (e) {
+            console.error('Error cleaning up further resized file:', e);
+          }
+        }
+        
+        // Clean up temporary file
         try {
-          await fs.unlink(furtherRealPath);
+          await fs.unlink(realPath);
         } catch (e) {
-          console.error('Error cleaning up further resized file:', e);
+          console.error('Error cleaning up resized file:', e);
+        }
+        
+        // Store additional metadata about the image
+        const imageMetadata = {
+          timestamp: Date.now(),
+          userId: currentUser.uid,
+          originalSize: currentOriginalSize,
+          compressedSize: currentCompressedSize,
+          type: 'image/jpeg',
+        };
+        
+        // Add to processed images array
+        processedImages.push({
+          base64Image: currentBase64Image,
+          metadata: imageMetadata
+        });
+      }
+      
+      console.log(`Successfully processed ${processedImages.length} images`);
+      
+      // Check if assignment belongs to a subject with assigned teachers
+      // If so, the approval must go to teachers instead of admins
+      let requiresTeacherApproval = false;
+      let subjectId = null;
+      let subjectTeachers = [];
+      
+      // First, get the assignment details to find its subject
+      const assignmentResult = await findAssignmentByInternalId(classId, assignmentId);
+      
+      if (assignmentResult.success && assignmentResult.assignment.subjectId) {
+        subjectId = assignmentResult.assignment.subjectId;
+        console.log(`Assignment belongs to subject ID: ${subjectId}`);
+        
+        // Get teachers for this subject
+        const teachersResult = await getSubjectTeachers(classId, subjectId);
+        subjectTeachers = teachersResult || [];
+        
+        // If there are teachers assigned to this subject, they must approve the assignment
+        if (subjectTeachers.length > 0) {
+          requiresTeacherApproval = true;
+          console.log(`Subject has ${subjectTeachers.length} teachers, requiring teacher approval`);
         }
       }
       
-      // Clean up temporary file
-      try {
-        await fs.unlink(realPath);
-      } catch (e) {
-        console.error('Error cleaning up resized file:', e);
-      }
+      // Create approval document with the processed images
+      const approvalRef = await firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(COMPLETION_APPROVALS_COLLECTION)
+        .add({
+          userId: currentUser.uid,
+          displayName: currentUser.displayName || currentUser.email.split('@')[0],
+          assignmentId: assignmentId,
+          images: processedImages,  // Store array of processed images instead of single image
+          submittedAt: firestore.FieldValue.serverTimestamp(),
+          status: 'pending',
+          completionTimestamp: submissionTime,
+          requiresTeacherApproval: requiresTeacherApproval,  // Flag indicating if teacher approval is required
+          subjectId: subjectId,  // Store subject ID for reference
+          subjectTeachers: subjectTeachers.map(teacher => teacher.id),  // Store teacher IDs for notifications
+          score: null  // Will be populated when a teacher grades the assignment
+        });
       
-      // Store additional metadata about the image
-      const imageMetadata = {
-        timestamp: Date.now(),
-        userId: currentUser.uid,
-        originalSize: originalImageSize,
-        compressedSize: compressedImageSize,
-        type: 'image/jpeg',
+      return {
+        success: true,
+        approvalId: approvalRef.id,
+        requiresTeacherApproval
       };
-    
-      // Create approval document with base64 image
-    const approvalRef = await firestore()
-      .collection(CLASSES_COLLECTION)
-      .doc(classId)
-      .collection(COMPLETION_APPROVALS_COLLECTION)
-      .add({
-        userId: currentUser.uid,
-        displayName: currentUser.displayName || currentUser.email.split('@')[0],
-        assignmentId: assignmentId,
-          base64Image: base64Image,
-          imageMetadata: imageMetadata,
-        submittedAt: firestore.FieldValue.serverTimestamp(),
-        status: 'pending',
-          completionTimestamp: submissionTime
-      });
-    
-    return {
-      success: true,
-      approvalId: approvalRef.id
-    };
     } catch (e) {
       console.error('Error processing image:', e);
       throw new Error('Failed to process the image. Please try using a smaller image or taking a photo with lower resolution.');
@@ -2445,61 +2938,142 @@ export const submitCompletionForApproval = async (classId, assignmentId, photoUr
 };
 
 // Get pending assignment completion approvals for a class
+// Updated to support teacher-specific approvals
 export const getPendingCompletionApprovals = async (classId) => {
   try {
+    console.log(`[getPendingCompletionApprovals] Starting for classId: ${classId}`);
     const currentUser = auth().currentUser;
-    if (!currentUser) {
-      throw new Error('User not authenticated');
+    
+    if (!currentUser || !classId) {
+      console.log(`[getPendingCompletionApprovals] Missing user or classId: user=${currentUser ? currentUser.uid : 'null'}, classId=${classId}`);
+      return {
+        success: false,
+        error: 'User or class ID not provided'
+      };
     }
     
-    // Check if user is admin for this class
-    const isAdmin = await isClassAdmin(classId, currentUser.uid);
-    if (!isAdmin) {
-      throw new Error('Only class admins can view pending approvals');
-    }
-    
-    // Get all pending approvals
-    const approvalsSnapshot = await firestore()
+    // Determine if user is an admin
+    console.log(`[getPendingCompletionApprovals] Checking role for user: ${currentUser.uid}`);
+    const memberRef = firestore()
       .collection(CLASSES_COLLECTION)
       .doc(classId)
-      .collection(COMPLETION_APPROVALS_COLLECTION)
-      .where('status', '==', 'pending')
-      .orderBy('submittedAt', 'desc')
-      .get();
+      .collection('members')
+      .where('userId', '==', currentUser.uid)
+      .limit(1);
+      
+    const memberSnapshot = await memberRef.get();
     
-    if (approvalsSnapshot.empty) {
+    if (memberSnapshot.empty) {
+      console.log(`[getPendingCompletionApprovals] User is not a member of this class`);
+      return {
+        success: false, 
+        error: 'You are not a member of this class'
+      };
+    }
+    
+    const memberData = memberSnapshot.docs[0].data();
+    const isAdmin = memberData.role === 'admin';
+    const isTeacher = memberData.role === 'teacher' || isAdmin;
+    console.log(`[getPendingCompletionApprovals] User role: isAdmin=${isAdmin}, isTeacher=${isTeacher}, role=${memberData.role}`);
+    if (isTeacher) {
+      console.log('[getPendingCompletionApprovals] Teacher role detected - should see teacher-specific approvals');
+    }
+    
+    let approvalsQuery;
+    console.log(`[getPendingCompletionApprovals] Building query, isAdmin=${isAdmin}, isTeacher=${isTeacher}`);
+    
+    if (isAdmin) {
+      // Admins can see all non-teacher approval requests
+      console.log('[getPendingCompletionApprovals] Building admin query');
+      approvalsQuery = firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(COMPLETION_APPROVALS_COLLECTION)
+        .where('status', '==', 'pending')
+        .where('requiresTeacherApproval', '==', false)
+        .orderBy('submittedAt', 'desc');
+    } else if (isTeacher) {
+      // Teachers can only see approvals for subjects they teach
+      // Let's add debugging to understand what's happening
+      console.log(`[getPendingCompletionApprovals] Building teacher query for: userId=${currentUser.uid}, classId=${classId}`);
+      
+      // First, get the subjects this teacher is assigned to
+      console.log('[getPendingCompletionApprovals] Fetching teacher subjects');
+      const teacherSubjectsSnapshot = await firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection('subjects')
+        .where('teachers', 'array-contains', currentUser.uid)
+        .get();
+        
+      const teacherSubjectIds = teacherSubjectsSnapshot.docs.map(doc => doc.id);
+      console.log(`[getPendingCompletionApprovals] Teacher is assigned to ${teacherSubjectIds.length} subjects: ${JSON.stringify(teacherSubjectIds)}`);
+      
+      // For teachers, we'll fetch ALL pending approvals that require teacher approval
+      // This is a change from the previous approach that only showed subject-specific approvals
+      console.log('[getPendingCompletionApprovals] Building query for all teacher approvals');
+      approvalsQuery = firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection('completionApprovals') // Using the correct collection name as specified
+        .where('status', '==', 'pending')
+        .where('requiresTeacherApproval', '==', true)
+        .orderBy('submittedAt', 'desc');
+    } else {
+      console.log('[getPendingCompletionApprovals] User is neither admin nor teacher, returning empty results');
       return {
         success: true,
         approvals: []
       };
     }
     
+    const approvalsSnapshot = await approvalsQuery.get();
+    console.log(`[getPendingCompletionApprovals] Fetched approvals snapshot, empty: ${approvalsSnapshot.empty}, size: ${approvalsSnapshot.size}`);
+    
+    if (approvalsSnapshot.empty) {
+      console.log('[getPendingCompletionApprovals] No approvals found');
+      return {
+        success: true,
+        approvals: []
+      };
+    }
+    
+    console.log(`[getPendingCompletionApprovals] Processing ${approvalsSnapshot.size} approvals`);
+    
     // Process approvals and include assignment details
-    const approvals = await Promise.all(approvalsSnapshot.docs.map(async doc => {
+    const approvals = await Promise.all(approvalsSnapshot.docs.map(async (doc, index) => {
+      console.log(`[getPendingCompletionApprovals] Processing approval ${index+1}/${approvalsSnapshot.size}, id: ${doc.id}`);
       const approvalData = doc.data();
+      console.log(`[getPendingCompletionApprovals] Approval data: status=${approvalData.status}, assignmentId=${approvalData.assignmentId}`);
       let assignmentDetails = { title: 'Unknown Assignment' };
       
       // Try to get assignment details
       try {
+        console.log(`[getPendingCompletionApprovals] Fetching assignment details for: ${approvalData.assignmentId}`);
         const result = await findAssignmentByInternalId(classId, approvalData.assignmentId);
+        console.log(`[getPendingCompletionApprovals] Assignment lookup result: ${result.success}`);
         if (result.success) {
           assignmentDetails = {
             title: result.assignment.title,
             type: result.assignment.type || 'DEFAULT'
           };
+          console.log(`[getPendingCompletionApprovals] Found assignment: ${assignmentDetails.title}`);
         }
       } catch (error) {
-        console.error(`Error fetching assignment details for ${approvalData.assignmentId}:`, error);
+        console.error(`[getPendingCompletionApprovals] Error fetching assignment details for ${approvalData.assignmentId}:`, error);
       }
       
-      return {
+      const processedApproval = {
         id: doc.id,
         ...approvalData,
         submittedAt: approvalData.submittedAt?.toDate?.() || new Date(),
         assignment: assignmentDetails
       };
+      console.log(`[getPendingCompletionApprovals] Processed approval: ${doc.id}, title: ${assignmentDetails.title}`);
+      return processedApproval;
     }));
     
+    console.log(`[getPendingCompletionApprovals] Returning ${approvals.length} approvals`);
     return {
       success: true,
       approvals
@@ -2513,27 +3087,21 @@ export const getPendingCompletionApprovals = async (classId) => {
   }
 };
 
-// Approve a completion request
-export const approveCompletion = async (classId, approvalId) => {
+// Approve a completion request with optional grading
+export const approveCompletion = async (classId, approvalId, score = null) => {
   try {
     const currentUser = auth().currentUser;
     if (!currentUser) {
       throw new Error('User not authenticated');
     }
     
-    // Check if user is admin for this class
-    const isAdmin = await isClassAdmin(classId, currentUser.uid);
-    if (!isAdmin) {
-      throw new Error('Only class admins can approve completions');
-    }
-    
-    // Get the approval document
+    // Get the approval document first to check if it requires teacher approval
     const approvalRef = firestore()
       .collection(CLASSES_COLLECTION)
       .doc(classId)
       .collection(COMPLETION_APPROVALS_COLLECTION)
       .doc(approvalId);
-    
+      
     const approvalDoc = await approvalRef.get();
     if (!approvalDoc.exists) {
       throw new Error('Approval request not found');
@@ -2544,15 +3112,56 @@ export const approveCompletion = async (classId, approvalId) => {
       throw new Error('This approval request has already been processed');
     }
     
+    const requiresTeacherApproval = approvalData.requiresTeacherApproval || false;
+    const subjectTeachers = approvalData.subjectTeachers || [];
+    
+    // Validate score if provided
+    let finalScore = null;
+    if (score !== null) {
+      // Ensure score is a number between 0 and 100
+      const numericScore = Number(score);
+      if (isNaN(numericScore) || numericScore < 0 || numericScore > 100) {
+        throw new Error('Score must be a number between 0 and 100');
+      }
+      finalScore = numericScore;
+    }
+    
+    // Check authorization based on approval type
+    if (requiresTeacherApproval) {
+      // For teacher approvals, user must be one of the subject teachers
+      const isTeacher = subjectTeachers.includes(currentUser.uid);
+      if (!isTeacher) {
+        // Check if user is admin - admins can still approve if no teachers have been assigned
+        const isAdmin = await isClassAdmin(classId, currentUser.uid);
+        if (!isAdmin || subjectTeachers.length > 0) {
+          throw new Error('Only teachers assigned to this subject can approve this completion');
+        }
+      }
+    } else {
+      // For regular approvals, user must be an admin
+      const isAdmin = await isClassAdmin(classId, currentUser.uid);
+      if (!isAdmin) {
+        throw new Error('Only class admins can approve this completion');
+      }
+    }
+    
     // Create a batch to perform multiple operations
     const batch = firestore().batch();
     
-    // Update approval status
-    batch.update(approvalRef, {
+    // Update approval status and include score if provided
+    const updateData = {
       status: 'approved',
       approvedBy: currentUser.uid,
       approvedAt: firestore.FieldValue.serverTimestamp()
-    });
+    };
+    
+    // Add score to the update if it was provided
+    if (finalScore !== null) {
+      updateData.score = finalScore;
+      updateData.gradedBy = currentUser.uid;
+    }
+    
+    batch.update(approvalRef, updateData);
     
     // Get assignment details to determine proper XP
     const { EXP_CONSTANTS } = require('../constants/UserTypes');
@@ -2620,7 +3229,7 @@ export const approveCompletion = async (classId, approvalId) => {
   }
 };
 
-// Reject a completion request
+// Reject a completion request with optional feedback
 export const rejectCompletion = async (classId, approvalId, reason = '') => {
   try {
     const currentUser = auth().currentUser;
@@ -2628,19 +3237,13 @@ export const rejectCompletion = async (classId, approvalId, reason = '') => {
       throw new Error('User not authenticated');
     }
     
-    // Check if user is admin for this class
-    const isAdmin = await isClassAdmin(classId, currentUser.uid);
-    if (!isAdmin) {
-      throw new Error('Only class admins can reject completions');
-    }
-    
-    // Get the approval document
+    // Get the approval document first to check if it requires teacher approval
     const approvalRef = firestore()
       .collection(CLASSES_COLLECTION)
       .doc(classId)
       .collection(COMPLETION_APPROVALS_COLLECTION)
       .doc(approvalId);
-    
+      
     const approvalDoc = await approvalRef.get();
     if (!approvalDoc.exists) {
       throw new Error('Approval request not found');
@@ -2650,6 +3253,30 @@ export const rejectCompletion = async (classId, approvalId, reason = '') => {
     if (approvalData.status !== 'pending') {
       throw new Error('This approval request has already been processed');
     }
+    
+    const requiresTeacherApproval = approvalData.requiresTeacherApproval || false;
+    const subjectTeachers = approvalData.subjectTeachers || [];
+    
+    // Check authorization based on approval type
+    if (requiresTeacherApproval) {
+      // For teacher approvals, user must be one of the subject teachers
+      const isTeacher = subjectTeachers.includes(currentUser.uid);
+      if (!isTeacher) {
+        // Check if user is admin - admins can still reject if no teachers have been assigned
+        const isAdmin = await isClassAdmin(classId, currentUser.uid);
+        if (!isAdmin || subjectTeachers.length > 0) {
+          throw new Error('Only teachers assigned to this subject can reject this completion');
+        }
+      }
+    } else {
+      // For regular approvals, user must be an admin
+      const isAdmin = await isClassAdmin(classId, currentUser.uid);
+      if (!isAdmin) {
+        throw new Error('Only class admins can reject this completion');
+      }
+    }
+    
+    // We already have the approval data from earlier check
     
     // Update approval status
     await approvalRef.update({
@@ -2667,4 +3294,4 @@ export const rejectCompletion = async (classId, approvalId, reason = '') => {
       error: error.message
     };
   }
-}; 
+};

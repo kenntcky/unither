@@ -82,7 +82,11 @@ const AssignmentsScreen = ({ navigation, route }) => {
   }, [currentClass, user]);
 
   const filterAndSortAssignments = () => {
-    let filtered = [...assignments];
+    // Add classId to each assignment to help with subject name lookup
+    let filtered = assignments.map(assignment => ({
+      ...assignment,
+      classId: currentClass?.id
+    }));
 
     // Apply filters
     if (activeFilters.length > 0) {

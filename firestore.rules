@@ -12,7 +12,22 @@ service cloud.firestore {
       function isAdmin() {
         return request.auth.uid == resource.data.createdBy || 
                exists(/databases/$(database)/documents/classes/$(classId)/members/$(request.auth.uid)) && 
-               get(/databases/$(database)/documents/classes/$(classId)/members/$(request.auth.uid)).data.role == 'admin';
+               (get(/databases/$(database)/documents/classes/$(classId)/members/$(request.auth.uid)).data.role == 'admin' ||
+                get(/databases/$(database)/documents/classes/$(classId)/members/$(request.auth.uid)).data.role == 'teacher');
+      }
+      
+      // Helper function to check if user is a teacher for this class
+      function isTeacher() {
+        return exists(/databases/$(database)/documents/classes/$(classId)/members/$(request.auth.uid)) && 
+               get(/databases/$(database)/documents/classes/$(classId)/members/$(request.auth.uid)).data.role == 'teacher';
+      }
+      
+      // Helper function to check if user is assigned as a teacher to this subject
+      function isTeacherForSubject(subjectId) {
+        return exists(/databases/$(database)/documents/classes/$(classId)/subjects/$(subjectId)) && 
+               isTeacher() &&
+               get(/databases/$(database)/documents/classes/$(classId)/subjects/$(subjectId)).data.teachers != null &&
+               request.auth.uid in get(/databases/$(database)/documents/classes/$(classId)/subjects/$(subjectId)).data.teachers;
       }
       
       // Rules for the members subcollection
@@ -32,14 +47,13 @@ service cloud.firestore {
       
       // Rules for the aiMaterials subcollection
       match /aiMaterials/{materialId} {
-        // Allow all class members to read AI materials
+        // Allow all class members to read, create, update AI materials
         allow read: if request.auth != null;
-        
-        // Allow class members to create AI materials
         allow create: if request.auth != null;
+        allow update: if request.auth != null;
         
-        // Allow users to update/delete only their own AI materials
-        allow update, delete: if request.auth != null && 
+        // Allow users to delete only their own AI materials
+        allow delete: if request.auth != null && 
                              (request.auth.uid == resource.data.createdBy.uid ||
                               request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy);
       }
@@ -95,10 +109,18 @@ service cloud.firestore {
         // Allow class members to create subjects
         allow create: if request.auth != null;
         
-        // Only creator can update/delete subjects
-        allow update, delete: if request.auth != null && 
-                             (request.auth.uid == resource.data.createdBy ||
-                              request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy);
+        // Update rules for subjects:
+        // - Class creator can update/delete any subject
+        // - Subject creator can update/delete their own subjects
+        // - Teachers assigned to a subject can update but not delete the subject
+        allow update: if request.auth != null && 
+                      (request.auth.uid == resource.data.createdBy ||
+                       request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy ||
+                       isTeacherForSubject(subjectId));
+        
+        allow delete: if request.auth != null && 
+                      (request.auth.uid == resource.data.createdBy ||
+                       request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy);
       }
       
       // Rules for the experience subcollection
@@ -179,23 +201,6 @@ service cloud.firestore {
                      (!request.resource.data.keys().hasAny(['photoBase64']) || 
                       (request.resource.data.keys().hasAny(['photoBase64']) && 
                        request.resource.data.photoBase64.size() < 1048576)); // Max 1MB for base64 images
-    }
-    
-    // Legacy rules for AI Materials at root level - can be removed later once migration complete
-    match /aiMaterials/{materialId} {
-      // Allow authenticated users to read AI materials
-      allow read: if request.auth != null;
-      
-      // Allow authenticated users to create AI materials
-      allow create: if request.auth != null;
-      
-      // Allow users to update/delete only their own AI materials
-      allow update, delete: if request.auth != null && 
-                           request.auth.uid == resource.data.createdBy.uid;
-      
-      // Allow class admins to update/delete AI materials for their class
-      allow update, delete: if request.auth != null && 
-                           request.auth.uid == get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.createdBy;
     }
   }
 } 

@@ -9,10 +9,11 @@ import {
   Platform,
   Modal,
   Image,
+  SafeAreaView
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
-const BAR_HEIGHT = 100;
+const BAR_HEIGHT = 80;
 
 const SleekBottomBar = ({ state, descriptors, navigation }) => {
   const [selectedIndex, setSelectedIndex] = useState(state.index);
@@ -90,301 +91,303 @@ const SleekBottomBar = ({ state, descriptors, navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Modal
-        visible={showDropdown}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowDropdown(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowDropdown(false)}
+    <SafeAreaView style={{ flex: 0.07 }}>
+      <View style={styles.container}>
+        <Modal
+          visible={showDropdown}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowDropdown(false)}
         >
-          <View style={styles.dropdownContainer}>
-            <TouchableOpacity
-              style={styles.dropdownOption}
-              onPress={() => handleDropdownOption("AssignmentsTab")}
-            >
-              <MaterialIcons name="assignment" size={24} color="#4F46E5" />
-              <Text style={styles.dropdownText}>Assignments</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.dropdownOption}
-              onPress={() => handleDropdownOption("SubjectsTab")}
-            >
-              <MaterialIcons name="book" size={24} color="#4F46E5" />
-              <Text style={styles.dropdownText}>Subjects</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      <View style={styles.barBackground}>
-        <View style={styles.barInner} />
-      </View>
-      
-      <View style={styles.tabContainer}>
-        {/* Home Tab */}
-        {state.routes.map((route, index) => {
-          if (route.name === "HomeTab") {
-            const isSelected = state.index === index;
-            return (
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowDropdown(false)}
+          >
+            <View style={styles.dropdownContainer}>
               <TouchableOpacity
-                key={route.key}
-                onPress={() => {
-                  const event = navigation.emit({
-                    type: "tabPress",
-                    target: route.key,
-                    canPreventDefault: true,
-                  });
-
-                  if (!isSelected && !event.defaultPrevented) {
-                    navigation.navigate(route.name);
-                  }
-                  setSelectedIndex(index);
-                }}
-                style={styles.tabItem}
-                activeOpacity={0.7}
+                style={styles.dropdownOption}
+                onPress={() => handleDropdownOption("AssignmentsTab")}
               >
-                <Animated.View style={[
-                  styles.iconContainer,
-                  {
-                    transform: [
-                      { scale: Animated.multiply(scaleAnims[index], pressScaleAnims[index]) },
-                      { translateY: yPositionAnims[index] }
-                    ],
-                    opacity: opacityAnims[index],
-                  }
-                ]}>
-                  {isSelected && (
-                    <View style={[
-                      styles.iconBackground,
-                      {
-                        backgroundColor: getItemColor(index, true),
-                        borderWidth: isSelected ? 5 : 0,
-                        borderColor: isSelected ? 'white' : 'transparent',
-                      }
-                    ]} />
-                  )}
-                  <MaterialIcons
-                    name={getIconName(route.name)}
-                    size={24}
-                    color={isSelected ? "white" : getItemColor(index, false)}
-                    style={isSelected ? styles.selectedIcon : styles.unselectedIcon}
-                  />
-                </Animated.View>
+                <MaterialIcons name="assignment" size={24} color="#4F46E5" />
+                <Text style={styles.dropdownText}>Assignments</Text>
               </TouchableOpacity>
-            );
-          }
-          return null;
-        })}
-
-        {/* Gallery Tab */}
-        {state.routes.map((route, index) => {
-          if (route.name === "GalleryTab") {
-            const isSelected = state.index === index;
-            return (
               <TouchableOpacity
-                key={route.key}
-                onPress={() => {
-                  const event = navigation.emit({
-                    type: "tabPress",
-                    target: route.key,
-                    canPreventDefault: true,
-                  });
-
-                  if (!isSelected && !event.defaultPrevented) {
-                    navigation.navigate(route.name);
-                  }
-                  setSelectedIndex(index);
-                }}
-                style={styles.tabItem}
-                activeOpacity={0.7}
+                style={styles.dropdownOption}
+                onPress={() => handleDropdownOption("SubjectsTab")}
               >
-                <Animated.View style={[
-                  styles.iconContainer,
-                  {
-                    transform: [
-                      { scale: Animated.multiply(scaleAnims[index], pressScaleAnims[index]) },
-                      { translateY: yPositionAnims[index] }
-                    ],
-                    opacity: opacityAnims[index],
-                  }
-                ]}>
-                  {isSelected && (
-                    <View style={[
-                      styles.iconBackground,
-                      {
-                        backgroundColor: getItemColor(index, true),
-                        borderWidth: isSelected ? 5 : 0,
-                        borderColor: isSelected ? 'white' : 'transparent',
-                      }
-                    ]} />
-                  )}
-                  <MaterialIcons
-                    name={getIconName(route.name)}
-                    size={24}
-                    color={isSelected ? "white" : getItemColor(index, false)}
-                    style={isSelected ? styles.selectedIcon : styles.unselectedIcon}
-                  />
-                </Animated.View>
+                <MaterialIcons name="book" size={24} color="#4F46E5" />
+                <Text style={styles.dropdownText}>Subjects</Text>
               </TouchableOpacity>
-            );
-          }
-          return null;
-        })}
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
-        {/* AI Tab */}
-        {state.routes.map((route, index) => {
-          if (route.name === "AiTab") {
-            const isSelected = state.index === index;
-            return (
-              <TouchableOpacity
-                key={route.key}
-                onPress={() => {
-                  const event = navigation.emit({
-                    type: "tabPress",
-                    target: route.key,
-                    canPreventDefault: true,
-                  });
+        <View style={styles.barBackground}>
+          <View style={styles.barInner} />
+        </View>
+        
+        <View style={styles.tabContainer}>
+          {/* Home Tab */}
+          {state.routes.map((route, index) => {
+            if (route.name === "HomeTab") {
+              const isSelected = state.index === index;
+              return (
+                <TouchableOpacity
+                  key={route.key}
+                  onPress={() => {
+                    const event = navigation.emit({
+                      type: "tabPress",
+                      target: route.key,
+                      canPreventDefault: true,
+                    });
 
-                  if (!isSelected && !event.defaultPrevented) {
-                    navigation.navigate(route.name);
-                  }
-                  setSelectedIndex(index);
-                }}
-                style={[styles.tabItem, styles.centerTabItem]}
-                activeOpacity={0.7}
-              >
-                <Animated.View style={[
-                  styles.iconContainer,
-                  {
-                    transform: [
-                      { scale: Animated.multiply(scaleAnims[index], pressScaleAnims[index]) },
-                      { translateY: yPositionAnims[index] }
-                    ],
-                    opacity: opacityAnims[index],
-                  }
-                ]}>
-                  {isSelected && (
-                    <Animated.View style={[
-                      styles.iconBackground,
-                      {
-                        backgroundColor: getItemColor(index, true),
-                        transform: [
-                          { scale: Animated.multiply(scaleAnims[index], 1.1) }
-                        ],
-                      }
-                    ]} />
-                  )}
-                  <Image
-                    source={require('../../assets/icon/UNITHER.png')}
-                    style={[
-                      styles.aiIcon,
-                      isSelected && styles.selectedAiIcon
-                    ]}
-                    resizeMode="contain"
-                  />
-                </Animated.View>
-              </TouchableOpacity>
-            );
-          }
-          return null;
-        })}
-
-        {/* Profile Tab */}
-        {state.routes.map((route, index) => {
-          if (route.name === "ProfileTab") {
-            const isSelected = state.index === index;
-            return (
-              <TouchableOpacity
-                key={route.key}
-                onPress={() => {
-                  const event = navigation.emit({
-                    type: "tabPress",
-                    target: route.key,
-                    canPreventDefault: true,
-                  });
-
-                  if (!isSelected && !event.defaultPrevented) {
-                    navigation.navigate(route.name);
-                  }
-                  setSelectedIndex(index);
-                }}
-                style={styles.tabItem}
-                activeOpacity={0.7}
-              >
-                <Animated.View style={[
-                  styles.iconContainer,
-                  {
-                    transform: [
-                      { scale: Animated.multiply(scaleAnims[index], pressScaleAnims[index]) },
-                      { translateY: yPositionAnims[index] }
-                    ],
-                    opacity: opacityAnims[index],
-                  }
-                ]}>
-                  {isSelected && (
-                    <View style={[
-                      styles.iconBackground,
-                      {
-                        backgroundColor: getItemColor(index, true),
-                        borderWidth: isSelected ? 5 : 0,
-                        borderColor: isSelected ? 'white' : 'transparent',
-                      }
-                    ]} />
-                  )}
-                  <MaterialIcons
-                    name={getIconName(route.name)}
-                    size={24}
-                    color={isSelected ? "white" : getItemColor(index, false)}
-                    style={isSelected ? styles.selectedIcon : styles.unselectedIcon}
-                  />
-                </Animated.View>
-              </TouchableOpacity>
-            );
-          }
-          return null;
-        })}
-
-        {/* Study Tab */}
-        <TouchableOpacity
-          onPress={handleStudyTabPress}
-          style={styles.tabItem}
-          activeOpacity={0.7}
-        >
-          <Animated.View style={[
-            styles.iconContainer,
-            {
-              transform: [
-                { scale: Animated.multiply(scaleAnims[1], pressScaleAnims[1]) },
-                { translateY: yPositionAnims[1] }
-              ],
-              opacity: opacityAnims[1],
+                    if (!isSelected && !event.defaultPrevented) {
+                      navigation.navigate(route.name);
+                    }
+                    setSelectedIndex(index);
+                  }}
+                  style={styles.tabItem}
+                  activeOpacity={0.7}
+                >
+                  <Animated.View style={[
+                    styles.iconContainer,
+                    {
+                      transform: [
+                        { scale: Animated.multiply(scaleAnims[index], pressScaleAnims[index]) },
+                        { translateY: yPositionAnims[index] }
+                      ],
+                      opacity: opacityAnims[index],
+                    }
+                  ]}>
+                    {isSelected && (
+                      <View style={[
+                        styles.iconBackground,
+                        {
+                          backgroundColor: getItemColor(index, true),
+                          borderWidth: isSelected ? 5 : 0,
+                          borderColor: isSelected ? 'white' : 'transparent',
+                        }
+                      ]} />
+                    )}
+                    <MaterialIcons
+                      name={getIconName(route.name)}
+                      size={24}
+                      color={isSelected ? "white" : getItemColor(index, false)}
+                      style={isSelected ? styles.selectedIcon : styles.unselectedIcon}
+                    />
+                  </Animated.View>
+                </TouchableOpacity>
+              );
             }
-          ]}>
-            {state.index === 1 && (
-              <View style={[
-                styles.iconBackground,
-                {
-                  backgroundColor: getItemColor(1, true),
-                  borderWidth: 5,
-                  borderColor: 'white',
-                }
-              ]} />
-            )}
-            <MaterialIcons
-              name="school"
-              size={24}
-              color={state.index === 1 ? "white" : getItemColor(1, false)}
-              style={state.index === 1 ? styles.selectedIcon : styles.unselectedIcon}
-            />
-          </Animated.View>
-        </TouchableOpacity>
+            return null;
+          })}
+
+          {/* Gallery Tab */}
+          {state.routes.map((route, index) => {
+            if (route.name === "GalleryTab") {
+              const isSelected = state.index === index;
+              return (
+                <TouchableOpacity
+                  key={route.key}
+                  onPress={() => {
+                    const event = navigation.emit({
+                      type: "tabPress",
+                      target: route.key,
+                      canPreventDefault: true,
+                    });
+
+                    if (!isSelected && !event.defaultPrevented) {
+                      navigation.navigate(route.name);
+                    }
+                    setSelectedIndex(index);
+                  }}
+                  style={styles.tabItem}
+                  activeOpacity={0.7}
+                >
+                  <Animated.View style={[
+                    styles.iconContainer,
+                    {
+                      transform: [
+                        { scale: Animated.multiply(scaleAnims[index], pressScaleAnims[index]) },
+                        { translateY: yPositionAnims[index] }
+                      ],
+                      opacity: opacityAnims[index],
+                    }
+                  ]}>
+                    {isSelected && (
+                      <View style={[
+                        styles.iconBackground,
+                        {
+                          backgroundColor: getItemColor(index, true),
+                          borderWidth: isSelected ? 5 : 0,
+                          borderColor: isSelected ? 'white' : 'transparent',
+                        }
+                      ]} />
+                    )}
+                    <MaterialIcons
+                      name={getIconName(route.name)}
+                      size={24}
+                      color={isSelected ? "white" : getItemColor(index, false)}
+                      style={isSelected ? styles.selectedIcon : styles.unselectedIcon}
+                    />
+                  </Animated.View>
+                </TouchableOpacity>
+              );
+            }
+            return null;
+          })}
+
+          {/* AI Tab */}
+          {state.routes.map((route, index) => {
+            if (route.name === "AiTab") {
+              const isSelected = state.index === index;
+              return (
+                <TouchableOpacity
+                  key={route.key}
+                  onPress={() => {
+                    const event = navigation.emit({
+                      type: "tabPress",
+                      target: route.key,
+                      canPreventDefault: true,
+                    });
+
+                    if (!isSelected && !event.defaultPrevented) {
+                      navigation.navigate(route.name);
+                    }
+                    setSelectedIndex(index);
+                  }}
+                  style={[styles.tabItem, styles.centerTabItem]}
+                  activeOpacity={0.7}
+                >
+                  <Animated.View style={[
+                    styles.iconContainer,
+                    {
+                      transform: [
+                        { scale: Animated.multiply(scaleAnims[index], pressScaleAnims[index]) },
+                        { translateY: yPositionAnims[index] }
+                      ],
+                      opacity: opacityAnims[index],
+                    }
+                  ]}>
+                    {isSelected && (
+                      <Animated.View style={[
+                        styles.iconBackground,
+                        {
+                          backgroundColor: getItemColor(index, true),
+                          transform: [
+                            { scale: Animated.multiply(scaleAnims[index], 1.1) }
+                          ],
+                        }
+                      ]} />
+                    )}
+                    <Image
+                      source={require('../../assets/icon/UNITHER.png')}
+                      style={[
+                        styles.aiIcon,
+                        isSelected && styles.selectedAiIcon
+                      ]}
+                      resizeMode="contain"
+                    />
+                  </Animated.View>
+                </TouchableOpacity>
+              );
+            }
+            return null;
+          })}
+
+          {/* Profile Tab */}
+          {state.routes.map((route, index) => {
+            if (route.name === "ProfileTab") {
+              const isSelected = state.index === index;
+              return (
+                <TouchableOpacity
+                  key={route.key}
+                  onPress={() => {
+                    const event = navigation.emit({
+                      type: "tabPress",
+                      target: route.key,
+                      canPreventDefault: true,
+                    });
+
+                    if (!isSelected && !event.defaultPrevented) {
+                      navigation.navigate(route.name);
+                    }
+                    setSelectedIndex(index);
+                  }}
+                  style={styles.tabItem}
+                  activeOpacity={0.7}
+                >
+                  <Animated.View style={[
+                    styles.iconContainer,
+                    {
+                      transform: [
+                        { scale: Animated.multiply(scaleAnims[index], pressScaleAnims[index]) },
+                        { translateY: yPositionAnims[index] }
+                      ],
+                      opacity: opacityAnims[index],
+                    }
+                  ]}>
+                    {isSelected && (
+                      <View style={[
+                        styles.iconBackground,
+                        {
+                          backgroundColor: getItemColor(index, true),
+                          borderWidth: isSelected ? 5 : 0,
+                          borderColor: isSelected ? 'white' : 'transparent',
+                        }
+                      ]} />
+                    )}
+                    <MaterialIcons
+                      name={getIconName(route.name)}
+                      size={24}
+                      color={isSelected ? "white" : getItemColor(index, false)}
+                      style={isSelected ? styles.selectedIcon : styles.unselectedIcon}
+                    />
+                  </Animated.View>
+                </TouchableOpacity>
+              );
+            }
+            return null;
+          })}
+
+          {/* Study Tab */}
+          <TouchableOpacity
+            onPress={handleStudyTabPress}
+            style={styles.tabItem}
+            activeOpacity={0.7}
+          >
+            <Animated.View style={[
+              styles.iconContainer,
+              {
+                transform: [
+                  { scale: Animated.multiply(scaleAnims[1], pressScaleAnims[1]) },
+                  { translateY: yPositionAnims[1] }
+                ],
+                opacity: opacityAnims[1],
+              }
+            ]}>
+              {state.index === 1 && (
+                <View style={[
+                  styles.iconBackground,
+                  {
+                    backgroundColor: getItemColor(1, true),
+                    borderWidth: 5,
+                    borderColor: 'white',
+                  }
+                ]} />
+              )}
+              <MaterialIcons
+                name="school"
+                size={24}
+                color={state.index === 1 ? "white" : getItemColor(1, false)}
+                style={state.index === 1 ? styles.selectedIcon : styles.unselectedIcon}
+              />
+            </Animated.View>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -394,6 +397,7 @@ const styles = StyleSheet.create({
     width: '100%',
     position: 'absolute',
     bottom: 0,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
   },
   barBackground: {
     position: 'absolute',

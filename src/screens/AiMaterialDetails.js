@@ -193,6 +193,13 @@ const AiMaterialDetails = ({ route, navigation }) => {
       navigation.goBack()
       return
     }
+    
+    // If user is not logged in anymore, navigate back
+    if (!currentUser) {
+      console.log("User is not logged in, navigating back")
+      navigation.goBack()
+      return
+    }
 
     try {
       console.log(`Loading AI material ${materialId} from class ${activeClassId}`)
@@ -211,9 +218,8 @@ const AiMaterialDetails = ({ route, navigation }) => {
       const materialData = { id: doc.id, ...doc.data() }
       setMaterial(materialData)
 
-      // Check if user has already attempted this quiz
-      const hasAttempted = materialData.scoreBoard?.some((score) => score.userId === currentUser.uid)
-      setUserHasAttempted(hasAttempted)
+      // Note: We'll check if the user has attempted this quiz in the loadScoreboard function
+      // This avoids duplicating the code and ensures we check both the old scoreBoard and new quizScores
 
       // Load scoreboard
       await loadScoreboard(materialData)
@@ -228,7 +234,12 @@ const AiMaterialDetails = ({ route, navigation }) => {
   const loadScoreboard = async (materialData) => {
     setScoresLoading(true)
     try {
+      // Use the scoreBoard field from the materialData
       let scoreboardData = materialData.scoreBoard || []
+      
+      // Check if current user has attempted this quiz
+      const userAttempted = currentUser ? scoreboardData.some(score => score.userId === currentUser.uid) : false
+      setUserHasAttempted(userAttempted)
 
       // Filter out any incomplete or invalid entries
       scoreboardData = scoreboardData.filter(
@@ -318,8 +329,8 @@ const AiMaterialDetails = ({ route, navigation }) => {
   }
 
   const saveQuizResults = async (score, timeBonus, totalTimeSeconds, endTime) => {
-    if (!activeClassId) {
-      console.error("Cannot save quiz results - no active class ID")
+    if (!activeClassId || !currentUser) {
+      console.error("Cannot save quiz results - no active class ID or user is not logged in")
       Alert.alert("Error", "Failed to save quiz results")
       return
     }
@@ -341,23 +352,45 @@ const AiMaterialDetails = ({ route, navigation }) => {
         totalScore: totalScore,
         completionTime: totalTimeSeconds,
         completedAt: new Date(),
-        earnedXP: earnedXP,
+        earnedXP: earnedXP
       }
 
-      // Update user's XP
-      await firestore().collection("users").doc(currentUser.uid).update({
-        exp: firestore.FieldValue.increment(earnedXP),
-      })
-
-      // Update material's scoreboard
-      await firestore()
+      console.log("Saving quiz results for user:", currentUser.uid, "in material:", materialId)
+      
+      // Update the AI material document with the new score - this should work now that the rules allow updates
+      const aiMaterialRef = firestore()
         .collection("classes")
         .doc(activeClassId)
         .collection("aiMaterials")
         .doc(materialId)
-        .update({
-          scoreBoard: firestore.FieldValue.arrayUnion(scoreData),
-        })
+      
+      // Get the current document to check if scoreBoard exists
+      const materialDoc = await aiMaterialRef.get()
+      const materialData = materialDoc.data()
+      
+      // Initialize scoreBoard if it doesn't exist or append to it
+      const updatedScoreBoard = materialData.scoreBoard || []
+      
+      // Check if user already has a score in the scoreBoard
+      const existingScoreIndex = updatedScoreBoard.findIndex(s => s.userId === currentUser.uid)
+      
+      if (existingScoreIndex >= 0) {
+        // Update existing score
+        updatedScoreBoard[existingScoreIndex] = scoreData
+      } else {
+        // Add new score
+        updatedScoreBoard.push(scoreData)
+      }
+      
+      // Update the document
+      await aiMaterialRef.update({
+        scoreBoard: updatedScoreBoard
+      })
+      
+      // Update user's XP
+      await firestore().collection("users").doc(currentUser.uid).update({
+        exp: firestore.FieldValue.increment(earnedXP),
+      })
 
       // Refresh material data
       loadMaterialDetails()
@@ -707,7 +740,7 @@ const AiMaterialDetails = ({ route, navigation }) => {
                   key={index}
                   style={[
                     styles.scoreRow,
-                    score.userId === currentUser.uid && styles.highlightedRow,
+                    currentUser && score.userId === currentUser.uid && styles.highlightedRow,
                     index % 2 === 0 && styles.alternateRow,
                   ]}
                 >
@@ -820,6 +853,7 @@ const markdownStyles = {
     color: AppColors.text,
     fontSize: 16,
     lineHeight: 24,
+    marginBottom: 60
   },
   heading1: {
     fontSize: 24,

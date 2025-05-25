@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { StyleSheet, View, FlatList, TouchableOpacity, Text, Alert } from "react-native"
 import Icon from "react-native-vector-icons/MaterialIcons"
 import SubjectItem from "../components/SubjectItem"
+import SubjectTeachersModal from "../components/SubjectTeachersModal"
 import { useSubject } from "../context/SubjectContext"
 import { useAssignment } from "../context/AssignmentContext"
 import { useClass } from "../context/ClassContext"
@@ -30,6 +31,8 @@ const SubjectsScreen = ({ navigation }) => {
   const { subjects, loading, deleteSubject, refreshSubjects, syncedWithCloud } = useSubject()
   const { currentClass } = useClass()
   const [subjectsWithCounts, setSubjectsWithCounts] = useState([])
+  const [teacherModalVisible, setTeacherModalVisible] = useState(false)
+  const [selectedSubject, setSelectedSubject] = useState(null)
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
@@ -95,6 +98,18 @@ const SubjectsScreen = ({ navigation }) => {
     ])
   }
 
+  const handleManageTeachers = (subjectId, subjectName) => {
+    console.log(`Managing teachers for subject: ${subjectId} - ${subjectName}`);
+    setSelectedSubject({
+      id: subjectId,
+      name: subjectName
+    });
+    // Make sure we set the modal to visible with a slight delay to ensure state is updated
+    setTimeout(() => {
+      setTeacherModalVisible(true);
+    }, 50);
+  }
+
   const renderHeader = () => (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>{t("My Subjects")}</Text>
@@ -129,9 +144,10 @@ const SubjectsScreen = ({ navigation }) => {
           <SubjectItem
             subject={item}
             onPress={() => handleSubjectPress(item)}
-            onAddAssignment={() => handleAddAssignment(item.id)}
+            onAddAssignment={(subjectId) => handleAddAssignment(subjectId)}
             onEdit={handleEditSubject}
             onDelete={handleDeleteSubject}
+            onManageTeachers={handleManageTeachers}
           />
         )}
         ListEmptyComponent={
@@ -154,6 +170,19 @@ const SubjectsScreen = ({ navigation }) => {
       <TouchableOpacity style={styles.fab} onPress={handleAddSubject} activeOpacity={0.8}>
         <Icon name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
+
+      {/* Teacher Management Modal */}
+      {selectedSubject && (
+        <SubjectTeachersModal
+          visible={teacherModalVisible}
+          onClose={() => {
+            setTeacherModalVisible(false);
+            setSelectedSubject(null);
+          }}
+          subjectId={selectedSubject.id}
+          subjectName={selectedSubject.name}
+        />
+      )}
     </ScreenContainer>
   )
 }

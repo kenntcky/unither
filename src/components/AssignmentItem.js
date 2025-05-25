@@ -4,6 +4,9 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../constants/Colors';
 import { ASSIGNMENT_STATUS } from '../constants/Types';
 import { t } from '../translations';
+import { useState, useEffect } from 'react';
+import firestore from '@react-native-firebase/firestore';
+import { CLASSES_COLLECTION, SUBJECTS_COLLECTION } from '../utils/firestore';
 // import { auth } from '../utils/firebase';
 import auth from '@react-native-firebase/auth';
 
@@ -127,7 +130,7 @@ const AssignmentItem = ({ assignment, onPress, onEditPress, onApprove, onReject,
         )}
         {assignment.title}
       </Text>
-      <Text style={[styles.subject, { color: colors.primary }]}>{assignment.subjectName}</Text>
+      <SubjectNameDisplay style={[styles.subject, { color: colors.primary }]} assignment={assignment} />
       
       <View style={styles.footer}>
         <View style={styles.groupType}>
@@ -184,6 +187,103 @@ const AssignmentItem = ({ assignment, onPress, onEditPress, onApprove, onReject,
     </TouchableOpacity>
   );
 };
+
+// Component to display subject name with on-demand loading if needed
+function SubjectNameDisplay({ assignment, style }) {
+  const [subjectName, setSubjectName] = useState(assignment.subjectName || null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const currentClassId = React.useContext(require('../context/ClassContext').useClass().currentClass?.id);
+
+  // For debugging purposes
+  console.log('Assignment data in SubjectNameDisplay:', {
+    id: assignment.id,
+    title: assignment.title,
+    subjectId: assignment.subjectId,
+    subjectName: assignment.subjectName,
+    classId: assignment.classId || currentClassId
+  });
+
+  useEffect(() => {
+    // If we already have the subject name from the assignment, use it
+    if (assignment.subjectName) {
+      console.log(`Using existing subjectName: ${assignment.subjectName}`);
+      setSubjectName(assignment.subjectName);
+      return;
+    }
+    
+    // If we have a subject ID but no name, fetch the name
+    if (assignment.subjectId && !subjectName && !loading) {
+      setLoading(true);
+      
+      // Try to get the class ID from various sources
+      const classId = assignment.classId || currentClassId;
+      
+      console.log(`Attempting to fetch subject name. Subject ID: ${assignment.subjectId}, Class ID: ${classId}`);
+      
+      if (!classId) {
+        console.warn('Cannot fetch subject name: Missing classId');
+        setError('Missing Class ID');
+        setLoading(false);
+        return;
+      }
+      
+      // The issue is that the subjectId in the assignment is NOT the document ID,
+      // but rather a field called 'id' within the subject document
+      // So we need to query for the subject where id == assignment.subjectId
+      firestore()
+        .collection(CLASSES_COLLECTION)
+        .doc(classId)
+        .collection(SUBJECTS_COLLECTION)
+        .where('id', '==', assignment.subjectId)
+        .limit(1)
+        .get()
+        .then(querySnapshot => {
+          console.log('Subject query result:', {
+            empty: querySnapshot.empty,
+            size: querySnapshot.size,
+            query: `WHERE id == ${assignment.subjectId}`
+          });
+          
+          if (!querySnapshot.empty) {
+            // Get the first matching document
+            const subjectDoc = querySnapshot.docs[0];
+            const data = subjectDoc.data();
+            console.log('Found subject data:', data);
+            
+            // Use the name from the document
+            const name = data.name || 'Unnamed Subject';
+            console.log(`Got subject name: ${name}`);
+            setSubjectName(name);
+          } else {
+            console.warn(`No subject found with id field matching ${assignment.subjectId}`);
+            setError(`Subject not found`);
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching subject name:', error);
+          setError(`Error: ${error.message}`);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [assignment.subjectId, assignment.subjectName, subjectName, loading, assignment.classId, currentClassId]);
+
+  if (loading) {
+    return <Text style={style}>Loading subject...</Text>;
+  }
+
+  if (error) {
+    return <Text style={[style, {color: 'orange'}]}>{error}</Text>;
+  }
+
+  return (
+    <Text style={style}>
+      {subjectName || 'No Subject'}
+    </Text>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {

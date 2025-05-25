@@ -15,7 +15,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { createOrUpdateUserProfile, getUserProfile } from '../utils/firestore';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import ImagePicker from 'react-native-image-picker';
+import * as ImagePicker from 'react-native-image-picker';
 import ImageResizer from 'react-native-image-resizer';
 import RNFetchBlob from 'rn-fetch-blob';
 import firestore from '@react-native-firebase/firestore';
@@ -102,7 +102,7 @@ const EditProfileScreen = ({ navigation }) => {
       },
     };
 
-    ImagePicker.launchImageLibrary(options, (response) => {
+    ImagePicker.launchImageLibrary(options).then((response) => {
       if (response.didCancel) {
         console.log('User cancelled image picker');
       } else if (response.errorCode) {
