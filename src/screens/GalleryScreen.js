@@ -33,20 +33,39 @@ const GALLERY_APPROVALS_COLLECTION = 'galleryApprovals'
 const FEATURED_IMAGES_COLLECTION = 'featuredImages'
 
 const Colors = {
-  primary: '#0D47A1',       // Dark Blue
-  secondary: '#1565C0',     // Medium Blue
-  accent: '#42A5F5',        // Lighter Blue
-  background: '',    // Very Light Blue Background
-  textPrimary: '#1A237E',   // Deep Navy Text
-  textSecondary: '#2196F3', // Sky Blue Text
-  error: '#E57373',         // Light Red Error
-  success: '#81C784',       // Light Green Success
-  lightBackground: '#BBDEFB', // Lighter Blue for sections
-  white: '#FFFFFF',         // White
-  black: '#000000',         // Black
-  gray: '#90CAF9',          // Light Blue Gray
-  darkGray: '#455A64',      // Darker Gray for borders/separators
-  overlay: 'rgba(13, 71, 161, 0.7)' // Semi-transparent dark blue overlay
+  // Primary Purple-Blue Gradient
+  primary: '#6B46C1',           // Deep Purple
+  secondary: '#8B5CF6',         // Medium Purple
+  accent: '#A78BFA',            // Light Purple
+  tertiary: '#3B82F6',          // Bright Blue
+  
+  // Background Colors
+  background: '#F8FAFF',        // Very Light Blue-White
+  lightBackground: '#EDE9FE',   // Light Purple Background
+  cardBackground: '#FFFFFF',    // Pure White for cards
+  
+  // Text Colors
+  textPrimary: '#4C1D95',       // Deep Purple Text
+  textSecondary: '#6366F1',     // Indigo Text
+  textLight: '#9CA3AF',         // Light Gray Text
+  
+  // Status Colors
+  error: '#EF4444',             // Red Error
+  success: '#10B981',           // Green Success
+  warning: '#F59E0B',           // Amber Warning
+  
+  // Neutral Colors
+  white: '#FFFFFF',
+  black: '#000000',
+  gray: '#E5E7EB',              // Light Gray
+  darkGray: '#6B7280',          // Dark Gray
+  
+  // Special Effects
+  overlay: 'rgba(107, 70, 193, 0.8)',     // Purple overlay
+  shadowColor: 'rgba(107, 70, 193, 0.3)', // Purple shadow
+  gradientStart: '#6B46C1',     // Purple
+  gradientMiddle: '#8B5CF6',    // Medium Purple
+  gradientEnd: '#3B82F6',       // Blue
 }
 
 const { width, height: windowHeight } = Dimensions.get("window")
@@ -506,8 +525,14 @@ const GalleryScreen = ({ navigation }) => {
     if (featuredImages.length === 0) {
       return (
         <View style={styles.featuredPlaceholder}>
-          <MaterialIcons name="photo-library" size={48} color="#AAAAAA" />
-          <Text style={styles.featuredPlaceholderText}>No featured images</Text>
+          <LinearGradient
+            colors={[Colors.lightBackground, Colors.cardBackground]}
+            style={styles.placeholderGradient}
+          >
+            <MaterialIcons name="photo-library" size={64} color={Colors.accent} />
+            <Text style={styles.featuredPlaceholderText}>No featured images</Text>
+            <Text style={styles.featuredPlaceholderSubtext}>Add some images to get started</Text>
+          </LinearGradient>
         </View>
       )
     }
@@ -528,8 +553,12 @@ const GalleryScreen = ({ navigation }) => {
             <Image 
               source={{ uri: `data:image/jpeg;base64,${item.image}` }} 
               style={styles.carouselBackgroundImage} 
-              blurRadius={10}
+              blurRadius={15}
               resizeMode="cover"
+            />
+            <LinearGradient
+              colors={[Colors.overlay, 'transparent', Colors.overlay]}
+              style={styles.carouselBackgroundOverlay}
             />
           </View>
         ))}
@@ -555,9 +584,16 @@ const GalleryScreen = ({ navigation }) => {
                 style={styles.carouselImage} 
                 resizeMode="contain"
               />
-              <View style={styles.carouselOverlay}>
+              <LinearGradient
+                colors={['transparent', 'transparent', Colors.overlay]}
+                style={styles.carouselOverlay}
+              >
                 <Text style={styles.carouselTitle}>{item.title || 'Featured Image'}</Text>
-              </View>
+                <View style={styles.carouselBadge}>
+                  <MaterialIcons name="star" size={16} color={Colors.white} />
+                  <Text style={styles.carouselBadgeText}>Featured</Text>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
           ))}
         </View>
@@ -574,13 +610,16 @@ const GalleryScreen = ({ navigation }) => {
     return (
       <View style={styles.albumsSection}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Albums</Text>
+          <View style={styles.sectionTitleContainer}>
+            <MaterialIcons name="folder" size={28} color={Colors.primary} />
+            <Text style={styles.sectionTitle}>Albums</Text>
+          </View>
           <TouchableOpacity 
             style={styles.createAlbumButtonContainer}
             onPress={handleCreateAlbum}
           >
             <LinearGradient
-              colors={[Colors.primary, Colors.secondary]}
+              colors={[Colors.gradientStart, Colors.gradientMiddle, Colors.gradientEnd]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.createAlbumButton}
@@ -598,9 +637,12 @@ const GalleryScreen = ({ navigation }) => {
               style={styles.albumItem}
               onPress={() => navigation.navigate('AlbumScreen', { album })}
             >
-              <View style={styles.albumIconContainer}>
-                <MaterialIcons name="folder" size={40} color="#FFC107" />
-              </View>
+              <LinearGradient
+                colors={[Colors.accent, Colors.secondary]}
+                style={styles.albumIconContainer}
+              >
+                <MaterialIcons name="folder" size={40} color={Colors.white} />
+              </LinearGradient>
               <Text style={styles.albumName} numberOfLines={1}>{album.name}</Text>
             </TouchableOpacity>
           ))}
@@ -611,14 +653,19 @@ const GalleryScreen = ({ navigation }) => {
             style={styles.expandButton}
             onPress={() => setAlbumsExpanded(!albumsExpanded)}
           >
-            <Text style={styles.expandButtonText}>
-              {albumsExpanded ? 'Show Less' : `Show All (${albums.length})`}
-            </Text>
-            <MaterialIcons 
-              name={albumsExpanded ? "expand-less" : "expand-more"} 
-              size={20} 
-              color={Colors.primary} 
-            />
+            <LinearGradient
+              colors={[Colors.lightBackground, Colors.cardBackground]}
+              style={styles.expandButtonGradient}
+            >
+              <Text style={styles.expandButtonText}>
+                {albumsExpanded ? 'Show Less' : `Show All (${albums.length})`}
+              </Text>
+              <MaterialIcons 
+                name={albumsExpanded ? "expand-less" : "expand-more"} 
+                size={20} 
+                color={Colors.primary} 
+              />
+            </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
@@ -764,23 +811,35 @@ const GalleryScreen = ({ navigation }) => {
         source={{ uri: `data:image/jpeg;base64,${item.image}` }} 
         style={styles.galleryImage} 
       />
-      <View style={styles.galleryItemOverlay}>
+      <LinearGradient
+        colors={['transparent', Colors.overlay]}
+        style={styles.galleryItemOverlay}
+      >
         <Text style={styles.galleryItemTitle}>{item.title}</Text>
-      </View>
+      </LinearGradient>
     </TouchableOpacity>
   )
 
   const renderGallerySection = () => (
     <View style={styles.gallerySection}>
-      <Text style={styles.sectionTitle}>Recent Images</Text>
+      <View style={styles.sectionTitleContainer}>
+        <MaterialIcons name="photo" size={28} color={Colors.primary} />
+        <Text style={styles.sectionTitle}>Recent Images</Text>
+      </View>
       
       <View style={styles.galleryContainer}>
         {images.map(item => renderGalleryItem(item))}
         
         {images.length === 0 && (
           <View style={styles.emptyGallery}>
-            <MaterialIcons name="photo" size={48} color="#AAAAAA" />
-            <Text style={styles.emptyGalleryText}>No images yet</Text>
+            <LinearGradient
+              colors={[Colors.lightBackground, Colors.cardBackground]}
+              style={styles.emptyGalleryGradient}
+            >
+              <MaterialIcons name="photo" size={64} color={Colors.accent} />
+              <Text style={styles.emptyGalleryText}>No images yet</Text>
+              <Text style={styles.emptyGallerySubtext}>Start by uploading your first image</Text>
+            </LinearGradient>
           </View>
         )}
       </View>
@@ -1035,12 +1094,12 @@ const GalleryScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[Colors.primary, Colors.secondary]}
+        colors={[Colors.gradientStart, Colors.gradientMiddle, Colors.gradientEnd]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>Gallery Kelas</Text>
+        <Text style={styles.headerTitle}>✨ Gallery Kelas</Text>
         <View style={styles.headerButtons}>
           {isAdmin && (
             <TouchableOpacity 
@@ -1055,8 +1114,13 @@ const GalleryScreen = ({ navigation }) => {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading gallery...</Text>
+          <LinearGradient
+            colors={[Colors.lightBackground, Colors.cardBackground]}
+            style={styles.loadingGradient}
+          >
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loadingText}>Loading gallery...</Text>
+          </LinearGradient>
         </View>
       ) : (
         <View style={{flex: 1}}>
@@ -1085,9 +1149,12 @@ const GalleryScreen = ({ navigation }) => {
         onPress={handleAddImage}
         activeOpacity={0.8}
       >
-        <View style={styles.addButtonInner}>
-          <MaterialIcons name="add-photo-alternate" size={32} color="#FFFFFF" />
-        </View>
+        <LinearGradient
+          colors={[Colors.gradientStart, Colors.gradientMiddle, Colors.gradientEnd]}
+          style={styles.addButtonInner}
+        >
+          <MaterialIcons name="add-photo-alternate" size={32} color={Colors.white} />
+        </LinearGradient>
       </TouchableOpacity>
       
       {/* Upload Image Modal */}
@@ -1099,7 +1166,10 @@ const GalleryScreen = ({ navigation }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+            <LinearGradient
+              colors={[Colors.gradientStart, Colors.gradientEnd]}
+              style={styles.modalHeader}
+            >
               {isAdmin && (
                 <TouchableOpacity
                   style={styles.approvalButtonInModal}
@@ -1119,9 +1189,9 @@ const GalleryScreen = ({ navigation }) => {
                   setSelectedPhoto(null)
                 }}
               >
-                <MaterialIcons name="close" size={24} color="#000000" />
+                <MaterialIcons name="close" size={24} color={Colors.white} />
               </TouchableOpacity>
-            </View>
+            </LinearGradient>
             
             {selectedPhoto ? (
               <View style={styles.photoPreviewContainer}>
@@ -1133,8 +1203,13 @@ const GalleryScreen = ({ navigation }) => {
                   style={styles.retakeButton}
                   onPress={() => setSelectedPhoto(null)}
                 >
-                  <MaterialIcons name="refresh" size={20} color="#FFFFFF" />
-                  <Text style={styles.retakeButtonText}>Change</Text>
+                  <LinearGradient
+                    colors={[Colors.accent, Colors.secondary]}
+                    style={styles.retakeButtonGradient}
+                  >
+                    <MaterialIcons name="refresh" size={20} color={Colors.white} />
+                    <Text style={styles.retakeButtonText}>Change</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -1143,16 +1218,26 @@ const GalleryScreen = ({ navigation }) => {
                   style={styles.photoOptionButton}
                   onPress={takePhoto}
                 >
-                  <MaterialIcons name="camera-alt" size={40} color={Colors.primary} />
-                  <Text style={styles.photoOptionText}>Take Photo</Text>
+                  <LinearGradient
+                    colors={[Colors.lightBackground, Colors.cardBackground]}
+                    style={styles.photoOptionGradient}
+                  >
+                    <MaterialIcons name="camera-alt" size={40} color={Colors.primary} />
+                    <Text style={styles.photoOptionText}>Take Photo</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
                   style={styles.photoOptionButton}
                   onPress={pickPhoto}
                 >
-                  <MaterialIcons name="photo-library" size={40} color={Colors.primary} />
-                  <Text style={styles.photoOptionText}>Choose from Gallery</Text>
+                  <LinearGradient
+                    colors={[Colors.lightBackground, Colors.cardBackground]}
+                    style={styles.photoOptionGradient}
+                  >
+                    <MaterialIcons name="photo-library" size={40} color={Colors.primary} />
+                    <Text style={styles.photoOptionText}>Choose from Gallery</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             )}
@@ -1195,6 +1280,7 @@ const GalleryScreen = ({ navigation }) => {
                 <TextInput
                   style={styles.titleInput}
                   placeholder="Enter image title"
+                  placeholderTextColor={Colors.textLight}
                   value={newImageTitle}
                   onChangeText={setNewImageTitle}
                   maxLength={50}
@@ -1211,14 +1297,19 @@ const GalleryScreen = ({ navigation }) => {
                 onPress={submitImage}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <MaterialIcons name="cloud-upload" size={20} color="#FFFFFF" />
-                    <Text style={styles.submitButtonText}>Upload Image</Text>
-                  </>
-                )}
+                <LinearGradient
+                  colors={[Colors.gradientStart, Colors.gradientEnd]}
+                  style={styles.submitButtonGradient}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color={Colors.white} />
+                  ) : (
+                    <>
+                      <MaterialIcons name="cloud-upload" size={20} color={Colors.white} />
+                      <Text style={styles.submitButtonText}>Upload Image</Text>
+                    </>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             )}
           </View>
@@ -1234,7 +1325,10 @@ const GalleryScreen = ({ navigation }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.albumModalContent}>
-            <View style={styles.modalHeader}>
+            <LinearGradient
+              colors={[Colors.gradientStart, Colors.gradientEnd]}
+              style={styles.modalHeader}
+            >
               <Text style={styles.modalTitle}>Create New Album</Text>
               <TouchableOpacity 
                 style={styles.closeButton}
@@ -1243,26 +1337,34 @@ const GalleryScreen = ({ navigation }) => {
                   setNewAlbumName("")
                 }}
               >
-                <MaterialIcons name="close" size={24} color="#000000" />
+                <MaterialIcons name="close" size={24} color={Colors.white} />
+              </TouchableOpacity>
+            </LinearGradient>
+            
+            <View style={styles.albumFormContainer}>
+              <Text style={styles.albumNameLabel}>Album Name:</Text>
+              <TextInput
+                style={styles.albumNameInput}
+                value={newAlbumName}
+                onChangeText={setNewAlbumName}
+                placeholder="Enter album name"
+                placeholderTextColor={Colors.textLight}
+                maxLength={30}
+              />
+              
+              <TouchableOpacity 
+                style={styles.createButton}
+                onPress={submitNewAlbum}
+              >
+                <LinearGradient
+                  colors={[Colors.gradientStart, Colors.gradientEnd]}
+                  style={styles.createButtonGradient}
+                >
+                  <MaterialIcons name="create-new-folder" size={20} color={Colors.white} />
+                  <Text style={styles.createButtonText}>Create Album</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
-            
-            <Text style={styles.albumNameLabel}>Album Name:</Text>
-            <TextInput
-              style={styles.albumNameInput}
-              value={newAlbumName}
-              onChangeText={setNewAlbumName}
-              placeholder="Enter album name"
-              maxLength={30}
-            />
-            
-            <TouchableOpacity 
-              style={styles.createButton}
-              onPress={submitNewAlbum}
-            >
-              <MaterialIcons name="create-new-folder" size={20} color="#FFFFFF" />
-              <Text style={styles.createButtonText}>Create Album</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1327,7 +1429,12 @@ const GalleryScreen = ({ navigation }) => {
               style={styles.actionMenuCancel}
               onPress={() => setImageActionMenuVisible(false)}
             >
-              <Text style={styles.actionMenuCancelText}>Cancel</Text>
+              <LinearGradient
+                colors={[Colors.lightBackground, Colors.cardBackground]}
+                style={styles.actionMenuCancelGradient}
+              >
+                <Text style={styles.actionMenuCancelText}>Cancel</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -1342,15 +1449,18 @@ const GalleryScreen = ({ navigation }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.albumSelectionModal}>
-            <View style={styles.albumSelectionHeader}>
+            <LinearGradient
+              colors={[Colors.gradientStart, Colors.gradientEnd]}
+              style={styles.albumSelectionHeader}
+            >
               <Text style={styles.albumSelectionTitle}>Move to Album</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setMoveToAlbumVisible(false)}
               >
-                <MaterialIcons name="close" size={24} color="#000000" />
+                <MaterialIcons name="close" size={24} color={Colors.white} />
               </TouchableOpacity>
-            </View>
+            </LinearGradient>
             
             <ScrollView style={styles.albumSelectionList}>
               <TouchableOpacity
@@ -1367,7 +1477,7 @@ const GalleryScreen = ({ navigation }) => {
                   style={styles.albumSelectionItem}
                   onPress={() => moveImageToAlbum(selectedGalleryImage, album.id)}
                 >
-                  <MaterialIcons name="folder" size={30} color="#FFC107" />
+                  <MaterialIcons name="folder" size={30} color={Colors.accent} />
                   <Text style={styles.albumSelectionItemText}>{album.name}</Text>
                 </TouchableOpacity>
               ))}
@@ -1385,7 +1495,10 @@ const GalleryScreen = ({ navigation }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.imageDetailContainer}>
-            <View style={styles.imageDetailHeader}>
+            <LinearGradient
+              colors={[Colors.gradientStart, Colors.gradientEnd]}
+              style={styles.imageDetailHeader}
+            >
               <Text style={styles.imageDetailTitle}>
                 {selectedGalleryImage?.title || 'Image Details'}
               </Text>
@@ -1393,9 +1506,9 @@ const GalleryScreen = ({ navigation }) => {
                 style={styles.closeButton}
                 onPress={() => setImageDetailVisible(false)}
               >
-                <MaterialIcons name="close" size={24} color="#000000" />
+                <MaterialIcons name="close" size={24} color={Colors.white} />
               </TouchableOpacity>
-            </View>
+            </LinearGradient>
             
             {selectedGalleryImage && (
               <>
@@ -1458,15 +1571,18 @@ const GalleryScreen = ({ navigation }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.editContainer}>
-            <View style={styles.modalHeader}>
+            <LinearGradient
+              colors={[Colors.gradientStart, Colors.gradientEnd]}
+              style={styles.modalHeader}
+            >
               <Text style={styles.modalTitle}>Edit Image</Text>
               <TouchableOpacity 
                 style={styles.closeButton}
                 onPress={() => setEditModalVisible(false)}
               >
-                <MaterialIcons name="close" size={24} color="#000000" />
+                <MaterialIcons name="close" size={24} color={Colors.white} />
               </TouchableOpacity>
-            </View>
+            </LinearGradient>
             
             {selectedGalleryImage && (
               <>
@@ -1485,6 +1601,7 @@ const GalleryScreen = ({ navigation }) => {
                     value={editImageTitle}
                     onChangeText={setEditImageTitle}
                     placeholder="Enter image title"
+                    placeholderTextColor={Colors.textLight}
                     maxLength={50}
                   />
                 </View>
@@ -1502,11 +1619,16 @@ const GalleryScreen = ({ navigation }) => {
                     onPress={updateImageTitle}
                     disabled={loading}
                   >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.saveEditText}>Save</Text>
-                    )}
+                    <LinearGradient
+                      colors={[Colors.gradientStart, Colors.gradientEnd]}
+                      style={styles.saveEditButtonGradient}
+                    >
+                      {loading ? (
+                        <ActivityIndicator size="small" color={Colors.white} />
+                      ) : (
+                        <Text style={styles.saveEditText}>Save</Text>
+                      )}
+                    </LinearGradient>
                   </TouchableOpacity>
                 </View>
               </>
@@ -1557,7 +1679,12 @@ const GalleryScreen = ({ navigation }) => {
                 startCarouselTimer() // Resume carousel on cancel
               }}
             >
-              <Text style={styles.actionMenuCancelText}>Cancel</Text>
+              <LinearGradient
+                colors={[Colors.lightBackground, Colors.cardBackground]}
+                style={styles.actionMenuCancelGradient}
+              >
+                <Text style={styles.actionMenuCancelText}>Cancel</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -1572,15 +1699,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   approvalButtonInModal: {
-    backgroundColor: Colors.lightBackground,
+    backgroundColor: Colors.cardBackground,
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 15,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: Colors.primary,
+    elevation: 3,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   header: {
     flexDirection: "row",
@@ -1589,20 +1721,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 55 : 40,
     paddingBottom: 25,
-    backgroundColor: Colors.primary,
     elevation: 8,
-    shadowColor: Colors.black,
+    shadowColor: Colors.shadowColor,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    borderBottomLeftRadius: 36,
-    borderBottomRightRadius: 36,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: 26,
+    fontWeight: "900",
     color: Colors.white,
     letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+    textAlign: 'center',
   },
   headerButtons: {
     flexDirection: 'row',
@@ -1610,7 +1745,7 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
   },
   approvalsButton: {
-    backgroundColor: Colors.accent,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -1618,7 +1753,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 0,
     elevation: 4,
-    shadowColor: Colors.black,
+    shadowColor: Colors.shadowColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -1628,29 +1763,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.background,
+    padding: 20,
+  },
+  loadingGradient: {
+    padding: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
   loadingText: {
     marginTop: 15,
     color: Colors.textSecondary,
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   contentContainer: {
     paddingBottom: 30,
   },
   carouselContainer: {
-    height: 300,
-    width: '100%',
-    marginBottom: 20,
-    borderRadius: 16,
+    height: 320,
+    width: width - 32,
+    marginBottom: 24,
+    borderRadius: 20,
     overflow: 'hidden',
     marginHorizontal: 16,
-    elevation: 6,
-    backgroundColor: Colors.lightBackground,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    marginTop: 20,
+    elevation: 8,
+    backgroundColor: Colors.cardBackground,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
   },
   carouselBackgroundItem: {
     position: 'absolute',
@@ -1662,6 +1809,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  carouselBackgroundOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   carouselItemContainer: {
     width: '100%', 
     height: '100%',
@@ -1669,7 +1823,7 @@ const styles = StyleSheet.create({
   },
   carouselItem: {
     width: width - 32,
-    height: 280,
+    height: 300,
     position: 'absolute',
   },
   carouselImage: {
@@ -1681,18 +1835,33 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.overlay,
     padding: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
   carouselTitle: {
     color: Colors.white,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
+    marginBottom: 8,
+  },
+  carouselBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    alignSelf: 'flex-start',
+  },
+  carouselBadgeText: {
+    color: Colors.white,
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 4,
   },
   carouselIndicators: {
     position: 'absolute',
@@ -1718,26 +1887,46 @@ const styles = StyleSheet.create({
     width: 24,
     height: 8,
     borderRadius: 4,
+    elevation: 2,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
   },
   featuredPlaceholder: {
-    height: 300,
+    height: 320,
     width: width - 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.lightPurple,
     marginBottom: 24,
     borderRadius: 20,
-    marginVertical: 25,
+    marginVertical: 20,
     marginHorizontal: 16,
+    overflow: 'hidden',
+    elevation: 6,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  placeholderGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 2,
     borderColor: Colors.accent,
     borderStyle: 'dashed',
+    borderRadius: 20,
   },
   featuredPlaceholderText: {
     marginTop: 12,
-    fontSize: 18,
-    color: Colors.accent,
-    fontWeight: '600',
+    fontSize: 20,
+    color: Colors.primary,
+    fontWeight: 'bold',
+  },
+  featuredPlaceholderSubtext: {
+    marginTop: 4,
+    fontSize: 14,
+    color: Colors.textLight,
+    fontWeight: '500',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1747,21 +1936,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 12,
   },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   sectionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: Colors.primary,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.accent,
-    paddingLeft: 16,
+    marginLeft: 12,
   },
   createAlbumButtonContainer: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
-    elevation: 3,
-    shadowColor: Colors.black,
+    elevation: 4,
+    shadowColor: Colors.shadowColor,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
   },
   createAlbumButton: {
@@ -1769,8 +1960,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
   createAlbumText: {
     color: Colors.white,
@@ -1780,14 +1971,14 @@ const styles = StyleSheet.create({
   },
   albumsSection: {
     marginBottom: 24,
-    backgroundColor: Colors.lightBackground,
-    paddingVertical: 20,
+    backgroundColor: Colors.cardBackground,
+    paddingVertical: 24,
     borderRadius: 20,
     marginHorizontal: 16,
-    elevation: 4,
-    shadowColor: Colors.white,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    elevation: 6,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
     shadowRadius: 8,
   },
   albumsGrid: {
@@ -1807,12 +1998,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
-    backgroundColor: Colors.primary,
     borderRadius: 16,
-    elevation: 3,
-    shadowColor: Colors.black,
+    elevation: 4,
+    shadowColor: Colors.shadowColor,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
   },
   albumName: {
@@ -1822,14 +2012,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   expandButton: {
+    marginHorizontal: 20,
+    borderRadius: 25,
+    marginTop: 12,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  expandButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    backgroundColor: Colors.lightBackground,
-    marginHorizontal: 20,
     borderRadius: 25,
-    marginTop: 12,
   },
   expandButtonText: {
     color: Colors.primary,
@@ -1839,14 +2037,14 @@ const styles = StyleSheet.create({
   },
   gallerySection: {
     paddingHorizontal: 16,
-    backgroundColor: Colors.lightBackground,
+    backgroundColor: Colors.cardBackground,
     borderRadius: 20,
     marginHorizontal: 16,
-    paddingVertical: 20,
-    elevation: 4,
-    shadowColor: Colors.white,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    paddingVertical: 24,
+    elevation: 6,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
     shadowRadius: 8,
   },
   galleryContainer: {
@@ -1860,119 +2058,181 @@ const styles = StyleSheet.create({
     width: "48%",
     aspectRatio: 1,
     marginBottom: "4%",
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: "hidden",
     position: "relative",
-    elevation: 4,
-    backgroundColor: Colors.white,
-    shadowColor: Colors.black,
+    elevation: 6,
+    backgroundColor: Colors.cardBackground,
+    shadowColor: Colors.shadowColor,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
   },
   galleryImage: {
     width: "100%",
     height: "100%",
   },
+  galleryItemOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 12,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
   galleryItemTitle: {
     color: Colors.white,
     fontWeight: "bold",
     fontSize: 14,
-    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
   emptyGallery: {
     width: '100%',
     height: 200,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  emptyGalleryGradient: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.accent,
+    borderStyle: 'dashed',
+    borderRadius: 16,
   },
   emptyGalleryText: {
     marginTop: 15,
     color: Colors.textSecondary,
     fontSize: 18,
+    fontWeight: '600',
+  },
+  emptyGallerySubtext: {
+    marginTop: 4,
+    color: Colors.textLight,
+    fontSize: 14,
     fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: Colors.cardBackground,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingBottom: Platform.OS === 'ios' ? 36 : 16,
     minHeight: 300,
     width: '100%',
-    paddingHorizontal: 20,
+    elevation: 10,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   albumModalContent: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: Colors.cardBackground,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingBottom: Platform.OS === 'ios' ? 36 : 16,
-    minHeight: 240,
+    minHeight: 280,
     width: '100%',
-    paddingHorizontal: 20,
+    elevation: 10,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.primary,
+    color: Colors.white,
   },
   closeButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   photoOptions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 24,
+    paddingHorizontal: 20,
   },
   photoOptionButton: {
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: Colors.lightBackground,
-    borderRadius: 12,
     width: '45%',
-    elevation: 2,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  photoOptionGradient: {
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 16,
   },
   photoOptionText: {
     marginTop: 8,
     fontSize: 14,
     color: Colors.primary,
-    fontWeight: '500',
+    fontWeight: '600',
     textAlign: 'center',
   },
   photoPreviewContainer: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
   },
   photoPreview: {
     width: '90%',
     aspectRatio: 1,
-    borderRadius: 12,
-    borderWidth: 2,
+    borderRadius: 16,
+    borderWidth: 3,
     borderColor: Colors.primary,
+    elevation: 4,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   retakeButton: {
+    marginTop: 16,
+    borderRadius: 25,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  retakeButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.accent,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
-    marginTop: 16,
-    elevation: 2,
   },
   retakeButtonText: {
     color: Colors.white,
@@ -1982,12 +2242,13 @@ const styles = StyleSheet.create({
   },
   albumSelection: {
     paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   albumSelectionLabel: {
     fontSize: 16,
     marginBottom: 12,
     color: Colors.primary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   albumOptionsList: {
     flexDirection: 'row',
@@ -1997,11 +2258,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: Colors.lightBlue,
+    backgroundColor: Colors.lightBackground,
     marginRight: 8,
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.secondary,
+    borderWidth: 2,
+    borderColor: Colors.accent,
   },
   albumOptionSelected: {
     backgroundColor: Colors.secondary,
@@ -2010,17 +2271,25 @@ const styles = StyleSheet.create({
   albumOptionText: {
     fontSize: 14,
     color: Colors.white,
+    fontWeight: '600',
   },
   submitButton: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  submitButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
     paddingVertical: 16,
-    marginHorizontal: 0,
-    borderRadius: 12,
-    marginTop: 24,
-    elevation: 2,
+    borderRadius: 16,
   },
   submitButtonDisabled: {
     opacity: 0.7,
@@ -2031,30 +2300,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 8,
   },
+  albumFormContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
   albumNameLabel: {
     fontSize: 16,
-    marginTop: 16,
+    marginBottom: 8,
     color: Colors.primary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   albumNameInput: {
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 8,
+    borderWidth: 2,
+    borderColor: Colors.accent,
+    borderRadius: 16,
+    padding: 16,
     fontSize: 16,
     backgroundColor: Colors.lightBackground,
+    color: Colors.textPrimary,
   },
   createButton: {
+    marginTop: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  createButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.secondary,
     paddingVertical: 16,
-    marginTop: 30,
-    borderRadius: 12,
-    elevation: 2,
+    borderRadius: 16,
   },
   createButtonText: {
     color: Colors.white,
@@ -2067,12 +2347,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    backgroundColor: Colors.cardBackground,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     overflow: 'hidden',
-    elevation: 5,
+    elevation: 10,
     paddingBottom: Platform.OS === 'ios' ? 20 : 0,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   actionMenuItem: {
     flexDirection: 'row',
@@ -2085,11 +2369,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 16,
     color: Colors.textPrimary,
+    fontWeight: '500',
   },
   actionMenuCancel: {
-    padding: 16,
     alignItems: 'center',
-    backgroundColor: Colors.lightBackground,
+    borderRadius: 16,
+    margin: 16,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  actionMenuCancelGradient: {
+    padding: 16,
+    width: '100%',
+    alignItems: 'center',
+    borderRadius: 16,
   },
   actionMenuCancelText: {
     fontSize: 16,
@@ -2098,41 +2395,47 @@ const styles = StyleSheet.create({
   },
   titleInputContainer: {
     marginTop: 16,
+    paddingHorizontal: 20,
   },
   titleInputLabel: {
     fontSize: 16,
     color: Colors.primary,
     marginBottom: 8,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   titleInput: {
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    borderRadius: 12,
-    padding: 12,
+    borderWidth: 2,
+    borderColor: Colors.accent,
+    borderRadius: 16,
+    padding: 16,
     fontSize: 16,
     color: Colors.textPrimary,
     backgroundColor: Colors.lightBackground,
   },
   albumSelectionModal: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 20,
     width: '90%',
     maxHeight: '80%',
-    elevation: 5,
+    elevation: 10,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    overflow: 'hidden',
   },
   albumSelectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray,
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   albumSelectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.primary,
+    color: Colors.white,
   },
   albumSelectionList: {
     paddingVertical: 8,
@@ -2142,29 +2445,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.lightBlue,
+    borderBottomColor: Colors.gray,
   },
   albumSelectionItemText: {
     fontSize: 16,
     marginLeft: 16,
     color: Colors.textPrimary,
+    fontWeight: '500',
   },
   imageDetailContainer: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 20,
     width: '90%',
     maxHeight: '90%',
     overflow: 'hidden',
-    elevation: 5,
+    elevation: 10,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   imageDetailHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray,
-    backgroundColor: Colors.primary,
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   imageDetailTitle: {
     fontSize: 18,
@@ -2183,14 +2490,16 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   imageMetadata: {
-    padding: 16,
+    padding: 20,
   },
   metadataItem: {
     flexDirection: 'row',
     marginBottom: 12,
-    backgroundColor: Colors.lightBlue,
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: Colors.lightBackground,
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.accent,
   },
   metadataLabel: {
     width: 100,
@@ -2202,6 +2511,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: Colors.textPrimary,
+    fontWeight: '500',
   },
   deleteMenuItem: {
     borderTopWidth: 1,
@@ -2211,11 +2521,15 @@ const styles = StyleSheet.create({
     color: Colors.error,
   },
   editContainer: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 20,
     width: '90%',
     overflow: 'hidden',
-    elevation: 5,
+    elevation: 10,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   editPreview: {
     width: '100%',
@@ -2229,26 +2543,27 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   editField: {
-    padding: 16,
+    padding: 20,
   },
   editLabel: {
     fontSize: 16,
     marginBottom: 8,
     color: Colors.primary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   editInput: {
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    borderRadius: 12,
-    padding: 12,
+    borderWidth: 2,
+    borderColor: Colors.accent,
+    borderRadius: 16,
+    padding: 16,
     fontSize: 16,
     backgroundColor: Colors.lightBackground,
+    color: Colors.textPrimary,
   },
   editButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    padding: 16,
+    padding: 20,
     borderTopWidth: 1,
     borderTopColor: Colors.gray,
   },
@@ -2256,20 +2571,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginRight: 8,
-    backgroundColor: Colors.lightRed,
-    borderRadius: 8,
+    backgroundColor: Colors.lightBackground,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.accent,
   },
   cancelEditText: {
     fontSize: 16,
-    color: Colors.accent,
+    color: Colors.primary,
     fontWeight: 'bold',
   },
   saveEditButton: {
-    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  saveEditButtonGradient: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
-    elevation: 2,
+    borderRadius: 12,
   },
   saveEditText: {
     fontSize: 16,
@@ -2288,18 +2612,17 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 40,
-    backgroundColor: Colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.black,
+    shadowColor: Colors.shadowColor,
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 6,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-    borderWidth: 3,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 12,
+    borderWidth: 4,
     borderColor: Colors.white,
   },
 })

@@ -12,6 +12,7 @@ import {
   Dimensions,
   BackHandler,
   StatusBar,
+  Animated,
 } from "react-native"
 import Icon from "react-native-vector-icons/MaterialCommunityIcons"
 import firestore from "@react-native-firebase/firestore"
@@ -23,9 +24,9 @@ import { t } from "../translations"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useFocusEffect } from "@react-navigation/native"
 
-const { width } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window")
 
-// Updated color palette - same as previous screen
+// Enhanced color palette with more vibrant colors
 const AppColors = {
   primary: "#6200EA", // Deep Purple
   primaryLight: "#B388FF", // Light Purple
@@ -40,6 +41,12 @@ const AppColors = {
   divider: "#E0E0E0", // Light Gray
   success: "#00C853", // Green
   warning: "#FFD600", // Yellow
+  gold: "#FFD700",
+  silver: "#C0C0C0",
+  bronze: "#CD7F32",
+  podiumGold: "#FFF8DC",
+  podiumSilver: "#F5F5F5",
+  podiumBronze: "#FDF5E6",
 }
 
 const AiMaterialDetails = ({ route, navigation }) => {
@@ -59,9 +66,79 @@ const AiMaterialDetails = ({ route, navigation }) => {
   const [scoresLoading, setScoresLoading] = useState(false)
   const [scores, setScores] = useState([])
   const [userHasAttempted, setUserHasAttempted] = useState(false)
+  const [selectedPodiumUser, setSelectedPodiumUser] = useState(null)
+  
+  // Animation values
+  const [podiumAnimations] = useState({
+    first: new Animated.Value(0),
+    second: new Animated.Value(0),
+    third: new Animated.Value(0),
+    crown: new Animated.Value(0),
+  })
 
   const { classId: contextClassId, currentClass } = useClass()
   const currentUser = auth().currentUser
+
+  // Animate podium entrance
+  useEffect(() => {
+    if (scores.length > 0 && activeTab === "scoreboard") {
+      // Reset animations
+      Object.values(podiumAnimations).forEach(anim => anim.setValue(0))
+      
+      // Animate podiums with staggered timing
+      const animations = []
+      
+      if (scores.length > 1) {
+        animations.push(
+          Animated.spring(podiumAnimations.second, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 100,
+            friction: 8,
+          })
+        )
+      }
+      
+      if (scores.length > 0) {
+        animations.push(
+          Animated.spring(podiumAnimations.first, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 100,
+            friction: 8,
+            delay: 200,
+          })
+        )
+      }
+      
+      if (scores.length > 2) {
+        animations.push(
+          Animated.spring(podiumAnimations.third, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 100,
+            friction: 8,
+            delay: 100,
+          })
+        )
+      }
+      
+      // Crown animation
+      animations.push(
+        Animated.sequence([
+          Animated.delay(600),
+          Animated.spring(podiumAnimations.crown, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 150,
+            friction: 4,
+          })
+        ])
+      )
+      
+      Animated.parallel(animations).start()
+    }
+  }, [scores, activeTab])
 
   // Handle back button presses during quiz
   useFocusEffect(
@@ -389,6 +466,25 @@ const AiMaterialDetails = ({ route, navigation }) => {
     }
   }
 
+  const handlePodiumUserPress = (user, rank) => {
+    setSelectedPodiumUser({ ...user, rank })
+    
+    // Haptic feedback would go here if available
+    // Vibration.vibrate(50)
+    
+    Alert.alert(
+      `🏆 ${rank === 1 ? 'Champion' : rank === 2 ? 'Runner-up' : 'Third Place'}`,
+      `${user.displayName}\n\n` +
+      `📊 Score: ${user.score?.toFixed(1)}%\n` +
+      `⏱️ Time: ${formatTime(user.completionTime || 0)}\n` +
+      `✨ XP Earned: ${user.earnedXP || 0}\n` +
+      `📅 Completed: ${formatDate(user.completedAt)}`,
+      [
+        { text: "Close", style: "cancel" }
+      ]
+    )
+  }
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -662,6 +758,337 @@ const AiMaterialDetails = ({ route, navigation }) => {
     )
   }
 
+  const renderEnhancedPodium = () => {
+    if (scores.length === 0) return null
+
+    return (
+      <View style={styles.enhancedPodiumContainer}>
+        {/* Background decorations */}
+        <View style={styles.podiumBackground}>
+          <LinearGradient
+            colors={['rgba(255, 215, 0, 0.1)', 'rgba(255, 215, 0, 0.05)', 'transparent']}
+            style={styles.backgroundGradient}
+          />
+          
+          {/* Floating particles/stars */}
+          <View style={[styles.floatingParticle, { top: 20, left: 30 }]}>
+            <Icon name="star" size={12} color={AppColors.gold} />
+          </View>
+          <View style={[styles.floatingParticle, { top: 40, right: 40 }]}>
+            <Icon name="star" size={8} color={AppColors.silver} />
+          </View>
+          <View style={[styles.floatingParticle, { top: 60, left: 60 }]}>
+            <Icon name="star" size={10} color={AppColors.bronze} />
+          </View>
+        </View>
+
+        {/* Podium Title */}
+        <View style={styles.podiumTitleContainer}>
+          <LinearGradient
+            colors={[AppColors.gold, '#FFA500']}
+            style={styles.podiumTitleGradient}
+          >
+            <Icon name="trophy" size={24} color="#FFFFFF" />
+            <Text style={styles.podiumTitle}>🏆 Top Performers</Text>
+          </LinearGradient>
+        </View>
+
+        {/* Main Podium */}
+        <View style={styles.podiumMainContainer}>
+          {/* Second Place */}
+          {scores.length > 1 && (
+            <Animated.View 
+              style={[
+                styles.podiumPosition,
+                styles.secondPosition,
+                {
+                  transform: [
+                    {
+                      translateY: podiumAnimations.second.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [100, 0],
+                      }),
+                    },
+                    {
+                      scale: podiumAnimations.second.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.8, 1],
+                      }),
+                    },
+                  ],
+                  opacity: podiumAnimations.second,
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.podiumUserContainer}
+                onPress={() => handlePodiumUserPress(scores[1], 2)}
+                activeOpacity={0.8}
+              >
+                {/* User Avatar */}
+                <View style={styles.podiumAvatarContainer}>
+                  <LinearGradient
+                    colors={[AppColors.silver, '#E8E8E8']}
+                    style={[styles.podiumAvatar, styles.secondAvatar]}
+                  >
+                    <Text style={styles.avatarText}>
+                      {scores[1].displayName?.charAt(0)?.toUpperCase() || '?'}
+                    </Text>
+                  </LinearGradient>
+                  
+                  {/* Medal */}
+                  <View style={[styles.medalContainer, styles.silverMedal]}>
+                    <Icon name="medal" size={20} color="#FFFFFF" />
+                    <Text style={styles.medalRank}>2</Text>
+                  </View>
+                </View>
+
+                {/* User Info */}
+                <View style={styles.podiumUserInfo}>
+                  <Text style={styles.podiumUserName} numberOfLines={1}>
+                    {scores[1].displayName}
+                  </Text>
+                  <Text style={styles.podiumUserScore}>
+                    {scores[1].score?.toFixed(0)}%
+                  </Text>
+                  <View style={styles.podiumUserStats}>
+                    <Icon name="clock-outline" size={12} color={AppColors.textSecondary} />
+                    <Text style={styles.podiumUserTime}>
+                      {formatTime(scores[1].completionTime || 0)}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Podium Stand */}
+              <LinearGradient
+                colors={[AppColors.silver, '#B8B8B8']}
+                style={[styles.podiumStand, styles.secondStand]}
+              >
+                <View style={styles.standTop}>
+                  <Text style={styles.standRank}>2</Text>
+                </View>
+                <View style={styles.standPattern}>
+                  {[...Array(3)].map((_, i) => (
+                    <View key={i} style={styles.standLine} />
+                  ))}
+                </View>
+              </LinearGradient>
+            </Animated.View>
+          )}
+
+          {/* First Place */}
+          {scores.length > 0 && (
+            <Animated.View 
+              style={[
+                styles.podiumPosition,
+                styles.firstPosition,
+                {
+                  transform: [
+                    {
+                      translateY: podiumAnimations.first.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [120, 0],
+                      }),
+                    },
+                    {
+                      scale: podiumAnimations.first.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.8, 1],
+                      }),
+                    },
+                  ],
+                  opacity: podiumAnimations.first,
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.podiumUserContainer}
+                onPress={() => handlePodiumUserPress(scores[0], 1)}
+                activeOpacity={0.8}
+              >
+                {/* Crown Animation */}
+                <Animated.View
+                  style={[
+                    styles.crownContainer,
+                    {
+                      transform: [
+                        {
+                          translateY: podiumAnimations.crown.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [-20, 0],
+                          }),
+                        },
+                        {
+                          rotate: podiumAnimations.crown.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['10deg', '0deg'],
+                          }),
+                        },
+                      ],
+                      opacity: podiumAnimations.crown,
+                    },
+                  ]}
+                >
+                  <LinearGradient
+                    colors={[AppColors.gold, '#FFA500']}
+                    style={styles.crown}
+                  >
+                    <Icon name="crown" size={24} color="#FFFFFF" />
+                  </LinearGradient>
+                </Animated.View>
+
+                {/* User Avatar */}
+                <View style={styles.podiumAvatarContainer}>
+                  <LinearGradient
+                    colors={[AppColors.gold, '#FFA500']}
+                    style={[styles.podiumAvatar, styles.firstAvatar]}
+                  >
+                    <Text style={[styles.avatarText, styles.firstAvatarText]}>
+                      {scores[0].displayName?.charAt(0)?.toUpperCase() || '?'}
+                    </Text>
+                  </LinearGradient>
+                  
+                  {/* Medal */}
+                  <View style={[styles.medalContainer, styles.goldMedal]}>
+                    <Icon name="trophy" size={22} color="#FFFFFF" />
+                    <Text style={styles.medalRank}>1</Text>
+                  </View>
+                </View>
+
+                {/* User Info */}
+                <View style={styles.podiumUserInfo}>
+                  <Text style={[styles.podiumUserName, styles.firstUserName]} numberOfLines={1}>
+                    {scores[0].displayName}
+                  </Text>
+                  <Text style={[styles.podiumUserScore, styles.firstUserScore]}>
+                    {scores[0].score?.toFixed(0)}%
+                  </Text>
+                  <View style={styles.podiumUserStats}>
+                    <Icon name="clock-outline" size={12} color={AppColors.textSecondary} />
+                    <Text style={styles.podiumUserTime}>
+                      {formatTime(scores[0].completionTime || 0)}
+                    </Text>
+                  </View>
+                  <View style={styles.championBadge}>
+                    <Icon name="star" size={12} color={AppColors.gold} />
+                    <Text style={styles.championText}>Champion</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Podium Stand */}
+              <LinearGradient
+                colors={[AppColors.gold, '#FFA500']}
+                style={[styles.podiumStand, styles.firstStand]}
+              >
+                <View style={styles.standTop}>
+                  <Text style={styles.standRank}>1</Text>
+                </View>
+                <View style={styles.standPattern}>
+                  {[...Array(4)].map((_, i) => (
+                    <View key={i} style={styles.standLine} />
+                  ))}
+                </View>
+                <View style={styles.standGlow} />
+              </LinearGradient>
+            </Animated.View>
+          )}
+
+          {/* Third Place */}
+          {scores.length > 2 && (
+            <Animated.View 
+              style={[
+                styles.podiumPosition,
+                styles.thirdPosition,
+                {
+                  transform: [
+                    {
+                      translateY: podiumAnimations.third.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [80, 0],
+                      }),
+                    },
+                    {
+                      scale: podiumAnimations.third.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.8, 1],
+                      }),
+                    },
+                  ],
+                  opacity: podiumAnimations.third,
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.podiumUserContainer}
+                onPress={() => handlePodiumUserPress(scores[2], 3)}
+                activeOpacity={0.8}
+              >
+                {/* User Avatar */}
+                <View style={styles.podiumAvatarContainer}>
+                  <LinearGradient
+                    colors={[AppColors.bronze, '#B8860B']}
+                    style={[styles.podiumAvatar, styles.thirdAvatar]}
+                  >
+                    <Text style={styles.avatarText}>
+                      {scores[2].displayName?.charAt(0)?.toUpperCase() || '?'}
+                    </Text>
+                  </LinearGradient>
+                  
+                  {/* Medal */}
+                  <View style={[styles.medalContainer, styles.bronzeMedal]}>
+                    <Icon name="medal" size={20} color="#FFFFFF" />
+                    <Text style={styles.medalRank}>3</Text>
+                  </View>
+                </View>
+
+                {/* User Info */}
+                <View style={styles.podiumUserInfo}>
+                  <Text style={styles.podiumUserName} numberOfLines={1}>
+                    {scores[2].displayName}
+                  </Text>
+                  <Text style={styles.podiumUserScore}>
+                    {scores[2].score?.toFixed(0)}%
+                  </Text>
+                  <View style={styles.podiumUserStats}>
+                    <Icon name="clock-outline" size={12} color={AppColors.textSecondary} />
+                    <Text style={styles.podiumUserTime}>
+                      {formatTime(scores[2].completionTime || 0)}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Podium Stand */}
+              <LinearGradient
+                colors={[AppColors.bronze, '#B8860B']}
+                style={[styles.podiumStand, styles.thirdStand]}
+              >
+                <View style={styles.standTop}>
+                  <Text style={styles.standRank}>3</Text>
+                </View>
+                <View style={styles.standPattern}>
+                  {[...Array(2)].map((_, i) => (
+                    <View key={i} style={styles.standLine} />
+                  ))}
+                </View>
+              </LinearGradient>
+            </Animated.View>
+          )}
+        </View>
+
+        {/* Podium Base */}
+        <View style={styles.podiumBase}>
+          <LinearGradient
+            colors={['#E0E0E0', '#BDBDBD']}
+            style={styles.podiumBaseGradient}
+          />
+        </View>
+      </View>
+    )
+  }
+
   const renderScoreboard = () => (
     <View style={styles.scoreboardContainer}>
       {scoresLoading ? (
@@ -691,39 +1118,34 @@ const AiMaterialDetails = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
       ) : (
-        <>
-          <View style={styles.scoreboardCard}>
-            <View style={styles.scoreboardHeader}>
-              <Text style={styles.rankHeader}>{t("Rank")}</Text>
-              <Text style={styles.nameHeader}>{t("User")}</Text>
-              <Text style={styles.scoreHeader}>{t("Score")}</Text>
-              <Text style={styles.timeHeader}>{t("Time")}</Text>
-              <Text style={styles.xpHeader}>{t("XP")}</Text>
-            </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Enhanced Podium Section */}
+          {renderEnhancedPodium()}
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {scores.map((score, index) => (
-                <View
+          {/* Regular Scoreboard for 4th place and below */}
+          {scores.length > 3 && (
+            <View style={[styles.scoreboardCard, { marginTop: 30 }]}>
+              <View style={styles.scoreboardHeader}>
+                <Text style={styles.rankHeader}>{t("Rank")}</Text>
+                <Text style={styles.nameHeader}>{t("User")}</Text>
+                <Text style={styles.scoreHeader}>{t("Score")}</Text>
+                <Text style={styles.timeHeader}>{t("Time")}</Text>
+                <Text style={styles.xpHeader}>{t("XP")}</Text>
+              </View>
+
+              {scores.slice(3).map((score, index) => (
+                <TouchableOpacity
                   key={index}
                   style={[
                     styles.scoreRow,
                     score.userId === currentUser.uid && styles.highlightedRow,
                     index % 2 === 0 && styles.alternateRow,
                   ]}
+                  onPress={() => handlePodiumUserPress(score, index + 4)}
+                  activeOpacity={0.7}
                 >
-                  <View
-                    style={[
-                      styles.rankContainer,
-                      index === 0
-                        ? styles.firstRank
-                        : index === 1
-                        ? styles.secondRank
-                        : index === 2
-                        ? styles.thirdRank
-                        : null,
-                    ]}
-                  >
-                    <Text style={styles.rankText}>{index + 1}</Text>
+                  <View style={styles.rankContainer}>
+                    <Text style={styles.rankText}>{index + 4}</Text>
                   </View>
                   <Text style={styles.nameText} numberOfLines={1}>
                     {score.displayName}
@@ -733,11 +1155,11 @@ const AiMaterialDetails = ({ route, navigation }) => {
                   </Text>
                   <Text style={styles.timeText}>{formatTime(score.completionTime || 0)}</Text>
                   <Text style={styles.xpText}>+{score.earnedXP || 0}</Text>
-                </View>
+                </TouchableOpacity>
               ))}
-            </ScrollView>
-          </View>
-        </>
+            </View>
+          )}
+        </ScrollView>
       )}
     </View>
   )
@@ -1419,15 +1841,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 8,
   },
-  firstRank: {
-    backgroundColor: "#FFD700", // Gold
-  },
-  secondRank: {
-    backgroundColor: "#C0C0C0", // Silver
-  },
-  thirdRank: {
-    backgroundColor: "#CD7F32", // Bronze
-  },
   rankText: {
     color: "#FFFFFF",
     fontWeight: "bold",
@@ -1439,6 +1852,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginRight: 8,
     fontWeight: "500",
+  },
+  scoreText: {
+    width: 60,
+    color: AppColors.primary,
+    fontWeight: "bold",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  timeText: {
+    width: 60,
+    color: AppColors.textSecondary,
+    fontSize: 12,
+    textAlign: "center",
   },
   xpText: {
     width: 50,
@@ -1489,6 +1915,279 @@ const styles = StyleSheet.create({
     marginTop: 16,
     color: AppColors.primary,
     fontSize: 16,
+  },
+  
+  // Enhanced Podium Styles
+  enhancedPodiumContainer: {
+    backgroundColor: AppColors.surface,
+    borderRadius: 20,
+    margin: 16,
+    marginBottom: 20,
+    elevation: 8,
+    shadowColor: AppColors.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    overflow: 'hidden',
+  },
+  podiumBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  backgroundGradient: {
+    flex: 1,
+  },
+  floatingParticle: {
+    position: 'absolute',
+    opacity: 0.6,
+  },
+  podiumTitleContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  podiumTitleGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    elevation: 4,
+  },
+  podiumTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  podiumMainContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    height: 350,
+  },
+  podiumPosition: {
+    alignItems: 'center',
+    flex: 1,
+    maxWidth: width * 0.28,
+  },
+  firstPosition: {
+    zIndex: 3,
+    marginHorizontal: 5,
+  },
+  secondPosition: {
+    zIndex: 2,
+    marginRight: -5,
+  },
+  thirdPosition: {
+    zIndex: 1,
+    marginLeft: -5,
+  },
+  crownContainer: {
+    position: 'absolute',
+    top: -25,
+    zIndex: 10,
+  },
+  crown: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+  },
+  podiumUserContainer: {
+    alignItems: 'center',
+    marginBottom: 15,
+    zIndex: 5,
+  },
+  podiumAvatarContainer: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  podiumAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  firstAvatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 4,
+  },
+  secondAvatar: {
+    borderWidth: 3,
+  },
+  thirdAvatar: {
+    borderWidth: 3,
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  firstAvatarText: {
+    fontSize: 28,
+  },
+  medalContainer: {
+    position: 'absolute',
+    bottom: -8,
+    right: -8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  goldMedal: {
+    backgroundColor: AppColors.gold,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  silverMedal: {
+    backgroundColor: AppColors.silver,
+  },
+  bronzeMedal: {
+    backgroundColor: AppColors.bronze,
+  },
+  medalRank: {
+    position: 'absolute',
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    bottom: -2,
+  },
+  podiumUserInfo: {
+    alignItems: 'center',
+    minHeight: 80,
+  },
+  podiumUserName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: AppColors.text,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  firstUserName: {
+    fontSize: 16,
+    color: AppColors.primary,
+  },
+  podiumUserScore: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: AppColors.primary,
+    marginBottom: 4,
+  },
+  firstUserScore: {
+    fontSize: 20,
+    color: AppColors.gold,
+  },
+  podiumUserStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  podiumUserTime: {
+    fontSize: 12,
+    color: AppColors.textSecondary,
+    marginLeft: 4,
+  },
+  championBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: AppColors.gold + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: AppColors.gold,
+  },
+  championText: {
+    fontSize: 10,
+    color: AppColors.gold,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  podiumStand: {
+    width: '100%',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    elevation: 4,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  firstStand: {
+    height: 120,
+  },
+  secondStand: {
+    height: 90,
+  },
+  thirdStand: {
+    height: 70,
+  },
+  standTop: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 15,
+  },
+  standRank: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  standPattern: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 30,
+    justifyContent: 'space-around',
+    paddingVertical: 5,
+  },
+  standLine: {
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    marginHorizontal: 10,
+    borderRadius: 1,
+  },
+  standGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  podiumBase: {
+    height: 20,
+    marginHorizontal: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    overflow: 'hidden',
+    elevation: 2,
+  },
+  podiumBaseGradient: {
+    flex: 1,
   },
 })
 
