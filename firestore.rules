@@ -96,9 +96,14 @@ service cloud.firestore {
         // Allow users to create their own approval requests
         allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
         
-        // Only class admin can update approvals (approve/reject)
+        // Class admins, teachers of the subject, and the original approver can update approvals
         allow update, delete: if request.auth != null && 
-                             request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy;
+                              (request.auth.uid == get(/databases/$(database)/documents/classes/$(classId)).data.createdBy ||
+                              isAdmin() ||
+                              isTeacher() ||
+                              (resource.data.subjectTeachers != null && request.auth.uid in resource.data.subjectTeachers) ||
+                              (resource.data.approvedBy != null && request.auth.uid == resource.data.approvedBy) ||
+                              (resource.data.gradedBy != null && request.auth.uid == resource.data.gradedBy));
       }
       
       // Rules for the subjects subcollection
@@ -201,6 +206,21 @@ service cloud.firestore {
                      (!request.resource.data.keys().hasAny(['photoBase64']) || 
                       (request.resource.data.keys().hasAny(['photoBase64']) && 
                        request.resource.data.photoBase64.size() < 1048576)); // Max 1MB for base64 images
+      
+      // Rules for completedAssignments subcollection
+      match /completedAssignments/{completionId} {
+        // Allow users to read their own completed assignments
+        allow read: if request.auth != null && request.auth.uid == userId;
+        
+        // Allow teachers to create completed assignment records for students
+        allow create: if request.auth != null;
+        
+        // Allow teachers to update completed assignment records
+        allow update: if request.auth != null && 
+                        (request.auth.uid == resource.data.approvedBy || 
+                         request.auth.uid == resource.data.teacherId || 
+                         request.auth.uid == resource.data.gradedBy);
+      }
     }
   }
-} 
+}

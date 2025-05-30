@@ -3090,6 +3090,22 @@ export const getPendingCompletionApprovals = async (classId) => {
 // Approve a completion request with optional grading
 export const approveCompletion = async (classId, approvalId, score = null) => {
   try {
+    console.log(`Approving completion: ${approvalId} with score: ${score}`);
+    console.log(`Class ID: ${classId}`);
+    
+    // Input validation to prevent undefined values
+    if (!classId) {
+      throw new Error('Class ID is required');
+    }
+    
+    if (!approvalId) {
+      throw new Error('Approval ID is required');
+    }
+    
+    // Handle null or undefined score explicitly
+    // Firebase doesn't accept undefined values but does accept null
+    const scoreValue = score === undefined ? null : score;
+    
     const currentUser = auth().currentUser;
     if (!currentUser) {
       throw new Error('User not authenticated');
@@ -3117,9 +3133,9 @@ export const approveCompletion = async (classId, approvalId, score = null) => {
     
     // Validate score if provided
     let finalScore = null;
-    if (score !== null) {
+    if (scoreValue !== null) {
       // Ensure score is a number between 0 and 100
-      const numericScore = Number(score);
+      const numericScore = Number(scoreValue);
       if (isNaN(numericScore) || numericScore < 0 || numericScore > 100) {
         throw new Error('Score must be a number between 0 and 100');
       }
@@ -3161,7 +3177,78 @@ export const approveCompletion = async (classId, approvalId, score = null) => {
       updateData.gradedBy = currentUser.uid;
     }
     
+    // Add the update to the batch
     batch.update(approvalRef, updateData);
+    
+    // Get assignment details for storing in the user's completed assignments
+    console.log(`Getting assignment details for: ${approvalData.assignmentId}`);
+    const assignmentRef = firestore()
+      .collection(CLASSES_COLLECTION)
+      .doc(classId)
+      .collection(ASSIGNMENTS_COLLECTION)
+      .doc(approvalData.assignmentId);
+    
+    const assignmentDoc = await assignmentRef.get();
+    let assignmentData = {};
+    
+    if (assignmentDoc.exists) {
+      assignmentData = assignmentDoc.data();
+      console.log('Found assignment data for completed assignment');
+    } else {
+      console.warn(`Assignment not found: ${approvalData.assignmentId}`);
+    }
+    
+    // Create a lightweight version in the user's completedAssignments collection
+    const userId = approvalData.userId;
+    if (userId) {
+      console.log(`Adding completed assignment to user ${userId}'s collection`);
+      const userCompletedRef = firestore()
+        .collection('users')
+        .doc(userId)
+        .collection('completedAssignments')
+        .doc(approvalId); // Using same ID for easy reference
+      
+      // Create data object with proper null checks to avoid undefined values
+      // Firestore doesn't accept undefined values, so we need to use null or default values
+      console.log('Creating completed assignment data with proper null checks');
+      
+      // Use subjectId and subjectName from approvalData if available, these come directly from the submission
+      // Only fall back to assignmentData if necessary
+      const completedData = {
+        classId: classId,
+        assignmentId: approvalData.assignmentId,
+        title: assignmentData.title || 'Assignment',
+        type: assignmentData.type || 'DEFAULT',
+        // Prioritize approvalData for subject information, as it's more likely to be correct
+        subjectId: approvalData.subjectId || assignmentData.subjectId || null,
+        subjectName: approvalData.subjectName || assignmentData.subjectName || null,
+        completedAt: approvalData.createdAt || firestore.FieldValue.serverTimestamp(),
+        approvedAt: firestore.FieldValue.serverTimestamp(),
+        approvedBy: currentUser.uid,
+        teacherName: currentUser.displayName || ''
+      };
+      
+      // Only add score if it's not null
+      if (finalScore !== null) {
+        completedData.score = finalScore;
+      }
+      
+      // Debug log to see what data we're trying to save
+      console.log('completedData to be saved:', JSON.stringify(completedData));
+      
+      // Add to batch - create the completed assignment record
+      batch.set(userCompletedRef, completedData);
+      
+      // Instead of just removing image data, we'll delete the entire approval document
+      // since we've now stored the important data in the user's completedAssignments collection
+      console.log('Adding approval document to delete queue');
+      batch.delete(approvalRef);
+      
+      // Log a message explaining what we're doing
+      console.log('Will delete approval document after storing data in user collection')
+    } else {
+      console.warn('No userId found in approval data, skipping user completion record');
+    }
     
     // Get assignment details to determine proper XP
     const { EXP_CONSTANTS } = require('../constants/UserTypes');
@@ -3194,21 +3281,27 @@ export const approveCompletion = async (classId, approvalId, score = null) => {
         // This user's rank will be one more than the current count of approved completions
         completionRank = approvedCompletions.length + 1;
         
-        // Get the multiplier based on rank (use the DEFAULT for ranks beyond what's explicitly defined)
-        rankMultiplier = EXP_CONSTANTS.COMPLETION_RANK_MULTIPLIER[completionRank] || 
-                         EXP_CONSTANTS.COMPLETION_RANK_MULTIPLIER.DEFAULT;
+        // Determine rank multiplier based on rank
+        if (completionRank <= 3) {
+          rankMultiplier = EXP_CONSTANTS.COMPLETION_RANK_MULTIPLIER[`RANK_${completionRank}`];
+        } else {
+          rankMultiplier = EXP_CONSTANTS.COMPLETION_RANK_MULTIPLIER.DEFAULT;
+        }
       }
     } catch (error) {
       console.error(`Error determining completion rank:`, error);
-      // Fall back to default multiplier if there's an error
       rankMultiplier = EXP_CONSTANTS.COMPLETION_RANK_MULTIPLIER.DEFAULT;
     }
     
     // Calculate final XP based on base value and rank multiplier
     const finalExpPoints = Math.round(baseExpPoints * rankMultiplier);
     
-    // Commit the batch
+    // Commit the batch which includes both:
+    // 1. Creating the user's completed assignment record
+    // 2. Deleting the original approval document
+    console.log('Committing batch operations - creating user record and deleting approval document');
     await batch.commit();
+    console.log('Batch operations committed successfully')
     
     // Add experience points, passing the original completion timestamp
     await addExperiencePoints(

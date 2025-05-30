@@ -194,32 +194,22 @@ function SubjectNameDisplay({ assignment, style }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const currentClassId = React.useContext(require('../context/ClassContext').useClass().currentClass?.id);
-
-  // For debugging purposes
-  console.log('Assignment data in SubjectNameDisplay:', {
-    id: assignment.id,
-    title: assignment.title,
-    subjectId: assignment.subjectId,
-    subjectName: assignment.subjectName,
-    classId: assignment.classId || currentClassId
-  });
+  const fetchAttempted = React.useRef(false);
 
   useEffect(() => {
     // If we already have the subject name from the assignment, use it
     if (assignment.subjectName) {
-      console.log(`Using existing subjectName: ${assignment.subjectName}`);
       setSubjectName(assignment.subjectName);
       return;
     }
     
-    // If we have a subject ID but no name, fetch the name
-    if (assignment.subjectId && !subjectName && !loading) {
+    // If we have a subject ID but no name, fetch the name (only once)
+    if (assignment.subjectId && !subjectName && !loading && !fetchAttempted.current) {
+      fetchAttempted.current = true; // Mark that we've attempted to fetch
       setLoading(true);
       
       // Try to get the class ID from various sources
       const classId = assignment.classId || currentClassId;
-      
-      console.log(`Attempting to fetch subject name. Subject ID: ${assignment.subjectId}, Class ID: ${classId}`);
       
       if (!classId) {
         console.warn('Cannot fetch subject name: Missing classId');

@@ -1,5 +1,5 @@
 /**
- * Utility helper functions for the TaskMaster app
+ * Utility helper functions for the unither app
  */
 
 /**

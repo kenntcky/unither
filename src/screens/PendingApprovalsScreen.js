@@ -22,7 +22,6 @@ import { useAuth } from "../context/AuthContext"
 import { useClass } from "../context/ClassContext"
 import {
   approveSubject,
-  isClassAdmin,
   getClassAssignments,
   approveClassAssignment,
   rejectClassAssignment,
@@ -161,6 +160,8 @@ const PendingItemCard = ({ item, index, onApprove, onReject, loading }) => {
 
 // Separate component for completion item
 const CompletionItemCard = ({ item, index, onApprove, onRejectModal, onViewImage }) => {
+  console.log('Rendering CompletionItemCard with item:', item?.id);
+  
   // Calculate base XP for the assignment type
   const baseXp = EXP_CONSTANTS.BASE_EXP[item.assignment?.type || "DEFAULT"] || EXP_CONSTANTS.BASE_EXP.DEFAULT
 
@@ -183,6 +184,16 @@ const CompletionItemCard = ({ item, index, onApprove, onRejectModal, onViewImage
       return dateString
     }
   }
+  
+  // Debug logging for the approve handler
+  const handleApprove = () => {
+    console.log('Approve button pressed for item:', item?.id);
+    if (onApprove) {
+      onApprove(item);
+    } else {
+      console.error('onApprove function is not defined');
+    }
+  };
 
   return (
     <Animated.View
@@ -268,7 +279,7 @@ const CompletionItemCard = ({ item, index, onApprove, onRejectModal, onViewImage
 
         <TouchableOpacity
           style={[styles.actionButton, styles.approveButton]}
-          onPress={() => onApprove(item)}
+          onPress={handleApprove}
           activeOpacity={0.8}
         >
           <Icon name="check" size={16} color="#fff" />
@@ -278,7 +289,6 @@ const CompletionItemCard = ({ item, index, onApprove, onRejectModal, onViewImage
     </Animated.View>
   )
 }
-
 const PendingApprovalsScreen = ({ navigation }) => {
   const { user } = useAuth()
   const { currentClass } = useClass()
@@ -288,14 +298,19 @@ const PendingApprovalsScreen = ({ navigation }) => {
   const [pendingCompletions, setPendingCompletions] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState(TABS.ITEMS)
-  const [selectedImage, setSelectedImage] = useState(null)
-  const [imageModalVisible, setImageModalVisible] = useState(false)
-  const [rejectionReason, setRejectionReason] = useState("")
+  const [activeTab, setActiveTab] = useState(TABS.COMPLETIONS)
   const [rejectModalVisible, setRejectModalVisible] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState("")
   const [selectedCompletionId, setSelectedCompletionId] = useState(null)
+  const [imageModalVisible, setImageModalVisible] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [gradeModalVisible, setGradeModalVisible] = useState(false)
+  const [selectedCompletion, setSelectedCompletion] = useState(null)
+  const [score, setScore] = useState("90")
+  const [isTeacher, setIsTeacher] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const insets = useSafeAreaInsets()
-
+  
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(30)).current
@@ -304,6 +319,85 @@ const PendingApprovalsScreen = ({ navigation }) => {
   const backgroundAnim = useRef(new Animated.Value(0)).current
   const modalScaleAnim = useRef(new Animated.Value(0.9)).current
   const modalOpacityAnim = useRef(new Animated.Value(0)).current
+  const gradeModalScaleAnim = useRef(new Animated.Value(0.9)).current
+  const gradeModalOpacityAnim = useRef(new Animated.Value(0)).current
+  
+  // Submit grade and approve completion
+  const submitGrade = async () => {
+    console.log('Submit grade function called');
+    
+    if (!currentClass) {
+      console.error('No current class found in submitGrade');
+      Alert.alert("Error", "Class not found");
+      return;
+    }
+    
+    if (!selectedCompletion) {
+      console.error('No selected completion in submitGrade');
+      Alert.alert("Error", "No completion selected");
+      return;
+    }
+    
+    console.log(`Submitting grade for completion: ${selectedCompletion.id}, class: ${currentClass.id}`);
+    
+    // Validate score input
+    const numScore = parseInt(score, 10);
+    if (isNaN(numScore) || numScore < 0 || numScore > 100) {
+      console.log(`Invalid score: ${score}`);
+      Alert.alert("Invalid Score", "Please enter a valid score between 0 and 100");
+      return;
+    }
+    
+    console.log(`Validated score: ${numScore}`);
+    
+    // Close the grading modal with animation first
+    setGradeModalVisible(false);
+    
+    // Then start the approval process
+    setLoading(true);
+    
+    try {
+      console.log(`Calling approveCompletion with classId: ${currentClass.id}, completionId: ${selectedCompletion.id}, score: ${numScore}`);
+      
+      // Call approveCompletion with score parameter
+      const result = await approveCompletion(currentClass.id, selectedCompletion.id, numScore);
+      console.log('Approval result:', result);
+      
+      if (result && result.success) {
+        // Refresh the list
+        await loadPendingCompletions();
+        Alert.alert("Success", `Completion approved with score: ${numScore}`);
+      } else {
+        console.error('Approval failed:', result?.error || 'Unknown error');
+        Alert.alert("Error", result?.error || "Failed to approve completion");
+      }
+    } catch (error) {
+      console.error("Error grading completion:", error);
+      Alert.alert("Error", "An unexpected error occurred: " + error.message);
+    } finally {
+      setLoading(false);
+      setSelectedCompletion(null);
+    }
+  };
+  
+  // Cancel grading and close modal
+  const cancelGrading = () => {
+    Animated.parallel([
+      Animated.timing(gradeModalScaleAnim, {
+        toValue: 0.9,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(gradeModalOpacityAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setGradeModalVisible(false);
+      setSelectedCompletion(null);
+    });
+  };
 
   // Check if user is admin for this class and load pending items
   useEffect(() => {
@@ -329,13 +423,16 @@ const PendingApprovalsScreen = ({ navigation }) => {
         }
         
         const memberData = memberQuery.docs[0].data();
-        const isAdmin = memberData.role === 'admin';
-        const isTeacher = memberData.role === 'teacher';
+        const isUserAdmin = memberData.role === 'admin';
+        const isUserTeacher = memberData.role === 'teacher';
         
-        setIsClassTeacher(isAdmin || isTeacher);
+        // Set the state variables for teacher and admin status
+        setIsAdmin(isUserAdmin);
+        setIsTeacher(isUserTeacher);
+        setIsClassTeacher(isUserAdmin || isUserTeacher);
 
-        if (isAdmin || isTeacher) {
-          console.log(`User role detected: ${isAdmin ? 'Admin' : 'Teacher'}`);
+        if (isUserAdmin || isUserTeacher) {
+          console.log(`User role detected: ${isUserAdmin ? 'Admin' : 'Teacher'}`);
           loadPendingItems();
           loadPendingCompletions();
         } else {
@@ -510,24 +607,59 @@ const PendingApprovalsScreen = ({ navigation }) => {
   }
 
   const handleApproveCompletion = async (completion) => {
-    if (!currentClass) return
+    if (!currentClass) {
+      console.log('No current class found')
+      return
+    }
 
-    setLoading(true)
-    try {
-      const result = await approveCompletion(currentClass.id, completion.id)
+    console.log(`Approving completion: ${completion.id}, isTeacher: ${isTeacher}, isAdmin: ${isAdmin}`)
+    
+    // For simplicity in testing, temporarily allow grading for both teachers and admins
+    // We'll check role properly, but fall back to showing the grading modal
+    // if roles are not set correctly
+    if ((isTeacher || isAdmin) && completion) {
+      console.log('Showing grading modal')
+      // For teachers, show grading modal
+      setSelectedCompletion(completion)
+      setScore("90") // Default score
+      setGradeModalVisible(true)
+      
+      // Animate modal appearance
+      gradeModalScaleAnim.setValue(0.9)
+      gradeModalOpacityAnim.setValue(0)
+      
+      Animated.parallel([
+        Animated.timing(gradeModalScaleAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(gradeModalOpacityAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start()
+    } else {
+      console.log('Directly approving without grading')
+      // For non-teachers (or if role detection fails), just approve without grading
+      setLoading(true)
+      try {
+        const result = await approveCompletion(currentClass.id, completion.id)
 
-      if (result.success) {
-        // Refresh the list
-        await loadPendingCompletions()
-        Alert.alert("Success", "Completion approved successfully")
-      } else {
-        Alert.alert("Error", result.error || "Failed to approve completion")
+        if (result.success) {
+          // Refresh the list
+          await loadPendingCompletions()
+          Alert.alert("Success", "Completion approved successfully")
+        } else {
+          Alert.alert("Error", result.error || "Failed to approve completion")
+        }
+      } catch (error) {
+        console.error("Error approving completion:", error)
+        Alert.alert("Error", "An unexpected error occurred")
+      } finally {
+        setLoading(false)
       }
-    } catch (error) {
-      console.error("Error approving completion:", error)
-      Alert.alert("Error", "An unexpected error occurred")
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -961,6 +1093,133 @@ const PendingApprovalsScreen = ({ navigation }) => {
                 activeOpacity={0.7}
               >
                 <Text style={styles.confirmButtonText}>Reject</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
+      
+      {/* Grading Modal */}
+      <Modal
+        visible={gradeModalVisible}
+        transparent={true}
+        animationType="none"
+        onRequestClose={cancelGrading}
+      >
+        <Animated.View
+          style={[
+            styles.modalOverlay,
+            {
+              opacity: gradeModalOpacityAnim,
+            },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.rejectModalContent,
+              {
+                transform: [{ scale: gradeModalScaleAnim }],
+              },
+            ]}
+          >
+            <Text style={[styles.rejectModalTitle, { color: '#FFFFFF' }]}>Grade Assignment</Text>
+
+            <View style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              marginVertical: 15 
+            }}>
+              <TextInput
+                style={{
+                  backgroundColor: 'rgba(50, 50, 50, 0.8)',
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 24,
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  color: '#FFFFFF',
+                  minWidth: 80,
+                  borderWidth: 1,
+                  borderColor: 'rgba(255, 255, 255, 0.3)'
+                }}
+                placeholder="90"
+                placeholderTextColor="#808080"
+                value={score}
+                onChangeText={setScore}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+              <Text style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                color: '#FFFFFF',
+                marginLeft: 10
+              }}>/100</Text>
+            </View>
+            
+            {selectedCompletion && selectedCompletion.displayName && (
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: 'rgba(50, 50, 50, 0.8)',
+                borderRadius: 8,
+                padding: 10,
+                marginBottom: 10,
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.15)'
+              }}>
+                <Icon name="person" size={18} color={Colors.primary} />
+                <Text style={{
+                  marginLeft: 10,
+                  fontSize: 16,
+                  color: '#FFFFFF',
+                  fontWeight: '500'
+                }}>
+                  {selectedCompletion.displayName}
+                </Text>
+              </View>
+            )}
+            
+            {selectedCompletion && selectedCompletion.assignment && (
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: 'rgba(50, 50, 50, 0.8)',
+                borderRadius: 8,
+                padding: 10,
+                marginBottom: 20,
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.15)'
+              }}>
+                <Icon name="assignment" size={18} color={Colors.accent} />
+                <Text style={{
+                  marginLeft: 10,
+                  fontSize: 16,
+                  color: '#FFFFFF',
+                  flex: 1,
+                  fontWeight: '500'
+                }}>
+                  {selectedCompletion.assignment.title}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={cancelGrading}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={submitGrade}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.confirmButtonText}>Submit Grade</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>

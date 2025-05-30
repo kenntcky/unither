@@ -16,7 +16,6 @@ import {
   Image
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import Colors from '../constants/Colors';
 import { getAssignments, updateAssignment as updateLocalAssignment } from '../utils/storage';
 import { ASSIGNMENT_STATUS, ASSIGNMENT_GROUP_TYPE } from '../constants/Types';
 import { useAuth } from '../context/AuthContext';
@@ -83,7 +82,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   
   // Completion tracking state
   const [completions, setCompletions] = useState([]);
-  const [isLoadingCompletions, setIsLoadingCompletions] = useState(false);
+  const setIsLoadingCompletions = useState(false);
   
   // Class requires approval for completions
   const [requiresApproval, setRequiresApproval] = useState(false);
@@ -118,6 +117,14 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
         ),
       });
       
+      // Log current assignment state for debugging
+      console.log('Current assignment state:', {
+        id: assignment.id,
+        title: assignment.title,
+        status: assignment.status,
+        grade: assignment.grade
+      });
+      
       // Load completions when assignment is loaded and we're in a class
       if (currentClass) {
         loadCompletions();
@@ -134,23 +141,6 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
       const classDetails = await getClassDetails(currentClass.id);
       if (classDetails && classDetails.requireCompletionApproval) {
         setRequiresApproval(true);
-        
-        // Check if user has a pending approval for this assignment
-        if (user) {
-          const firestore = require('@react-native-firebase/firestore').default;
-          const approvalQuery = await firestore()
-            .collection('classes')
-            .doc(currentClass.id)
-            .collection('completionApprovals')
-            .where('userId', '==', user.uid)
-            .where('assignmentId', '==', assignment.id)
-            .where('status', '==', 'pending')
-            .get();
-          
-          if (!approvalQuery.empty) {
-            setHasPendingApproval(true);
-          }
-        }
       } else {
         setRequiresApproval(false);
       }
@@ -554,20 +544,81 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
     };
   }, []);
 
-  // Load assignment completions
+  // Load assignment completions and check for grades
   const loadCompletions = async () => {
-    if (!currentClass || !assignment) return;
+    if (!currentClass || !assignment || !user) {
+      console.log('Missing required data for loading completions');
+      return;
+    }
+    
+    console.log('loadCompletions function called'); // Make sure this appears in console
     
     setIsLoadingCompletions(true);
     try {
+      console.log(`Loading completions for assignment: ${assignment.id}`);
+      
+      // First, get all completions for the assignment
       const result = await getAssignmentCompletions(currentClass.id, assignment.id);
       if (result.success) {
         setCompletions(result.completions);
       } else {
         console.error('Error loading completions:', result.error);
       }
+      
+      // IMPORTANT: Check for grade information in Firestore
+      console.log(`DIRECT CHECK: Fetching grade for user ${user.uid} and assignment ${assignment.id}`);
+      const firestore = require('@react-native-firebase/firestore').default;
+      
+      // Force a direct check of the completionApprovals collection
+      const approvalQuery = await firestore()
+        .collection('classes')
+        .doc(currentClass.id)
+        .collection('completionApprovals')
+        .where('userId', '==', user.uid)
+        .where('assignmentId', '==', assignment.id)
+        .get();
+      
+      console.log(`Approval query completed, found ${approvalQuery.size} documents`);
+      
+      // If no approvals found, log and return
+      if (approvalQuery.empty) {
+        console.log('No approval documents found for this user and assignment');
+      } else {
+        let foundPendingApproval = false;
+        
+        // Process each approval document
+        approvalQuery.forEach(doc => {
+          const data = doc.data();
+          console.log('APPROVAL DATA:', JSON.stringify(data, null, 2));
+          
+          // Check for pending approval
+          if (data.status === 'pending') {
+            foundPendingApproval = true;
+            setHasPendingApproval(true);
+          }
+          
+          // Check for approved completion with score
+          if (data.status === 'approved') {
+            console.log('Found approved completion, checking for score');
+            console.log('Score field:', data.score);
+            
+            // If there is a score, update the assignment
+            if (data.score !== undefined) {
+              const scoreValue = Number(data.score);
+              console.log(`Found score: ${scoreValue}, type: ${typeof scoreValue}`);
+              
+              // Force update to the assignment grade
+              console.log('Setting grade on assignment:', scoreValue);
+              setAssignment(current => ({
+                ...current,
+                grade: scoreValue
+              }));
+            }
+          }
+        });
+      }
     } catch (error) {
-      console.error('Error loading completions:', error);
+      console.error('Error in loadCompletions:', error);
     } finally {
       setIsLoadingCompletions(false);
     }
@@ -869,6 +920,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
     const [error, setError] = useState(null);
     const { currentClass } = useClass();
     const currentClassId = currentClass?.id;
+    const fetchAttempted = useRef(false);
     
     useEffect(() => {
       // If we already have a subject name, no need to fetch
@@ -877,14 +929,12 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
         return;
       }
       
-      // If we have a subject ID but no name, fetch the name
-      if (assignment.subjectId && !subjectName && !loading) {
+      // If we have a subject ID but no name, fetch the name (only once)
+      if (assignment.subjectId && !subjectName && !loading && !fetchAttempted.current) {
         setLoading(true);
         
         // Try to get the class ID from various sources
         const classId = assignment.classId || currentClassId;
-        
-        console.log(`Attempting to fetch subject name. Subject ID: ${assignment.subjectId}, Class ID: ${classId}`);
         
         if (!classId) {
           console.warn('Cannot fetch subject name: Missing classId');
@@ -920,6 +970,7 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
               const name = data.name || 'Unnamed Subject';
               console.log(`Got subject name: ${name}`);
               setSubjectName(name);
+              fetchAttempted.current = true; // Mark that we've attempted to fetch
             } else {
               console.warn(`No subject found with id field matching ${assignment.subjectId}`);
               setError(`Subject not found`);
@@ -999,6 +1050,24 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
                   {assignment.status}
                 </Text>
               </View>
+              
+              {/* Show grade if assignment is completed */}
+              {assignment.status === ASSIGNMENT_STATUS.FINISHED && (
+                <View style={styles.detailRow}>
+                  <Icon name="school" size={20} color={CustomColors.accent} style={styles.icon} />
+                  <Text style={styles.detailLabel}>Grade:</Text>
+                  {console.log('Grade in UI render:', assignment.grade)}
+                  {assignment.grade !== undefined && assignment.grade !== null ? (
+                    <Text style={[styles.detailValue, {color: CustomColors.success, fontWeight: 'bold'}]}>
+                      {assignment.grade} / 100
+                    </Text>
+                  ) : (
+                    <Text style={[styles.detailValue, {color: CustomColors.textTertiary}]}>
+                      Not graded yet
+                    </Text>
+                  )}
+                </View>
+              )}
               
               {/* Add status toggle button */}
               {renderCompletionStatusButton()}
@@ -1395,6 +1464,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: CustomColors.text,
+  },
+  gradeValue: {
+    color: CustomColors.accent,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   descriptionText: {
     fontSize: 14,
