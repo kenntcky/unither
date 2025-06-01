@@ -82,7 +82,10 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
   
   // Completion tracking state
   const [completions, setCompletions] = useState([]);
-  const setIsLoadingCompletions = useState(false);
+  const [isLoadingCompletions, setIsLoadingCompletions] = useState(false);
+  
+  // Separate grade state to ensure it's properly updated and displayed
+  const [assignmentGrade, setAssignmentGrade] = useState(null);
   
   // Class requires approval for completions
   const [requiresApproval, setRequiresApproval] = useState(false);
@@ -524,10 +527,11 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
     );
   };
 
-  // Trigger loading comments when assignment is loaded
+  // Trigger loading comments and completions when assignment is loaded
   useEffect(() => {
     if (assignment) {
       loadComments();
+      loadCompletions(); // Ensure completions and grade are loaded
     }
   }, [assignment, currentClass]);
 
@@ -544,118 +548,124 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
     };
   }, []);
 
-  // Load assignment completions and check for grades
-  const loadCompletions = async () => {
-    if (!currentClass || !assignment || !user) {
-      console.log('Missing required data for loading completions');
-      return;
+// Load assignment completions and check for grades
+const loadCompletions = async () => {
+  if (!currentClass || !assignment || !user) {
+    console.log('Missing required data for loading completions');
+    return;
+  }
+  
+  console.log('loadCompletions function called');
+  
+  setIsLoadingCompletions(true);
+  try {
+    console.log(`Loading completions for assignment: ${assignment.id}`);
+    
+    // First, get all completions for the assignment
+    const result = await getAssignmentCompletions(currentClass.id, assignment.id);
+    if (result.success) {
+      setCompletions(result.completions);
+    } else {
+      console.error('Error loading completions:', result.error);
     }
     
-    console.log('loadCompletions function called'); // Make sure this appears in console
+    // Check for pending approval
+    const firestore = require('@react-native-firebase/firestore').default;
+    const approvalQuery = await firestore()
+      .collection('classes')
+      .doc(currentClass.id)
+      .collection('completionApprovals')
+      .where('userId', '==', user.uid)
+      .where('assignmentId', '==', assignment.id)
+      .get();
     
-    setIsLoadingCompletions(true);
+    console.log(`Approval check completed, found ${approvalQuery.size} pending documents`);
+    
+    if (!approvalQuery.empty) {
+      // Process approval documents to check for pending status
+      approvalQuery.forEach(doc => {
+        const data = doc.data();
+        if (data.status === 'pending') {
+          setHasPendingApproval(true);
+        }
+      });
+    }
+    
+    // NEW: Check user's completedAssignments subcollection for grade information
+    console.log(`Checking user's completedAssignments for grade information`);
     try {
-      console.log(`Loading completions for assignment: ${assignment.id}`);
-      
-      // First, get all completions for the assignment
-      const result = await getAssignmentCompletions(currentClass.id, assignment.id);
-      if (result.success) {
-        setCompletions(result.completions);
-      } else {
-        console.error('Error loading completions:', result.error);
-      }
-      
-      // IMPORTANT: Check for grade information in Firestore
-      console.log(`DIRECT CHECK: Fetching grade for user ${user.uid} and assignment ${assignment.id}`);
-      const firestore = require('@react-native-firebase/firestore').default;
-      
-      // Force a direct check of the completionApprovals collection
-      const approvalQuery = await firestore()
-        .collection('classes')
-        .doc(currentClass.id)
-        .collection('completionApprovals')
-        .where('userId', '==', user.uid)
+      const completedAssignmentQuery = await firestore()
+        .collection('users')
+        .doc(user.uid)
+        .collection('completedAssignments')
         .where('assignmentId', '==', assignment.id)
+        .where('classId', '==', currentClass.id)
         .get();
       
-      console.log(`Approval query completed, found ${approvalQuery.size} documents`);
+      console.log(`Found ${completedAssignmentQuery.size} completed assignment records`);
       
-      // If no approvals found, log and return
-      if (approvalQuery.empty) {
-        console.log('No approval documents found for this user and assignment');
-      } else {
-        let foundPendingApproval = false;
+      if (!completedAssignmentQuery.empty) {
+        // Get the completed assignment data with grade
+        const completedData = completedAssignmentQuery.docs[0].data();
+        console.log('COMPLETED ASSIGNMENT DATA:', JSON.stringify(completedData, null, 2));
         
-        // Process each approval document
-        approvalQuery.forEach(doc => {
-          const data = doc.data();
-          console.log('APPROVAL DATA:', JSON.stringify(data, null, 2));
+        // Check for score/grade field
+        if (completedData.score !== undefined && completedData.score !== null) {
+          const scoreValue = Number(completedData.score);
+          console.log(`Found grade in completedAssignments: ${scoreValue}`);
           
-          // Check for pending approval
-          if (data.status === 'pending') {
-            foundPendingApproval = true;
-            setHasPendingApproval(true);
-          }
-          
-          // Check for approved completion with score
-          if (data.status === 'approved') {
-            console.log('Found approved completion, checking for score');
-            console.log('Score field:', data.score);
-            
-            // If there is a score, update the assignment
-            if (data.score !== undefined) {
-              const scoreValue = Number(data.score);
-              console.log(`Found score: ${scoreValue}, type: ${typeof scoreValue}`);
-              
-              // Force update to the assignment grade
-              console.log('Setting grade on assignment:', scoreValue);
-              setAssignment(current => ({
-                ...current,
-                grade: scoreValue
-              }));
-            }
-          }
-        });
+          // Update the dedicated grade state instead of trying to modify the assignment object
+          setAssignmentGrade(scoreValue);
+          console.log(`Set assignmentGrade state to: ${scoreValue}`);
+        } else {
+          console.log('No grade found in completed assignment record');
+          setAssignmentGrade(null);
+        }
+      } else {
+        console.log('No completed assignment records found in user collection');
       }
-    } catch (error) {
-      console.error('Error in loadCompletions:', error);
-    } finally {
-      setIsLoadingCompletions(false);
+    } catch (completedError) {
+      console.error('Error checking completedAssignments:', completedError);
     }
-  };
+  } catch (error) {
+    console.error('Error in loadCompletions:', error);
+  } finally {
+    setIsLoadingCompletions(false);
+  }
+};
 
-  // Tab navigation component
-  const TabNavigator = () => (
-    <View style={styles.tabContainer}>
-      {Object.values(TABS).map(tab => (
-        <TouchableOpacity
-          key={tab}
-          style={[
-            styles.tabButton,
-            activeTab === tab && styles.tabButtonActive
-          ]}
-          onPress={() => setActiveTab(tab)}
-        >
-          <View style={styles.tabContent}>
-            <Text
-              style={[
-                styles.tabButtonText,
-                activeTab === tab && styles.tabButtonTextActive
-              ]}
-            >
-              {tab}
-            </Text>
-            
-            {tab === TABS.COMPLETIONS && completions.length > 0 && (
-              <View style={styles.badgeContainer}>
-                <Text style={styles.badgeText}>{completions.length}</Text>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
+// Tab navigation component
+const TabNavigator = () => (
+  <View style={styles.tabContainer}>
+    {Object.values(TABS).map(tab => (
+      <TouchableOpacity
+        key={tab}
+        style={[
+          styles.tabButton,
+          activeTab === tab && styles.tabButtonActive
+        ]}
+        onPress={() => setActiveTab(tab)}
+      >
+        <View style={styles.tabContent}>
+          <Text
+            style={[
+              styles.tabButtonText,
+              activeTab === tab && styles.tabButtonTextActive
+            ]}
+          >
+            {tab}
+          </Text>
+          
+          {tab === TABS.COMPLETIONS && completions.length > 0 && (
+            <View style={styles.badgeContainer}>
+              <Text style={styles.badgeText}>{completions.length}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    ))}
+  </View>
+);
 
   // Handle assignment status toggle with approval support
   const handleToggleStatus = async () => {
@@ -1056,10 +1066,12 @@ const AssignmentDetailsScreen = ({ route, navigation }) => {
                 <View style={styles.detailRow}>
                   <Icon name="school" size={20} color={CustomColors.accent} style={styles.icon} />
                   <Text style={styles.detailLabel}>Grade:</Text>
-                  {console.log('Grade in UI render:', assignment.grade)}
-                  {assignment.grade !== undefined && assignment.grade !== null ? (
+                  {console.log('DEBUGGING GRADE UI:')} 
+                  {console.log('Assignment status:', assignment.status)}
+                  {console.log('AssignmentGrade state value:', assignmentGrade)}
+                  {assignmentGrade !== undefined && assignmentGrade !== null ? (
                     <Text style={[styles.detailValue, {color: CustomColors.success, fontWeight: 'bold'}]}>
-                      {assignment.grade} / 100
+                      {assignmentGrade} / 100
                     </Text>
                   ) : (
                     <Text style={[styles.detailValue, {color: CustomColors.textTertiary}]}>

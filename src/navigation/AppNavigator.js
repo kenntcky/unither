@@ -12,6 +12,7 @@ import ProfileScreen from "../screens/ProfileScreen"
 import EditProfileScreen from "../screens/EditProfileScreen" // Edit Profile screen
 import ProfileViewScreen from "../screens/ProfileViewScreen" // Profile View screen
 import ChangePasswordScreen from "../screens/ChangePasswordScreen" // Change Password screen
+import StudentGradesScreen from "../screens/StudentGradesScreen" // Student Grades screen
 import GalleryScreen from "../screens/GalleryScreen" // New Gallery screen
 import AlbumScreen from "../screens/AlbumScreen" // Album screen
 import GalleryApprovalScreen from "../screens/GalleryApprovalScreen" // Gallery approvals screen
@@ -254,6 +255,7 @@ const ProfileStack = () => (
     <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: t("Profile") }} />
     <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: t("Edit Profile") }} />
     <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: t("Change Password") }} />
+    <Stack.Screen name="StudentGrades" component={StudentGradesScreen} options={{ title: t("My Grades") }} />
     <Stack.Screen name="ProfileView" component={ProfileViewScreen} options={{ title: t("User Profile") }} />
     <Stack.Screen name="ClassMembers" component={ClassMembersScreen} options={{ title: t("Class Members") }} />
     <Stack.Screen name="ClassSettings" component={ClassSettingsScreen} options={{ title: t("Class Settings") }} />

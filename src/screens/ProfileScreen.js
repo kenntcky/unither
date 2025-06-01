@@ -679,6 +679,15 @@ const ProfileScreen = ({ navigation }) => {
                   <Text style={styles.menuItemText}>{t('Class Members')}</Text>
                   <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                 </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => navigation.navigate('StudentGrades')}
+                >
+                  <Icon name="school" size={24} color={CustomColors.success} />
+                  <Text style={styles.menuItemText}>{t('My Grades')}</Text>
+                  <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
+                </TouchableOpacity>
                 
                 <TouchableOpacity 
                   style={styles.menuItem}
