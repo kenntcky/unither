@@ -85,9 +85,9 @@ const SleekBottomBar = ({ state, descriptors, navigation }) => {
     setShowDropdown(!showDropdown);
   };
 
-  const handleDropdownOption = (routeName) => {
+  const handleDropdownOption = (routeName, params) => {
     setShowDropdown(false);
-    navigation.navigate(routeName);
+    navigation.navigate(routeName, params);
   };
 
   return (
@@ -105,6 +105,18 @@ const SleekBottomBar = ({ state, descriptors, navigation }) => {
             onPress={() => setShowDropdown(false)}
           >
             <View style={styles.dropdownContainer}>
+              <TouchableOpacity
+                style={styles.dropdownOption}
+                onPress={() => {
+                  setShowDropdown(false);
+                  navigation.navigate('ProfileTab', {
+                    screen: 'StudentGrades'
+                  });
+                }}
+              >
+                <MaterialIcons name="grade" size={24} color="#4F46E5" />
+                <Text style={styles.dropdownText}>My Grade</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.dropdownOption}
                 onPress={() => handleDropdownOption("AssignmentsTab")}
@@ -405,14 +417,23 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: BAR_HEIGHT,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     ...Platform.select({
-      ios: {},
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: {
+          width: 0,
+          height: -4,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
       android: {
         borderTopWidth: 1,
         borderTopColor: 'rgba(0, 0, 0, 0.05)',
+        elevation: 8,
       },
     }),
   },
@@ -422,14 +443,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(10px)',
   },
   tabContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     height: '100%',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     position: 'relative',
     zIndex: 1,
   },
@@ -465,7 +487,7 @@ const styles = StyleSheet.create({
       height: 4,
     },
     shadowOpacity: 0.3,
-    shadowRadius: 4.65,
+    shadowRadius: 8,
     elevation: 8,
   },
   selectedIcon: {
@@ -476,38 +498,48 @@ const styles = StyleSheet.create({
   unselectedIcon: {},
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
     justifyContent: 'flex-end',
+    backdropFilter: 'blur(4px)',
   },
   dropdownContainer: {
     backgroundColor: 'white',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    padding: 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    padding: 20,
     position: 'absolute',
-    bottom: BAR_HEIGHT + 0,
+    bottom: BAR_HEIGHT + 15,
     right: 20,
-    width: 200,
-    shadowColor: "#000",
+    width: 240,
+    shadowColor: "#4F46E5",
     shadowOffset: {
       width: 0,
-      height: -2,
+      height: 6,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(79, 70, 229, 0.15)',
   },
   dropdownOption: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 16,
+    marginBottom: 10,
+    backgroundColor: 'rgba(79, 70, 229, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(79, 70, 229, 0.08)',
   },
   dropdownText: {
-    marginLeft: 12,
+    marginLeft: 14,
     fontSize: 16,
     color: '#1F2937',
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   aiIcon: {
     width: 50,
