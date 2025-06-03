@@ -26,7 +26,7 @@ const ALBUMS_COLLECTION = 'albums'
 
 // Enhanced color scheme
 const NewColors = {
-  primary: "#6A4CE4", // Purple primary
+  primary: "#4A148C", // Purple primary
   primaryLight: "#8A7CDC", // Lighter purple
   primaryDark: "#5038C0", // Darker purple
   secondary: "#3A8EFF", // Blue secondary

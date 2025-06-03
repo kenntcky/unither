@@ -25,7 +25,7 @@ const { width } = Dimensions.get('window');
 
 // Enhanced color palette to match other screens
 const NewColors = {
-  primary: "#6A4CE4", // Purple primary
+  primary: "#4A148C", // Purple primary
   primaryLight: "#8A7CDC", // Lighter purple
   primaryDark: "#5038C0", // Darker purple
   secondary: "#3A8EFF", // Blue secondary
@@ -311,7 +311,7 @@ const ClassSelectionScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: NewColors.background,
+    backgroundColor: Colors.background,
   },
   contentContainer: {
     flex: 1,
@@ -321,12 +321,12 @@ const styles = StyleSheet.create({
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: NewColors.overlay,
+    backgroundColor: Colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: NewColors.background,
+    backgroundColor: Colors.surface,
     padding: 24,
     borderRadius: 20,
     alignItems: 'center',
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     width: width * 0.85,
     maxWidth: 400,
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -343,33 +343,33 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(106, 76, 228, 0.1)',
+    backgroundColor: 'rgba(74, 20, 140, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   modalTitle: {
     fontSize: 18,
-    color: NewColors.textPrimary,
+    color: Colors.text,
     fontWeight: '500',
     textAlign: 'center',
   },
   modalClassname: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: NewColors.primary,
+    color: Colors.primary,
     textAlign: 'center',
     marginTop: 8,
   },
   
   // Header styles
   header: {
-    backgroundColor: NewColors.primary,
+    backgroundColor: Colors.primary,
     paddingTop: Platform.OS === 'ios' ? 20 : 40,
     paddingBottom: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: NewColors.shadow,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -382,12 +382,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: NewColors.textLight,
+    color: Colors.textLight,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
+    color: Colors.textLight,
+    opacity: 0.9,
   },
   
   // List styles

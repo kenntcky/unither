@@ -32,14 +32,14 @@ import { useTranslation } from 'react-i18next';
 
 // Custom color palette
 const CustomColors = {
-  primary: '#6A5ACD', // Purple (SlateBlue)
-  primaryLight: '#8A7CDC', // Lighter purple
-  secondary: '#4169E1', // Royal Blue
-  accent: '#FF4757', // Red
+  primary: '#4A148C', // Purple (SlateBlue)
+  primaryLight: '#7B1FA2', // Lighter purple
+  secondary: '#1E1E1E', // Royal Blue
+  accent: '#E91E63', // Red
   background: '#FFFFFF', // White
   surface: '#F8F9FA', // Light gray for inputs
   text: '#333333', // Dark text
-  textSecondary: '#6C757D', // Secondary text
+  textSecondary: '#6B7280', // Secondary text
   error: '#FF6B6B', // Error color
   success: '#28A745', // Success color
   cardBorder: '#E0E7FF', // Light purple border
@@ -1331,7 +1331,7 @@ const styles = StyleSheet.create({
   groupCountButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: CustomColors.secondary,
+    backgroundColor: CustomColors.primary,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -1430,7 +1430,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   randomizeButton: {
-    backgroundColor: CustomColors.secondary,
+    backgroundColor: CustomColors.primary,
     borderRadius: 12,
     padding: 14,
     flexDirection: 'row',

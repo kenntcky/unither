@@ -18,7 +18,7 @@ import {
 } from "react-native"
 import Icon from "react-native-vector-icons/MaterialIcons"
 import { useAuth } from "../../context/AuthContext"
-import Colors from "../../constants/Colors"
+// import Colors from "../../constants/Colors"
 import { GENDER_TYPES, GENDER_LABELS } from "../../constants/UserTypes"
 import { t } from "../../translations"
 
@@ -26,7 +26,7 @@ const { width } = Dimensions.get("window")
 
 // Custom colors for purple-blue theme - matching login screen
 const customColors = {
-  primary: "#6366F1", // Indigo
+  primary: "#4A148C", // Indigo
   secondary: "#8B5CF6", // Purple
   accent: "#4F46E5", // Indigo darker
   background: "#FFFFFF", // White background
@@ -714,8 +714,8 @@ const RegisterScreen = ({ navigation }) => {
             <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
               <TouchableOpacity
                 style={[styles.registerButton, { 
-                  backgroundColor: customColors.accent,
-                  shadowColor: customColors.accent 
+                  backgroundColor: customColors.primary,
+                  shadowColor: customColors.primary 
                 }]}
                 onPress={handleRegister}
                 disabled={loading}

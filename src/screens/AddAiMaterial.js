@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   PermissionsAndroid,
   StatusBar,
   Dimensions,
+  Modal,
+  Animated,
 } from "react-native"
 import { launchImageLibrary, launchCamera } from "react-native-image-picker"
 import { pick } from "@react-native-documents/picker"
@@ -21,6 +23,7 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons"
 import firestore from "@react-native-firebase/firestore"
 import auth from "@react-native-firebase/auth"
 import { useClass } from "../context/ClassContext"
+import Colors from "../constants/Colors"
 import { t } from "../translations"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { getApiKeys, testApiKeys } from '../utils/apiKeys'
@@ -30,29 +33,194 @@ import { GoogleGenAI } from "@google/genai"
 const { AIMLAPI_KEY_1, AIMLAPI_KEY_2, AIMLAPI_KEY_3, GEMINI_API_KEY } = getApiKeys();
 const AIMLAPI_KEYS = [AIMLAPI_KEY_1, AIMLAPI_KEY_2, AIMLAPI_KEY_3];
 
-// Enhanced color palette
-const Colors = {
-  primary: "#6A5ACD", // SlateBlue (purple)
-  primaryLight: "#9D91E3", // Lighter purple
-  primaryDark: "#483D8B", // Darker purple
-  secondary: "#4169E1", // RoyalBlue
-  secondaryLight: "#738FEA", // Lighter blue
-  accent: "#7B68EE", // MediumSlateBlue
-  background: "#F8F9FF", // Very light blue/white
-  surface: "#FFFFFF", // White
-  card: "#FFFFFF", // White
-  text: "#333366", // Dark blue/purple
-  textSecondary: "#6A5ACD80", // Transparent purple
-  border: "#E0E0FF", // Light blue/purple border
-  warning: "#FF9800", // Orange for warnings
-  success: "#4CAF50", // Green for success
-  error: "#F44336", // Red for errors
-  shadow: "#CCCCFF", // Light purple shadow
-  gradientStart: "#F8F9FF", // Very light blue/white
-  gradientEnd: "#F0F0FF", // Light purple
-}
+const { width, height } = Dimensions.get("window")
 
-const { width } = Dimensions.get("window")
+// Custom Success Popup Component
+const SuccessPopup = ({ visible, onClose, onViewMaterial, onCreateAnother, materialTitle }) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+  const confettiAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      // Start animations when popup becomes visible
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(bounceAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(confettiAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Reset animations when popup is hidden
+      scaleAnim.setValue(0);
+      fadeAnim.setValue(0);
+      bounceAnim.setValue(0);
+      confettiAnim.setValue(0);
+    }
+  }, [visible]);
+
+  const bounceInterpolate = bounceAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 1.1, 1],
+  });
+
+  const confettiTranslateY = confettiAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-50, height],
+  });
+
+  const renderConfetti = () => {
+    const confettiPieces = [];
+    const colors = [Colors.primary, Colors.secondary, Colors.accent, Colors.success, '#FFD700', '#FF6B6B'];
+    
+    for (let i = 0; i < 20; i++) {
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      const randomLeft = Math.random() * width;
+      const randomDelay = Math.random() * 1000;
+      
+      confettiPieces.push(
+        <Animated.View
+          key={i}
+          style={[
+            styles.confettiPiece,
+            {
+              backgroundColor: randomColor,
+              left: randomLeft,
+              transform: [
+                {
+                  translateY: confettiTranslateY,
+                },
+                {
+                  rotate: confettiAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+      );
+    }
+    return confettiPieces;
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      <View style={styles.overlay}>
+        {/* Confetti Animation */}
+        <View style={styles.confettiContainer}>
+          {renderConfetti()}
+        </View>
+
+        <Animated.View
+          style={[
+            styles.popup,
+            {
+              opacity: fadeAnim,
+              transform: [
+                { scale: scaleAnim },
+                { scale: bounceInterpolate },
+              ],
+            },
+          ]}
+        >
+          {/* Success Icon with Glow Effect */}
+          <View style={styles.iconContainer}>
+            <View style={styles.glowEffect} />
+            <Animated.View
+              style={[
+                styles.successIcon,
+                {
+                  transform: [{ scale: bounceInterpolate }],
+                },
+              ]}
+            >
+              <Icon name="check-circle" size={80} color={Colors.success} />
+            </Animated.View>
+          </View>
+
+          {/* Success Message */}
+          <Text style={styles.successTitle}>🎉 Berhasil!</Text>
+          <Text style={styles.successSubtitle}>
+            Material "{materialTitle}" telah berhasil diproses!
+          </Text>
+
+          {/* Features List */}
+          <View style={styles.featuresContainer}>
+            <View style={styles.featureItem}>
+              <Icon name="file-document" size={20} color={Colors.primary} />
+              <Text style={styles.featureText}>Ringkasan detail telah dibuat</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Icon name="help-circle" size={20} color={Colors.primary} />
+              <Text style={styles.featureText}>Soal kuis telah digenerate</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Icon name="brain" size={20} color={Colors.primary} />
+              <Text style={styles.featureText}>Materi pembelajaran siap digunakan</Text>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={onViewMaterial}
+              activeOpacity={0.8}
+            >
+              <Icon name="eye" size={20} color={Colors.textLight} />
+              <Text style={styles.primaryButtonText}>Lihat Material</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={onCreateAnother}
+              activeOpacity={0.8}
+            >
+              <Icon name="plus" size={20} color={Colors.primary} />
+              <Text style={styles.secondaryButtonText}>Buat Lagi</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Close Button */}
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={onClose}
+            activeOpacity={0.7}
+          >
+            <Icon name="close" size={24} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+};
 
 const AddAiMaterial = ({ navigation, route }) => {
   const [title, setTitle] = useState("")
@@ -65,6 +233,8 @@ const AddAiMaterial = ({ navigation, route }) => {
   const { classId, currentClass } = useClass()
   const currentUser = auth().currentUser
   const [currentStep, setCurrentStep] = useState(1)
+  // Add state for success popup
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
 
   // Test API keys on component mount
   useEffect(() => {
@@ -773,8 +943,9 @@ The number of questions should be proportional to the complexity and length of t
         // Store AI material as a subcollection of the class
         await firestore().collection("classes").doc(activeClassId).collection("aiMaterials").add(materialData)
 
-        Alert.alert("Success", "Material processed and quiz created successfully!")
-        navigation.goBack()
+        // Show custom success popup instead of Alert
+        setShowSuccessPopup(true)
+        
       } catch (firestoreError) {
         console.error("Firestore save error:", firestoreError)
         Alert.alert("Error", "Failed to save the processed material to the database. Please try again.")
@@ -805,23 +976,17 @@ The number of questions should be proportional to the complexity and length of t
 
     // Select appropriate icon based on document type
     let iconName = "file-document"
-    let iconColor = Colors.primaryLight
+    let iconColor = Colors.primary
 
     if (fileType?.includes("pdf")) {
       iconName = "file-pdf-box"
-      iconColor = "#f44336" // Red for PDF
+      iconColor = Colors.error
     } else if (fileType?.includes("word") || fileType?.includes("doc")) {
       iconName = "file-word-box"
-      iconColor = "#2196f3" // Blue for Word
+      iconColor = Colors.primary
     } else if (fileType?.includes("text") || fileType?.includes("txt")) {
       iconName = "file-text"
-      iconColor = "#9e9e9e" // Gray for Text
-    } else if (fileType?.includes("excel") || fileType?.includes("sheet")) {
-      iconName = "file-excel-box"
-      iconColor = "#4caf50" // Green for Excel
-    } else if (fileType?.includes("ppt") || fileType?.includes("presentation")) {
-      iconName = "file-powerpoint-box"
-      iconColor = "#ff9800" // Orange for PowerPoint
+      iconColor = Colors.textSecondary
     }
 
     // Calculate file size if content exists
@@ -887,7 +1052,7 @@ The number of questions should be proportional to the complexity and length of t
             }
           }}
         >
-          <Icon name="arrow-left" size={24} color={Colors.surface} />
+          <Icon name="arrow-left" size={24} color={Colors.textLight} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("Create AI Material")}</Text>
         <View style={styles.headerRight} />
@@ -917,7 +1082,7 @@ The number of questions should be proportional to the complexity and length of t
 
           <TouchableOpacity style={styles.uploadOptionCard} onPress={pickImage}>
             <View style={styles.uploadOptionIconContainer}>
-              <Icon name="image" size={32} color={Colors.secondary} />
+              <Icon name="image-multiple" size={32} color={Colors.primary} />
             </View>
             <Text style={styles.uploadOptionTitle}>{t("Gallery")}</Text>
             <Text style={styles.uploadOptionDescription}>{t("Select an image from your device")}</Text>
@@ -925,7 +1090,7 @@ The number of questions should be proportional to the complexity and length of t
 
           <TouchableOpacity style={styles.uploadOptionCard} onPress={pickDocument}>
             <View style={styles.uploadOptionIconContainer}>
-              <Icon name="file-document" size={32} color={Colors.accent} />
+              <Icon name="file-document" size={32} color={Colors.primary} />
             </View>
             <Text style={styles.uploadOptionTitle}>{t("Document")}</Text>
             <Text style={styles.uploadOptionDescription}>{t("Upload PDF, Word, or text files")}</Text>
@@ -997,7 +1162,7 @@ The number of questions should be proportional to the complexity and length of t
             disabled={!title.trim()}
           >
             <Text style={styles.primaryButtonText}>{t("Continue")}</Text>
-            <Icon name="arrow-right" size={20} color={Colors.surface} />
+            <Icon name="arrow-right" size={20} color={Colors.textLight} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1092,12 +1257,12 @@ The number of questions should be proportional to the complexity and length of t
           >
             {loading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator color={Colors.surface} size="small" />
+                <ActivityIndicator color={Colors.textLight} size="small" />
                 <Text style={styles.loadingText}>{t("Processing...")}</Text>
               </View>
             ) : (
               <>
-                <Icon name="brain" size={20} color={Colors.surface} />
+                <Icon name="brain" size={20} color={Colors.textLight} />
                 <Text style={styles.processButtonText}>{t("Process with AI")}</Text>
               </>
             )}
@@ -1128,6 +1293,24 @@ The number of questions should be proportional to the complexity and length of t
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
         {renderCurrentStep()}
       </ScrollView>
+      
+      {/* Success Popup */}
+      <SuccessPopup
+        visible={showSuccessPopup}
+        materialTitle={title}
+        onClose={() => setShowSuccessPopup(false)}
+        onViewMaterial={() => {
+          setShowSuccessPopup(false);
+          navigation.goBack();
+        }}
+        onCreateAnother={() => {
+          setShowSuccessPopup(false);
+          setCurrentStep(1);
+          setFile(null);
+          setTitle("");
+          setPrompt("");
+        }}
+      />
     </View>
   )
 }
@@ -1146,7 +1329,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     elevation: 4,
-    shadowColor: "#000",
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -1160,7 +1343,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.surface,
+    color: Colors.textLight,
   },
   headerRight: {
     width: 40,
@@ -1170,7 +1353,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     backgroundColor: Colors.surface,
     elevation: 2,
-    shadowColor: "#000",
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 1,
@@ -1181,7 +1364,7 @@ const styles = StyleSheet.create({
     left: 60,
     right: 60,
     height: 2,
-    backgroundColor: Colors.border,
+    backgroundColor: Colors.separator,
     zIndex: 1,
   },
   stepLineInner: {
@@ -1202,7 +1385,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     backgroundColor: Colors.surface,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: Colors.separator,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1216,7 +1399,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   activeStepNumber: {
-    color: Colors.surface,
+    color: Colors.textLight,
   },
   stepText: {
     fontSize: 12,
@@ -1238,8 +1421,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-
-  // Upload step styles
   uploadIntroContainer: {
     alignItems: "center",
     marginVertical: 24,
@@ -1295,10 +1476,10 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     flex: 1,
     marginLeft: 10,
-    textAlign: "left",
+    textAlign: "right",
   },
   infoCard: {
-    backgroundColor: "rgba(65, 105, 225, 0.1)",
+    backgroundColor: `${Colors.primary}10`,
     borderRadius: 8,
     padding: 12,
     flexDirection: "row",
@@ -1307,12 +1488,10 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: Colors.secondary,
+    color: Colors.primary,
     marginLeft: 8,
     flex: 1,
   },
-
-  // Details step styles
   detailsContainer: {
     marginVertical: 16,
   },
@@ -1362,7 +1541,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.inputBorder,
     color: Colors.text,
     padding: 12,
     fontSize: 16,
@@ -1404,7 +1583,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   primaryButtonText: {
-    color: Colors.surface,
+    color: Colors.textLight,
     fontSize: 16,
     fontWeight: "600",
     marginRight: 8,
@@ -1412,8 +1591,6 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.6,
   },
-
-  // Process step styles
   processContainer: {
     marginVertical: 16,
   },
@@ -1441,7 +1618,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.separator,
   },
   summaryTextContainer: {
     marginLeft: 12,
@@ -1473,17 +1650,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: Colors.separator,
   },
   aiInfoTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.text,
+    color: Colors.primary,
     marginLeft: 8,
   },
   aiInfoText: {
     fontSize: 14,
-    color: Colors.text,
+    color: Colors.primary,
     marginBottom: 12,
   },
   aiFeatureRow: {
@@ -1493,13 +1670,13 @@ const styles = StyleSheet.create({
   },
   aiFeatureText: {
     fontSize: 14,
-    color: Colors.text,
+    color: Colors.primary,
     marginLeft: 8,
   },
   warningContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 152, 0, 0.1)",
+    backgroundColor: `${Colors.warning}10`,
     padding: 12,
     borderRadius: 8,
     marginTop: 16,
@@ -1521,7 +1698,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   processButtonText: {
-    color: Colors.surface,
+    color: Colors.textLight,
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
@@ -1531,10 +1708,134 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingText: {
-    color: Colors.surface,
+    color: Colors.textLight,
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
+  },
+  
+  // Custom Success Popup Styles
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confettiContainer: {
+    ...StyleSheet.absoluteFillObject,
+    pointerEvents: 'none',
+  },
+  confettiPiece: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  popup: {
+    width: '85%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
+  iconContainer: {
+    marginVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glowEffect: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.success + '20',
+    transform: [{ scale: 1.5 }],
+  },
+  successIcon: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 40,
+    padding: 8,
+  },
+  successTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  successSubtitle: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 20,
+    lineHeight: 22,
+  },
+  featuresContainer: {
+    width: '100%',
+    marginBottom: 24,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.backgroundLight,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  featureText: {
+    marginLeft: 12,
+    fontSize: 15,
+    color: Colors.text,
+    flex: 1,
+  },
+  buttonContainer: {
+    width: '100%',
+    gap: 12,
+  },
+  primaryButton: {
+    backgroundColor: Colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  primaryButtonText: {
+    color: Colors.textLight,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    backgroundColor: Colors.backgroundLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  secondaryButtonText: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.backgroundLight,
   },
 })
 

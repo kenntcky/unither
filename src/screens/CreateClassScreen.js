@@ -26,7 +26,7 @@ const MAX_DESCRIPTION_LENGTH = 200;
 
 // Enhanced color palette to match other screens
 const NewColors = {
-  primary: "#6A4CE4", // Purple primary
+  primary: "#4A148C", // Purple primary
   primaryLight: "#8A7CDC", // Lighter purple
   primaryDark: "#5038C0", // Darker purple
   secondary: "#3A8EFF", // Blue secondary
@@ -148,7 +148,7 @@ const CreateClassScreen = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" backgroundColor={NewColors.primaryDark} />
+      <StatusBar barStyle="light-content" backgroundColor={Colors.primaryDark} />
       
       {/* Enhanced Header */}
       <View style={styles.header}>
@@ -157,7 +157,7 @@ const CreateClassScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <MaterialIcons name="arrow-back" size={24} color={NewColors.textLight} />
+            <MaterialIcons name="arrow-back" size={24} color={Colors.textLight} />
           </TouchableOpacity>
           <Text style={styles.title}>{t('Create a New Class')}</Text>
         </View>
@@ -179,7 +179,7 @@ const CreateClassScreen = () => {
         >
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
-              <MaterialIcons name="school" size={24} color={NewColors.primary} />
+              <MaterialIcons name="school" size={24} color={Colors.primary} />
             </View>
             <Text style={styles.sectionTitle}>{t('Class Details')}</Text>
           </View>
@@ -193,7 +193,7 @@ const CreateClassScreen = () => {
               <TextInput
                 style={[styles.input, errors.name && styles.inputError]}
                 placeholder={t('Enter class name')}
-                placeholderTextColor={NewColors.textSecondary}
+                placeholderTextColor={Colors.textSecondary}
                 value={name}
                 onChangeText={setName}
                 maxLength={MAX_NAME_LENGTH}
@@ -201,7 +201,7 @@ const CreateClassScreen = () => {
               <MaterialIcons 
                 name="edit" 
                 size={20} 
-                color={NewColors.primary} 
+                color={Colors.primary} 
                 style={styles.inputIcon}
               />
             </View>
@@ -215,7 +215,7 @@ const CreateClassScreen = () => {
               <TextInput
                 style={[styles.input, styles.textArea, errors.description && styles.inputError]}
                 placeholder={t('Enter class description')}
-                placeholderTextColor={NewColors.textSecondary}
+                placeholderTextColor={Colors.textSecondary}
                 value={description}
                 onChangeText={setDescription}
                 multiline
@@ -225,7 +225,7 @@ const CreateClassScreen = () => {
               <MaterialIcons 
                 name="description" 
                 size={20} 
-                color={NewColors.primary} 
+                color={Colors.primary} 
                 style={[styles.inputIcon, styles.textAreaIcon]}
               />
             </View>
@@ -241,7 +241,7 @@ const CreateClassScreen = () => {
               <TextInput
                 style={[styles.input, errors.maxUsers && styles.inputError]}
                 placeholder={t('Enter maximum number of students')}
-                placeholderTextColor={NewColors.textSecondary}
+                placeholderTextColor={Colors.textSecondary}
                 value={maxUsers}
                 onChangeText={setMaxUsers}
                 keyboardType="numeric"
@@ -250,7 +250,7 @@ const CreateClassScreen = () => {
               <MaterialIcons 
                 name="people" 
                 size={20} 
-                color={NewColors.primary} 
+                color={Colors.primary} 
                 style={styles.inputIcon}
               />
             </View>
@@ -259,7 +259,7 @@ const CreateClassScreen = () => {
 
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
-              <MaterialIcons name="admin-panel-settings" size={24} color={NewColors.primary} />
+              <MaterialIcons name="admin-panel-settings" size={24} color={Colors.primary} />
             </View>
             <Text style={styles.sectionTitle}>{t('Role Settings')}</Text>
           </View>
@@ -276,7 +276,7 @@ const CreateClassScreen = () => {
                 <MaterialIcons 
                   name="person" 
                   size={24} 
-                  color={creatorRole === 'student' ? NewColors.textLight : NewColors.primary} 
+                  color={creatorRole === 'student' ? Colors.textLight : Colors.primary} 
                 />
                 <Text style={[styles.roleButtonText, creatorRole === 'student' && styles.roleButtonTextActive]}>
                   {t('Student (Class Admin)')}
@@ -293,7 +293,7 @@ const CreateClassScreen = () => {
                 <MaterialIcons 
                   name="school" 
                   size={24} 
-                  color={creatorRole === 'teacher' ? NewColors.textLight : NewColors.primary} 
+                  color={creatorRole === 'teacher' ? Colors.textLight : Colors.primary} 
                 />
                 <Text style={[styles.roleButtonText, creatorRole === 'teacher' && styles.roleButtonTextActive]}>
                   {t('Teacher')}
@@ -321,7 +321,7 @@ const CreateClassScreen = () => {
                   <TextInput
                     style={[styles.input, errors.maxTeachers && styles.inputError]}
                     placeholder={t('Enter maximum number of teachers')}
-                    placeholderTextColor={NewColors.textSecondary}
+                    placeholderTextColor={Colors.textSecondary}
                     value={maxTeachers}
                     onChangeText={setMaxTeachers}
                     keyboardType="numeric"
@@ -330,7 +330,7 @@ const CreateClassScreen = () => {
                   <MaterialIcons 
                     name="people" 
                     size={20} 
-                    color={NewColors.primary} 
+                    color={Colors.primary} 
                     style={styles.inputIcon}
                   />
                 </View>
@@ -340,7 +340,7 @@ const CreateClassScreen = () => {
           </View>
 
           <View style={styles.infoBox}>
-            <MaterialIcons name="info" size={24} color={NewColors.accent} style={styles.infoIcon} />
+            <MaterialIcons name="info" size={24} color={Colors.accent} style={styles.infoIcon} />
             <Text style={styles.infoText}>
               {t('Once your class is created, you\'ll receive a unique class code that you can share with your students.')}
             </Text>
@@ -356,10 +356,10 @@ const CreateClassScreen = () => {
           activeOpacity={0.8}
         >
           {loading ? (
-            <ActivityIndicator size="small" color={NewColors.textLight} />
+            <ActivityIndicator size="small" color={Colors.textLight} />
           ) : (
             <>
-              <MaterialIcons name="add" size={24} color={NewColors.textLight} />
+              <MaterialIcons name="add" size={24} color={Colors.textLight} />
               <Text style={styles.createButtonText}>{t('Create Class')}</Text>
             </>
           )}
@@ -372,7 +372,7 @@ const CreateClassScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: NewColors.background,
+    backgroundColor: Colors.background,
   },
   
   // Role selection styles
@@ -386,26 +386,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: NewColors.cardBackgroundAlt,
+    backgroundColor: Colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: NewColors.inputBorder,
+    borderColor: Colors.inputBorder,
     width: '48%',
   },
   roleButtonActive: {
-    backgroundColor: NewColors.primary,
-    borderColor: NewColors.primary,
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   roleButtonText: {
     marginLeft: 8,
     fontSize: 15,
-    color: NewColors.textPrimary,
+    color: Colors.textPrimary,
     fontWeight: '500',
   },
   roleButtonTextActive: {
-    color: NewColors.textLight,
+    color: Colors.textLight,
   },
   
   // Toggle styles

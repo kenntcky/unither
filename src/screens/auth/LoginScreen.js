@@ -342,7 +342,7 @@ const LoginScreen = ({ navigation }) => {
   })
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: customColors.background }]}>
+    <Animated.View style={[styles.container, { backgroundColor: Colors.background }]}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
       {/* Floating bubbles */}
@@ -393,8 +393,8 @@ const LoginScreen = ({ navigation }) => {
                 resizeMode="contain"
               />
             </Animated.View>
-            <Text style={[styles.logoText, { color: customColors.primary }]}>Unither</Text>
-            <Text style={[styles.tagline, { color: customColors.textSecondary }]}>
+            <Text style={[styles.logoText, { color: Colors.text }]}>Unither</Text>
+            <Text style={[styles.tagline, { color: Colors.textSecondary }]}>
               {t("Your class community in one place")}
             </Text>
           </Animated.View>
@@ -405,39 +405,39 @@ const LoginScreen = ({ navigation }) => {
               {
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
-                backgroundColor: "white",
-                shadowColor: customColors.gradientMiddle,
-                borderColor: "rgba(99, 102, 241, 0.2)",
+                backgroundColor: Colors.surface,
+                shadowColor: Colors.shadow,
+                borderColor: Colors.separator,
               },
             ]}
           >
-            <Text style={[styles.title, { color: customColors.primary }]}>{t("Welcome Back")}</Text>
-            <Text style={[styles.subtitle, { color: customColors.textSecondary }]}>
+            <Text style={[styles.title, { color: Colors.text }]}>{t("Welcome Back")}</Text>
+            <Text style={[styles.subtitle, { color: Colors.textSecondary }]}>
               {t("Access your class assignments & materials")}
             </Text>
 
             <View style={styles.inputWrapper}>
-              <Text style={[styles.inputLabel, { color: customColors.text }]}>{t("Email")}</Text>
+              <Text style={[styles.inputLabel, { color: Colors.text }]}>{t("Email")}</Text>
               <Animated.View
                 style={[
                   styles.inputContainer,
-                  emailError ? [styles.inputError, { borderColor: customColors.error }] : null,
+                  emailError ? [styles.inputError, { borderColor: Colors.error }] : null,
                   { 
                     borderColor: emailFocused ? emailBorderColor : "rgba(99, 102, 241, 0.3)",
-                    backgroundColor: "rgba(99, 102, 241, 0.05)" 
+                    backgroundColor: Colors.inputBackground 
                   },
                 ]}
               >
                 <Icon
                   name="email"
                   size={20}
-                  color={emailFocused ? customColors.accent : customColors.textSecondary}
+                  color={emailFocused ? customColors.accent : Colors.textSecondary}
                   style={styles.inputIcon}
                 />
                 <TextInput
-                  style={[styles.input, { color: customColors.text }]}
+                  style={[styles.input, { color: Colors.text }]}
                   placeholder={t("Enter your school email")}
-                  placeholderTextColor={customColors.textSecondary}
+                  placeholderTextColor={Colors.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -447,34 +447,34 @@ const LoginScreen = ({ navigation }) => {
                 />
               </Animated.View>
               {emailError ? (
-                <Animated.Text style={[styles.errorText, { opacity: fadeAnim, color: customColors.error }]}>
+                <Animated.Text style={[styles.errorText, { opacity: fadeAnim, color: Colors.error }]}>
                   {emailError}
                 </Animated.Text>
               ) : null}
             </View>
 
             <View style={styles.inputWrapper}>
-              <Text style={[styles.inputLabel, { color: customColors.text }]}>{t("Password")}</Text>
+              <Text style={[styles.inputLabel, { color: Colors.text }]}>{t("Password")}</Text>
               <Animated.View
                 style={[
                   styles.inputContainer,
-                  passwordError ? [styles.inputError, { borderColor: customColors.error }] : null,
+                  passwordError ? [styles.inputError, { borderColor: Colors.error }] : null,
                   { 
                     borderColor: passwordFocused ? passwordBorderColor : "rgba(99, 102, 241, 0.3)",
-                    backgroundColor: "rgba(99, 102, 241, 0.05)" 
+                    backgroundColor: Colors.inputBackground 
                   },
                 ]}
               >
                 <Icon
                   name="lock"
                   size={20}
-                  color={passwordFocused ? customColors.accent : customColors.textSecondary}
+                  color={passwordFocused ? customColors.accent : Colors.textSecondary}
                   style={styles.inputIcon}
                 />
                 <TextInput
-                  style={[styles.input, { color: customColors.text }]}
+                  style={[styles.input, { color: Colors.text }]}
                   placeholder={t("Enter your password")}
-                  placeholderTextColor={customColors.textSecondary}
+                  placeholderTextColor={Colors.textSecondary}
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
@@ -483,14 +483,14 @@ const LoginScreen = ({ navigation }) => {
                 />
               </Animated.View>
               {passwordError ? (
-                <Animated.Text style={[styles.errorText, { opacity: fadeAnim, color: customColors.error }]}>
+                <Animated.Text style={[styles.errorText, { opacity: fadeAnim, color: Colors.error }]}>
                   {passwordError}
                 </Animated.Text>
               ) : null}
             </View>
 
             <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword} activeOpacity={0.7}>
-              <Text style={[styles.forgotPasswordText, { color: customColors.textSecondary }]}>
+              <Text style={[styles.forgotPasswordText, { color: Colors.primary }]}>
                 {t("Forgot Password?")}
               </Text>
             </TouchableOpacity>
@@ -498,8 +498,8 @@ const LoginScreen = ({ navigation }) => {
             <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
               <TouchableOpacity
                 style={[styles.loginButton, { 
-                  backgroundColor: customColors.accent,
-                  shadowColor: customColors.accent 
+                  backgroundColor: Colors.primary,
+                  shadowColor: Colors.shadow 
                 }]}
                 onPress={handleLogin}
                 disabled={loading}
@@ -512,7 +512,7 @@ const LoginScreen = ({ navigation }) => {
                 ) : (
                   <>
                     <Icon name="school" size={20} color="white" style={{ marginRight: 8 }} />
-                    <Text style={[styles.buttonText, { color: "white" }]}>{t("Log In to Class")}</Text>
+                    <Text style={[styles.loginButtonText, { color: Colors.textLight }]}>{t("Log In to Class")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -520,15 +520,15 @@ const LoginScreen = ({ navigation }) => {
 
             <View style={styles.dividerContainer}>
               <View style={[styles.divider, { backgroundColor: "rgba(99, 102, 241, 0.2)" }]} />
-              <Text style={[styles.dividerText, { color: customColors.textSecondary }]}>{t("OR")}</Text>
+              <Text style={[styles.orText, { color: Colors.textSecondary }]}>{t("OR")}</Text>
               <View style={[styles.divider, { backgroundColor: "rgba(99, 102, 241, 0.2)" }]} />
             </View>
 
             <Animated.View style={{ transform: [{ scale: googleButtonScale }] }}>
               <TouchableOpacity
-                style={[styles.googleButton, { 
-                  backgroundColor: "rgba(99, 102, 241, 0.1)",
-                  borderColor: "rgba(99, 102, 241, 0.3)" 
+                style={[styles.socialButton, { 
+                  backgroundColor: Colors.primary,
+                  borderColor: Colors.primary, 
                 }]}
                 onPress={handleGoogleLogin}
                 disabled={loading}
@@ -536,28 +536,28 @@ const LoginScreen = ({ navigation }) => {
                 onPressIn={() => handlePressIn(googleButtonScale)}
                 onPressOut={() => handlePressOut(googleButtonScale)}
               >
-                <Icon name="g-mobiledata" size={24} color={customColors.primary} />
-                <Text style={[styles.buttonText, { color: customColors.primary }]}>
-                  {t("Continue with Google")}
-                </Text>
+                <>
+                <Icon name="g-mobiledata" size={24} color={customColors.textLight} />
+                <Text style={[styles.loginButtonText, { color: Colors.textLight }]}>{t("Log In with Google")}</Text>
+                </>
               </TouchableOpacity>
             </Animated.View>
           </Animated.View>
 
           <Animated.View
             style={[
-              styles.signupContainer,
+              styles.registerContainer,
               {
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }],
               },
             ]}
           >
-            <Text style={[styles.signupText, { color: customColors.textSecondary }]}>
+            <Text style={[styles.registerText, { color: Colors.textSecondary }]}>
               {t("New to your class?")}
             </Text>
             <TouchableOpacity onPress={handleCreateAccount} activeOpacity={0.7}>
-              <Text style={[styles.signupLink, { color: customColors.accent }]}>
+              <Text style={[styles.registerLink, { color: Colors.primary }]}>
                 {t("Create Account")}
               </Text>
             </TouchableOpacity>
@@ -571,7 +571,7 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF", // White background
+    backgroundColor: Colors.background,
   },
   bubble: {
     position: "absolute",
@@ -598,37 +598,43 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 32,
     fontWeight: "bold",
+    color: Colors.text,
     marginBottom: 8,
     letterSpacing: 1,
   },
   tagline: {
     fontSize: 16,
+    color: Colors.textSecondary,
     textAlign: "center",
     opacity: 0.9,
     maxWidth: "80%",
   },
   formContainer: {
+    backgroundColor: Colors.surface,
     borderRadius: 24,
     padding: 28,
     marginBottom: 24,
     width: "100%",
     maxWidth: 400,
     alignSelf: "center",
-    shadowColor: "#000",
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 10,
     borderWidth: 1,
+    borderColor: Colors.separator,
   },
   title: {
     fontSize: 28,
     fontWeight: "bold",
+    color: Colors.text,
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
+    color: Colors.textSecondary,
     marginBottom: 28,
     textAlign: "center",
   },
@@ -639,29 +645,35 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
+    color: Colors.text,
     marginBottom: 8,
     marginLeft: 4,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: Colors.inputBackground,
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,
     borderWidth: 1,
+    borderColor: Colors.inputBorder,
   },
   inputError: {
-    borderColor: "#EF4444",
+    borderColor: Colors.error,
   },
   inputIcon: {
     marginRight: 12,
+    color: Colors.textSecondary,
   },
   input: {
     flex: 1,
     fontSize: 16,
+    color: Colors.text,
   },
   errorText: {
     fontSize: 12,
+    color: Colors.error,
     marginTop: 6,
     marginLeft: 4,
   },
@@ -672,30 +684,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   forgotPasswordText: {
+    color: Colors.primary,
     fontSize: 14,
-    opacity: 0.8,
+    fontWeight: "600",
   },
   loginButton: {
-    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
     height: 56,
-    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 24,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 4,
   },
-  googleButton: {
-    borderRadius: 16,
-    height: 56,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-  },
-  buttonText: {
+  loginButtonText: {
+    color: Colors.textLight,
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -709,23 +715,42 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 1,
   },
-  dividerText: {
-    paddingHorizontal: 16,
+  orText: {
+    color: Colors.textSecondary,
     fontSize: 14,
+    marginVertical: 16,
+    textAlign: "center",
   },
-  signupContainer: {
+  socialButtonsContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 8,
   },
-  signupText: {
-    fontSize: 14,
-    opacity: 0.8,
+  socialButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    height: 56,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
-  signupLink: {
+  registerContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 16,
+  },
+  registerText: {
+    color: Colors.textSecondary,
     fontSize: 14,
-    fontWeight: "bold",
-    marginLeft: 5,
+  },
+  registerLink: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 4,
   },
   logoImage: {
     width: 100,

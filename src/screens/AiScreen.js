@@ -4,26 +4,10 @@ import { useNavigation } from "@react-navigation/native"
 import firestore from "@react-native-firebase/firestore"
 import auth from "@react-native-firebase/auth"
 import Icon from "react-native-vector-icons/MaterialCommunityIcons"
-import LinearGradient from "react-native-linear-gradient"
 import { useClass } from "../context/ClassContext"
 import Colors from "../constants/Colors"
 import { t } from "../translations"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-
-// Updated color palette
-const AppColors = {
-  primary: "#6200EA", // Deep Purple
-  primaryLight: "#B388FF", // Light Purple
-  secondary: "#3D5AFE", // Vivid Blue
-  secondaryLight: "#8C9EFF", // Light Blue
-  accent: "#FF1744", // Bright Red
-  background: "#F8F9FF", // Off-White with slight blue tint
-  surface: "#FFFFFF", // Pure White
-  text: "#212121", // Near Black
-  textSecondary: "#757575", // Dark Gray
-  error: "#FF1744", // Same as accent for consistency
-  divider: "#E0E0E0", // Light Gray
-}
 
 const AiScreen = () => {
   console.log("AiScreen rendering")
@@ -158,19 +142,14 @@ const AiScreen = () => {
     try {
       return (
         <TouchableOpacity style={styles.materialCard} onPress={() => handleMaterialPress(item)}>
-          <LinearGradient
-            colors={[AppColors.primaryLight, AppColors.primary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.cardAccent}
-          />
+          <View style={[styles.cardAccent, { backgroundColor: Colors.primary }]} />
           <View style={styles.materialContent}>
             <View style={styles.materialHeader}>
               <Text style={styles.materialTitle} numberOfLines={1}>
                 {item.title}
               </Text>
               <View style={styles.dateContainer}>
-                <Icon name="calendar" size={14} color={AppColors.secondary} />
+                <Icon name="calendar" size={14} color={Colors.primary} />
                 <Text style={styles.materialDate}>
                   {item.createdAt && typeof item.createdAt.toDate === "function"
                     ? new Date(item.createdAt.toDate()).toLocaleDateString()
@@ -181,13 +160,13 @@ const AiScreen = () => {
             <View style={styles.divider} />
             <View style={styles.materialInfo}>
               <View style={styles.materialInfoItem}>
-                <Icon name="help-circle-outline" size={20} color={AppColors.secondary} />
+                <Icon name="help-circle-outline" size={20} color={Colors.primary} />
                 <Text style={styles.materialInfoText}>
                   {item.quizQuestions?.length || 0} {t("questions")}
                 </Text>
               </View>
               <View style={styles.materialInfoItem}>
-                <Icon name="account" size={20} color={AppColors.secondary} />
+                <Icon name="account" size={20} color={Colors.primary} />
                 <Text style={styles.materialInfoText}>{item.createdBy?.displayName || "Unknown user"}</Text>
               </View>
             </View>
@@ -206,21 +185,19 @@ const AiScreen = () => {
 
   const EmptyListComponent = () => (
     <View style={styles.emptyContainer}>
-      <LinearGradient colors={[AppColors.primaryLight, AppColors.primary]} style={styles.emptyIconContainer}>
-        <Icon name="brain" size={60} color="#FFFFFF" />
-      </LinearGradient>
+      <View style={[styles.emptyIconContainer, { backgroundColor: Colors.primary }]}>
+        <Icon name="brain" size={60} color={Colors.textLight} />
+      </View>
       <Text style={styles.emptyText}>{t("No AI materials yet")}</Text>
       <Text style={styles.emptySubText}>{t("Add learning materials for AI to summarize and create quizzes")}</Text>
-      <TouchableOpacity style={styles.emptyButton} onPress={handleAddMaterial}>
-        <LinearGradient
-          colors={[AppColors.secondary, AppColors.primary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.gradientButton}
-        >
-          <Icon name="plus" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+      <TouchableOpacity 
+        style={[styles.emptyButton, { backgroundColor: Colors.primary }]} 
+        onPress={handleAddMaterial}
+      >
+        <View style={styles.buttonContent}>
+          <Icon name="plus" size={20} color={Colors.textLight} style={styles.buttonIcon} />
           <Text style={styles.emptyButtonText}>{t("Add Material")}</Text>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     </View>
   )
@@ -228,20 +205,18 @@ const AiScreen = () => {
   const ErrorComponent = () => (
     <View style={styles.emptyContainer}>
       <View style={[styles.emptyIconContainer, styles.errorIconContainer]}>
-        <Icon name="alert-circle-outline" size={60} color="#FFFFFF" />
+        <Icon name="alert-circle-outline" size={60} color={Colors.textLight} />
       </View>
       <Text style={styles.emptyText}>{t("Something went wrong")}</Text>
       <Text style={styles.emptySubText}>{error || t("Failed to load AI materials")}</Text>
-      <TouchableOpacity style={styles.emptyButton} onPress={handleRetry}>
-        <LinearGradient
-          colors={[AppColors.secondary, AppColors.primary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.gradientButton}
-        >
-          <Icon name="refresh" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+      <TouchableOpacity 
+        style={[styles.emptyButton, { backgroundColor: Colors.primary }]} 
+        onPress={handleRetry}
+      >
+        <View style={styles.buttonContent}>
+          <Icon name="refresh" size={20} color={Colors.textLight} style={styles.buttonIcon} />
           <Text style={styles.emptyButtonText}>{t("Retry")}</Text>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     </View>
   )
@@ -251,27 +226,20 @@ const AiScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor={AppColors.primary} barStyle="light-content" />
+      <StatusBar backgroundColor={Colors.primary} barStyle="light-content" />
 
-      {/* Custom Header with Gradient */}
-      <LinearGradient
-        colors={[AppColors.primary, AppColors.secondary]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.headerGradient}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>{t("AI Assistant")}</Text>
-          <View style={styles.headerIconContainer}>
-            <Icon name="robot" size={24} color="#FFFFFF" />
-          </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>{t("AI Assistant")}</Text>
+        <View style={styles.headerIconContainer}>
+          <Icon name="robot" size={24} color={Colors.textLight} />
         </View>
-      </LinearGradient>
+      </View>
 
       {loading ? (
         <View style={styles.centerContainer}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={AppColors.primary} />
+            <ActivityIndicator size="large" color={Colors.primary} />
             <Text style={styles.loadingText}>Loading AI materials...</Text>
           </View>
         </View>
@@ -288,16 +256,16 @@ const AiScreen = () => {
         />
       )}
 
-      {/* Floating Action Button with Gradient */}
+      {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fabButtonContainer}
         onPress={handleAddMaterial}
         activeOpacity={0.9}
         testID="add-material-button"
       >
-        <LinearGradient colors={[AppColors.secondary, AppColors.primary]} style={styles.fabButton}>
-          <Icon name="plus" size={30} color="#fff" />
-        </LinearGradient>
+        <View style={[styles.fabButton, { backgroundColor: Colors.primary }]}>
+          <Icon name="plus" size={30} color={Colors.textLight} />
+        </View>
       </TouchableOpacity>
     </View>
   )
@@ -306,27 +274,25 @@ const AiScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: AppColors.background,
+    backgroundColor: Colors.background,
     position: "relative",
-  },
-  headerGradient: {
-    paddingTop: 10,
-    paddingBottom: 15,
-    borderBottomLeftRadius: 15,
-    borderBottomRightRadius: 15,
-    elevation: 4,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 26,
-    paddingTop: 25,
+    paddingTop: 35,
+    paddingBottom: 15,
+    backgroundColor: Colors.primary,
+    borderBottomLeftRadius: 15,
+    borderBottomRightRadius: 15,
+    elevation: 4,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#FFFFFF",
+    color: Colors.textLight,
     textAlign: "center",
   },
   headerIconContainer: {
@@ -342,7 +308,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   loadingContainer: {
-    backgroundColor: AppColors.surface,
+    backgroundColor: Colors.surface,
     padding: 30,
     borderRadius: 20,
     alignItems: "center",
@@ -355,14 +321,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   materialCard: {
-    backgroundColor: AppColors.surface,
+    backgroundColor: Colors.surface,
     borderRadius: 15,
     marginBottom: 16,
     elevation: 3,
     overflow: "hidden",
     flexDirection: "row",
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: Colors.separator,
   },
   cardAccent: {
     width: 8,
@@ -381,26 +347,26 @@ const styles = StyleSheet.create({
   materialTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: AppColors.text,
+    color: Colors.text,
     flex: 1,
   },
   dateContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: AppColors.secondaryLight + "20", // 20% opacity
+    backgroundColor: `${Colors.primaryLight}20`,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   materialDate: {
     fontSize: 12,
-    color: AppColors.secondary,
+    color: Colors.primary,
     marginLeft: 4,
     fontWeight: "500",
   },
   divider: {
     height: 1,
-    backgroundColor: AppColors.divider,
+    backgroundColor: Colors.separator,
     marginVertical: 10,
   },
   materialInfo: {
@@ -410,7 +376,7 @@ const styles = StyleSheet.create({
   materialInfoItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: AppColors.primaryLight + "15", // 15% opacity
+    backgroundColor: `${Colors.primaryLight}15`,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
@@ -418,11 +384,11 @@ const styles = StyleSheet.create({
   materialInfoText: {
     marginLeft: 6,
     fontSize: 13,
-    color: AppColors.primary,
+    color: Colors.primary,
     fontWeight: "500",
   },
   errorText: {
-    color: AppColors.error,
+    color: Colors.error,
     textAlign: "center",
     padding: 8,
   },
@@ -431,11 +397,10 @@ const styles = StyleSheet.create({
     bottom: 30,
     right: 20,
     elevation: 8,
-    shadowColor: AppColors.primary,
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
-    marginBottom: 50,
   },
   fabButton: {
     width: 60,
@@ -443,7 +408,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
   },
   emptyContainer: {
     flex: 1,
@@ -461,18 +425,18 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   errorIconContainer: {
-    backgroundColor: AppColors.error,
+    backgroundColor: Colors.error,
   },
   emptyText: {
     fontSize: 22,
     fontWeight: "bold",
-    color: AppColors.primary,
+    color: Colors.primary,
     marginTop: 16,
     textAlign: "center",
   },
   emptySubText: {
     fontSize: 15,
-    color: AppColors.textSecondary,
+    color: Colors.textSecondary,
     textAlign: "center",
     marginTop: 12,
     lineHeight: 22,
@@ -482,25 +446,24 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderRadius: 30,
     overflow: "hidden",
-  },
-  gradientButton: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 30,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   buttonIcon: {
     marginRight: 8,
   },
   emptyButtonText: {
-    color: "#FFFFFF",
+    color: Colors.textLight,
     fontWeight: "bold",
     fontSize: 16,
   },
   loadingText: {
     marginTop: 16,
-    color: AppColors.primary,
+    color: Colors.primary,
     fontSize: 16,
     fontWeight: "500",
   },

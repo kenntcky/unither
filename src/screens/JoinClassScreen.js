@@ -159,7 +159,7 @@ const JoinClassScreen = () => {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" backgroundColor={NewColors.primaryDark} />
+      <StatusBar barStyle="light-content" backgroundColor={Colors.primaryDark} />
       <View style={styles.container}>
         {/* Enhanced Header */}
         <View style={styles.header}>
@@ -168,7 +168,7 @@ const JoinClassScreen = () => {
               style={styles.backButton}
               onPress={() => navigation.goBack()}
             >
-              <MaterialIcons name="arrow-back" size={24} color={NewColors.textLight} />
+              <MaterialIcons name="arrow-back" size={24} color={Colors.textLight} />
             </TouchableOpacity>
             <Text style={styles.title}>{t('Join a Class')}</Text>
           </View>
@@ -188,7 +188,7 @@ const JoinClassScreen = () => {
         >
           <View style={styles.imageContainer}>
             <View style={styles.iconCircle}>
-              <MaterialIcons name="school" size={80} color={NewColors.primary} />
+              <MaterialIcons name="school" size={80} color={Colors.primary} />
             </View>
           </View>
 
@@ -228,7 +228,7 @@ const JoinClassScreen = () => {
           </View>
 
           <View style={styles.infoBox}>
-            <MaterialIcons name="info" size={20} color={NewColors.secondary} style={styles.infoIcon} />
+            <MaterialIcons name="info" size={20} color={Colors.secondary} style={styles.infoIcon} />
             <Text style={styles.infoText}>
               {t('Class codes are 6 characters long and are case-insensitive. Ask your teacher for the code.')}
             </Text>
@@ -237,15 +237,15 @@ const JoinClassScreen = () => {
           <View style={styles.tipsContainer}>
             <Text style={styles.tipsTitle}>{t('Tips for joining a class:')}</Text>
             <View style={styles.tipItem}>
-              <MaterialIcons name="check-circle" size={16} color={NewColors.success} />
+              <MaterialIcons name="check-circle" size={16} color={Colors.success} />
               <Text style={styles.tipText}>{t('Make sure you have the correct code')}</Text>
             </View>
             <View style={styles.tipItem}>
-              <MaterialIcons name="check-circle" size={16} color={NewColors.success} />
+              <MaterialIcons name="check-circle" size={16} color={Colors.success} />
               <Text style={styles.tipText}>{t('Codes are not case-sensitive')}</Text>
             </View>
             <View style={styles.tipItem}>
-              <MaterialIcons name="check-circle" size={16} color={NewColors.success} />
+              <MaterialIcons name="check-circle" size={16} color={Colors.success} />
               <Text style={styles.tipText}>{t('You can join multiple classes')}</Text>
             </View>
           </View>
@@ -259,10 +259,10 @@ const JoinClassScreen = () => {
             activeOpacity={0.8}
           >
             {loading ? (
-              <ActivityIndicator size="small" color={NewColors.textLight} />
+              <ActivityIndicator size="small" color={Colors.textLight} />
             ) : (
               <>
-                <MaterialIcons name="group-add" size={24} color={NewColors.textLight} />
+                <MaterialIcons name="group-add" size={24} color={Colors.textLight} />
                 <Text style={styles.joinButtonText}>{t('Join Class')}</Text>
               </>
             )}
@@ -276,17 +276,17 @@ const JoinClassScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: NewColors.background,
+    backgroundColor: Colors.background,
   },
   
   // Enhanced Header
   header: {
-    backgroundColor: NewColors.primary,
+    backgroundColor: Colors.primary,
     paddingTop: Platform.OS === 'ios' ? 50 : 40,
     paddingBottom: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: NewColors.shadow,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: NewColors.textLight,
+    color: Colors.textLight,
   },
   
   // Content
@@ -327,12 +327,12 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: 'rgba(106, 76, 228, 0.08)',
+    backgroundColor: 'rgba(74, 20, 140, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(106, 76, 228, 0.2)',
-    shadowColor: NewColors.shadow,
+    borderColor: 'rgba(74, 20, 140, 0.2)',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   },
   instructions: {
     fontSize: 16,
-    color: NewColors.textPrimary,
+    color: Colors.text,
     textAlign: 'center',
     marginBottom: 24,
     fontWeight: '500',
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     marginBottom: 12,
-    color: NewColors.textPrimary,
+    color: Colors.text,
     fontWeight: 'bold',
     alignSelf: 'flex-start',
   },
@@ -371,25 +371,25 @@ const styles = StyleSheet.create({
     height: 55,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: NewColors.inputBorder,
-    backgroundColor: NewColors.inputBackground,
+    borderColor: Colors.inputBorder,
+    backgroundColor: Colors.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 4,
-    shadowColor: NewColors.shadow,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   codeBoxFilled: {
-    borderColor: NewColors.primary,
+    borderColor: Colors.primary,
     backgroundColor: 'rgba(106, 76, 228, 0.08)',
   },
   codeBoxText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: NewColors.textPrimary,
+    color: Colors.text,
   },
   hiddenInput: {
     position: 'absolute',
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   errorText: {
-    color: NewColors.error,
+    color: Colors.error,
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     width: '100%',
     borderLeftWidth: 4,
-    borderLeftColor: NewColors.secondary,
+    borderLeftColor: Colors.secondary,
   },
   infoIcon: {
     marginRight: 12,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: NewColors.textPrimary,
+    color: Colors.text,
     flex: 1,
     lineHeight: 20,
   },
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   // Tips
   tipsContainer: {
     width: '100%',
-    backgroundColor: NewColors.cardBackgroundAlt,
+    backgroundColor: Colors.cardBackgroundAlt,
     borderRadius: 16,
     padding: 16,
     marginTop: 24,
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   tipsTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: NewColors.textPrimary,
+    color: Colors.text,
     marginBottom: 12,
   },
   tipItem: {
@@ -449,16 +449,16 @@ const styles = StyleSheet.create({
   },
   tipText: {
     fontSize: 14,
-    color: NewColors.textPrimary,
+    color: Colors.text,
     marginLeft: 8,
   },
   
   // Bottom bar
   bottomBar: {
     padding: 16,
-    backgroundColor: NewColors.background,
+    backgroundColor: Colors.background,
     borderTopWidth: 1,
-    borderTopColor: NewColors.separator,
+    borderTopColor: Colors.separator,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
@@ -466,26 +466,27 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   joinButton: {
-    backgroundColor: NewColors.accent,
+    backgroundColor: Colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
+    paddingHorizontal: 32,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: 'rgba(255, 69, 102, 0.4)',
+    justifyContent: 'center',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   disabledButton: {
-    backgroundColor: 'rgba(255, 69, 102, 0.5)',
+    opacity: 0.6,
   },
   joinButtonText: {
-    color: NewColors.textLight,
-    fontSize: 18,
+    color: Colors.textLight,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginLeft: 10,
+    marginLeft: 8,
   },
 });
 
