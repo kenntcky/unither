@@ -1,4 +1,3 @@
-import { NavigationContainer } from "@react-navigation/native"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { createStackNavigator } from "@react-navigation/stack"
 import HomeScreen from "../screens/HomeScreen"
@@ -19,6 +18,8 @@ import GalleryApprovalScreen from "../screens/GalleryApprovalScreen" // Gallery 
 import LoginScreen from "../screens/auth/LoginScreen"
 import RegisterScreen from "../screens/auth/RegisterScreen"
 import ForgotPasswordScreen from "../screens/auth/ForgotPasswordScreen"
+import NotificationSettingsScreen from "../screens/NotificationSettingsScreen"
+import NotificationTestScreen from "../screens/NotificationTestScreen" // Notification test screen
 import GenderSelectionScreen from "../screens/auth/GenderSelectionScreen"
 import ClassSelectionScreen from "../screens/ClassSelectionScreen"
 import CreateClassScreen from "../screens/CreateClassScreen"
@@ -264,11 +265,9 @@ const ProfileStack = () => (
       component={PendingApprovalsScreen}
       options={{ title: t("Pending Approvals") }}
     />
-    <Stack.Screen
-      name="LanguageSettings"
-      component={LanguageSettingsScreen}
-      options={{ title: t("Language Settings") }}
-    />
+    <Stack.Screen name="LanguageSettings" component={LanguageSettingsScreen} options={{ title: t("Language Settings") }} />
+    <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: t("Notification Settings") }} />
+    <Stack.Screen name="NotificationTest" component={NotificationTestScreen} options={{ title: t("Test Notifications") }} />
     <Stack.Screen name="AssignmentDetails" component={AssignmentDetailsScreen} />
     <Stack.Screen
       name="AssignmentComplete"
@@ -298,7 +297,7 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <>
       {!user ? (
         <AuthNavigator />
       ) : needsProfileSetup ? (
@@ -308,7 +307,7 @@ const AppNavigator = () => {
           <ClassNavigator />
         </ClassProvider>
       )}
-    </NavigationContainer>
+    </>
   )
 }
 

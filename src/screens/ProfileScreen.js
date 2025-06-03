@@ -475,8 +475,13 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const handleMenuItemPress = (itemName) => {
-    showToast(`${itemName} selected`, 'info');
-    // Additional functionality can be added here
+    console.log(`Menu item pressed: ${itemName}`);
+    
+    if (itemName === 'notification_settings') {
+      navigation.navigate('NotificationSettings');
+    } else if (itemName === 'notification_test') {
+      navigation.navigate('NotificationTest');
+    }
   };
 
   const handleClassSettings = () => {
@@ -725,10 +730,19 @@ const ProfileScreen = ({ navigation }) => {
               <View style={styles.expandedSection}>
                 <TouchableOpacity 
                   style={styles.menuItem}
-                  onPress={() => handleMenuItemPress('Notifications')}
+                  onPress={() => handleMenuItemPress('notification_settings')}
                 >
                   <Icon name="notifications" size={24} color={CustomColors.secondary} />
                   <Text style={styles.menuItemText}>{t('Notifications')}</Text>
+                  <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => handleMenuItemPress('notification_test')}
+                >
+                  <Icon name="notifications-active" size={24} color={CustomColors.secondary} />
+                  <Text style={styles.menuItemText}>{t('Test Notifications')}</Text>
                   <Icon name="chevron-right" size={24} color={CustomColors.textSecondary} />
                 </TouchableOpacity>
                 
