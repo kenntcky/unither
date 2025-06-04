@@ -1,0 +1,55 @@
+name: Send FCM Notifications
+
+on:
+  schedule:
+    # Runs every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  send_notifications:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # Required to check out the repository
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Or your preferred LTS version
+          cache: 'npm'
+          cache-dependency-path: 'scripts/package-lock.json' # Or package.json if no lock file
+
+      - name: Install dependencies for FCM sender script
+        working-directory: ./scripts
+        run: npm install
+
+      - name: Create Firebase service account key file from secret
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_JSON }}
+        run: |
+          echo "Attempting to create service account key file..."
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_KEY_JSON" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT_KEY_JSON secret is not set. Please add it to your repository secrets."
+            exit 1
+          fi
+          echo "$FIREBASE_SERVICE_ACCOUNT_KEY_JSON" > "${{ github.workspace }}/serviceAccountKey.json"
+          echo "Service account key file created at ${{ github.workspace }}/serviceAccountKey.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${{ github.workspace }}/serviceAccountKey.json" >> $GITHUB_ENV
+
+      - name: Run FCM sender script
+        working-directory: ./scripts
+        run: npm start
+        env:
+          # GOOGLE_APPLICATION_CREDENTIALS is set in the previous step via $GITHUB_ENV
+          NODE_ENV: production # Optional: can be used by the script if needed
+
+      - name: Clean up Firebase service account key file
+        if: always() # Ensures this step runs even if previous steps fail
+        run: |
+          echo "Cleaning up service account key file..."
+          rm -f "${{ github.workspace }}/serviceAccountKey.json"
+          echo "Service account key file removed."

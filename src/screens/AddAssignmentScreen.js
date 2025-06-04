@@ -26,7 +26,7 @@ import {
 import { getSubjects } from '../utils/storage';
 import { useAssignment } from '../context/AssignmentContext';
 import { useClass } from '../context/ClassContext';
-import { getClassMembers } from '../utils/firestore';
+import { getClassMembers, addNotificationToQueue } from '../utils/firestore'; // Added addNotificationToQueue
 import ScreenContainer from '../components/ScreenContainer';
 import { useTranslation } from 'react-i18next';
 
@@ -78,6 +78,7 @@ const AddAssignmentScreen = ({ navigation, route }) => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentAssignment, setCurrentAssignment] = useState(null);
   const [isRandomizing, setIsRandomizing] = useState(false);
@@ -315,218 +316,170 @@ const AddAssignmentScreen = ({ navigation, route }) => {
 
   const loadAssignment = async (assignmentId) => {
     console.log(`Loading assignment for editing: ${assignmentId}`);
-    
-    // Find assignment with either ID or documentId
-    const assignment = assignments.find(a => 
-      a.id === assignmentId || a.documentId === assignmentId
-    );
-    
+    const assignment = assignments.find(a => a.id === assignmentId || a.documentId === assignmentId);
+
     if (assignment) {
-      console.log(`Found assignment for editing: id=${assignment.id}, documentId=${assignment.documentId || 'N/A'}`);
-      
       setCurrentAssignment(assignment);
-      setTitle(assignment.title);
+      setTitle(assignment.title || '');
       setDescription(assignment.description || '');
-      setSelectedType(assignment.type);
-      setGroupType(assignment.groupType);
       
-      // Set groups if available
-      if (assignment.groups && assignment.groupType === ASSIGNMENT_GROUP_TYPE.GROUP) {
+      if (assignment.subjectId) {
+        const subject = subjects.find(s => s.id === assignment.subjectId);
+        setSelectedSubject(subject || null);
+      }
+      setSelectedType(assignment.type || null);
+
+      if (assignment.deadlineOption) {
+        setSelectedDeadlineOption(assignment.deadlineOption);
+      }
+      if (assignment.deadlineTimestamp) {
+        setCustomDeadline(new Date(assignment.deadlineTimestamp));
+        if (assignment.deadlineOption === DEADLINE_OPTIONS.CUSTOM) {
+           // Ensure custom is selected if a timestamp exists and no other option matches
+           setSelectedDeadlineOption(DEADLINE_OPTIONS.CUSTOM);
+        }
+      }
+      setGroupType(assignment.groupType || ASSIGNMENT_GROUP_TYPE.INDIVIDUAL);
+      setAttachments(assignment.attachments || []);
+      if (assignment.groups && assignment.groups.length > 0) {
         setGroups(assignment.groups);
         setGroupCount(assignment.groups.length);
-      }
-      
-      // Set deadline
-      const deadline = new Date(assignment.deadline);
-      setCustomDeadline(deadline);
-      
-      // Find the subject
-      const subject = subjects.find(s => s.id === assignment.subjectId);
-      if (subject) {
-        setSelectedSubject(subject);
-      }
-      
-      // Set attachments if any
-      if (assignment.attachments) {
-        setAttachments(assignment.attachments);
+      } else {
+        setGroups([]); // Reset groups if none are loaded
+        setGroupCount(2); // Reset to default if no groups
       }
     } else {
-      console.error(`Assignment not found for editing: ${assignmentId}`);
-      Alert.alert('Error', 'Could not find the assignment to edit. It may have been deleted.');
+      Alert.alert(t('Error'), t('Assignment not found. It might have been deleted.'));
       navigation.goBack();
     }
   };
 
-  const handleDeadlineOptionSelect = (option) => {
-    setSelectedDeadlineOption(option);
-    setShowDeadlineModal(false);
-    
-    if (option === DEADLINE_OPTIONS.CUSTOM) {
-      handleShowDatePicker();
-    }
-  };
-
-  const handleDateChange = (event, selectedDate) => {
-    if (!selectedDate) {
-      setShowDatePicker(false);
-      return;
-    }
-    
-    const currentDate = selectedDate || customDeadline;
-    setShowDatePicker(false);
-    
-    if (dateTimePickerMode === 'date') {
-      // If we were just selecting a date, now show the time picker
-      const updatedDate = new Date(currentDate);
-      setCustomDeadline(updatedDate);
-      
-      // Wait a moment before showing the time picker to prevent UI glitches
-      setTimeout(() => {
-        setDateTimePickerMode('time');
-        setShowDatePicker(true);
-      }, 100);
-    } else {
-      // If we were selecting time, we're done
-      const updatedDateTime = new Date(customDeadline);
-      updatedDateTime.setHours(currentDate.getHours());
-      updatedDateTime.setMinutes(currentDate.getMinutes());
-      setCustomDeadline(updatedDateTime);
-    }
-  };
-
-  const handleShowDatePicker = () => {
-    // Start with date picker
-    setDateTimePickerMode('date');
-    setShowDatePicker(true);
-  };
-
-  const calculateDeadlineDate = (option) => {
-    if (option === DEADLINE_OPTIONS.CUSTOM) {
-      return customDeadline;
-    }
-    
-    const today = new Date();
-    const deadline = new Date();
-    
-    switch (option) {
-      case DEADLINE_OPTIONS.TODAY:
-        // End of today
-        deadline.setHours(23, 59, 59, 999);
+  const calculateDeadlineTimestamp = () => {
+    let deadlineDate = new Date();
+    switch (selectedDeadlineOption) {
+      case DEADLINE_OPTIONS.ONE_HOUR:
+        deadlineDate.setHours(deadlineDate.getHours() + 1);
+        break;
+      case DEADLINE_OPTIONS.END_OF_DAY:
+        deadlineDate.setHours(23, 59, 59, 999);
         break;
       case DEADLINE_OPTIONS.ONE_DAY:
-        // Tomorrow
-        deadline.setDate(today.getDate() + 1);
-        deadline.setHours(23, 59, 59, 999);
+        deadlineDate.setDate(deadlineDate.getDate() + 1);
+        deadlineDate.setHours(23, 59, 59, 999);
         break;
       case DEADLINE_OPTIONS.THREE_DAYS:
-        deadline.setDate(today.getDate() + 3);
-        deadline.setHours(23, 59, 59, 999);
+        deadlineDate.setDate(deadlineDate.getDate() + 3);
+        deadlineDate.setHours(23, 59, 59, 999);
         break;
       case DEADLINE_OPTIONS.ONE_WEEK:
-        deadline.setDate(today.getDate() + 7);
-        deadline.setHours(23, 59, 59, 999);
+        deadlineDate.setDate(deadlineDate.getDate() + 7);
+        deadlineDate.setHours(23, 59, 59, 999);
         break;
-      case DEADLINE_OPTIONS.TWO_WEEKS:
-        deadline.setDate(today.getDate() + 14);
-        deadline.setHours(23, 59, 59, 999);
+      case DEADLINE_OPTIONS.CUSTOM:
+        deadlineDate = customDeadline; // Already a Date object
         break;
       default:
-        deadline.setDate(today.getDate() + 1);
-        deadline.setHours(23, 59, 59, 999);
+        return null; // Or handle as an error
     }
-    
-    return deadline;
+    return deadlineDate.toISOString();
   };
 
-  const handleSave = async () => {
+  const handleSaveAssignment = async () => {
     if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a title');
+      Alert.alert(t('Validation Error'), t('Title is required.'));
       return;
     }
-    
-    if (!selectedSubject) {
-      Alert.alert('Error', 'Please select a subject');
-      return;
-    }
-    
     if (!selectedType) {
-      Alert.alert('Error', 'Please select an assignment type');
+      Alert.alert(t('Validation Error'), t('Assignment type is required.'));
       return;
     }
-    
-    // For group assignments, check if at least one group has been defined
-    if (groupType === ASSIGNMENT_GROUP_TYPE.GROUP && groups.length === 0) {
-      Alert.alert('Error', 'Please set up at least one group');
+    if (!currentClass || !currentClass.id) {
+      Alert.alert(t('Error'), t('No active class selected.'));
       return;
     }
 
-    setIsLoading(true);
-    
-    const deadline = calculateDeadlineDate(selectedDeadlineOption);
-    
-    const assignmentData = {
+    setIsSubmitting(true);
+
+    const deadlineTimestamp = calculateDeadlineTimestamp();
+
+    let assignmentData = {
       title: title.trim(),
       description: description.trim(),
-      subjectId: selectedSubject.id,
-      subjectName: selectedSubject.name,
+      subjectId: selectedSubject ? selectedSubject.id : null,
+      subjectName: selectedSubject ? selectedSubject.name : null, 
       type: selectedType,
-      deadline: deadline.toISOString(),
-      status: ASSIGNMENT_STATUS.UNFINISHED,
+      deadlineOption: selectedDeadlineOption,
+      deadlineTimestamp: deadlineTimestamp,
       groupType: groupType,
+      groups: groupType === ASSIGNMENT_GROUP_TYPE.GROUP ? groups : [],
       attachments: attachments,
-      createdAt: new Date().toISOString(),
+      classId: currentClass.id,
+      className: currentClass.name,
+      updatedAt: new Date().toISOString(),
     };
-    
-    // Add groups if it's a group assignment
-    if (groupType === ASSIGNMENT_GROUP_TYPE.GROUP) {
-      assignmentData.groups = groups;
-    }
-    
-    let result;
-    
+
+    let result = { success: false };
+
     if (isEditing && currentAssignment) {
-      // Update existing assignment
-      assignmentData.status = currentAssignment.status;
-      assignmentData.createdAt = currentAssignment.createdAt;
-      
-      result = await updateAssignment(currentAssignment.id, {
-        ...assignmentData,
-        updatedAt: new Date().toISOString(),
-      });
+      assignmentData.id = currentAssignment.id; // Ensure ID is passed for update
+      if (currentAssignment.documentId) {
+        assignmentData.documentId = currentAssignment.documentId; // Preserve Firestore doc ID if present
+      }
+      assignmentData.createdAt = currentAssignment.createdAt; // Preserve original creation date
+      result = await updateAssignment(assignmentData);
     } else {
-      // Create new assignment
-      assignmentData.id = Date.now().toString();
+      assignmentData.id = Date.now().toString(); // For local/optimistic updates
       assignmentData.status = ASSIGNMENT_STATUS.UNFINISHED;
       assignmentData.createdAt = new Date().toISOString();
-      
       result = await addAssignment(assignmentData);
     }
-    
-    setIsLoading(false);
-    
+
     if (result.success) {
-      if (result.pending) {
-        // If the edit/creation is pending approval
-        Alert.alert(
-          t('Pending Approval'),
-          t('Your changes have been submitted and are waiting for administrator approval.'),
-          [{ text: t('OK'), onPress: () => navigation.goBack() }]
-        );
+      const notificationType = isEditing ? 'assignment_updated' : 'new_assignment';
+      const notificationTitle = isEditing ? 
+        `${t('assignmentUpdatedIn')} ${currentClass.name}` : 
+        `${t('newAssignmentIn')} ${currentClass.name}`;
+      const notificationBody = isEditing ? 
+        `${t('assignment')}: ${assignmentData.title} ${t('hasBeenUpdated')}` :
+        `${t('assignment')}: ${assignmentData.title}`;
+      
+      const assignmentIdForNotification = isEditing ? currentAssignment.id : assignmentData.id;
+
+      const notificationPayload = {
+        topic: `class_${currentClass.id}`,
+        title: notificationTitle,
+        body: notificationBody,
+        dataPayload: {
+          type: notificationType,
+          screen: 'AssignmentDetails',
+          classId: currentClass.id,
+          assignmentId: assignmentIdForNotification,
+          params: JSON.stringify({ id: assignmentIdForNotification, classId: currentClass.id }),
+        }
+      };
+      try {
+        await addNotificationToQueue(notificationPayload);
+        console.log(`Notification request added to queue for ${notificationType}:`, assignmentIdForNotification);
+      } catch (queueError) {
+        console.error('Failed to add notification to queue:', queueError);
+      }
+    }
+
+    setIsSubmitting(false);
+    if (result.success) {
+      Toast.show({ type: 'success', text1: t('assignmentSaved') });
+      // Navigate to details screen for both new and updated assignments
+      const navId = isEditing ? currentAssignment.id : (result.assignmentId || assignmentData.id);
+      if (navId) {
+         navigation.navigate('AssignmentDetails', { id: navId, classId: currentClass.id });
       } else {
-        // If the edit/creation was automatically approved
-        Alert.alert(
-          t('Success'),
-          isEditing ? t('Assignment updated successfully') : t('Assignment created successfully'),
-          [{ text: t('OK'), onPress: () => navigation.goBack() }]
-        );
+         console.error("AddAssignmentScreen: Could not determine assignment ID for navigation.");
+         navigation.goBack(); // Fallback
       }
     } else {
-      Alert.alert(
-        t('Error'),
-        result.error || t('Failed to save assignment')
-      );
+      Alert.alert(t('Error'), result.error || t('Failed to save assignment'));
     }
-  };
+  }; // End of handleSaveAssignment function
 
   const handleDelete = async () => {
     Alert.alert(

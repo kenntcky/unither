@@ -10,6 +10,7 @@ import {
   updateClassSettings,
   isClassAdmin
 } from '../utils/firestore';
+import { updateUserClassSubscriptions } from '../utils/fcmTopicManager';
 
 // Key for storing active class ID in AsyncStorage
 const ACTIVE_CLASS_KEY = 'taskmaster_active_class_id';
@@ -32,6 +33,7 @@ export const ClassProvider = ({ children }) => {
   const [isClassSwitching, setIsClassSwitching] = useState(false);
   const lastActiveClassId = useRef(null);
   const forceRefreshTimestamp = useRef(Date.now());
+  const [previousClassIds, setPreviousClassIds] = useState([]);
 
   // Wrapper for isClassAdmin to make it available through the context
   const isUserClassAdmin = async (classId) => {
@@ -106,6 +108,26 @@ export const ClassProvider = ({ children }) => {
 
     loadClasses();
   }, [user, refreshTrigger]);
+
+  // Effect to update FCM topic subscriptions when classes change
+  useEffect(() => {
+    if (user && classes.length > 0) {
+      const currentClassIds = classes.map(c => c.id);
+      console.log('ClassContext: Updating FCM subscriptions. Current IDs:', currentClassIds, 'Previous IDs:', previousClassIds);
+      updateUserClassSubscriptions(currentClassIds, previousClassIds);
+      setPreviousClassIds(currentClassIds);
+    } else if (user && classes.length === 0 && previousClassIds.length > 0) {
+      // User has classes, but now has none (e.g., left all classes)
+      console.log('ClassContext: User has no classes, unsubscribing from all previous topics.');
+      updateUserClassSubscriptions([], previousClassIds);
+      setPreviousClassIds([]);
+    } else if (!user && previousClassIds.length > 0) {
+      // User logged out, unsubscribe from all topics
+      console.log('ClassContext: User logged out, unsubscribing from all previous topics.');
+      updateUserClassSubscriptions([], previousClassIds);
+      setPreviousClassIds([]);
+    }
+  }, [classes, user]);
 
   // Create a new class
   const handleCreateClass = async (classData) => {

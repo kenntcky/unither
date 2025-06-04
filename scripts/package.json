@@ -1,0 +1,14 @@
+{
+  "name": "taskmaster-fcm-sender",
+  "version": "1.0.0",
+  "description": "Script to send FCM notifications from Firestore queue.",
+  "main": "fcmSender.js",
+  "scripts": {
+    "start": "node fcmSender.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.0.0" 
+  },
+  "author": "Cascade AI",
+  "license": "ISC"
+}

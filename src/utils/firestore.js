@@ -2173,19 +2173,16 @@ export const approveClassAssignment = async (classId, assignmentId) => {
       throw new Error('User not authenticated');
     }
     
-    // Check if user is admin for this class
     const isAdmin = await isClassAdmin(classId, currentUser.uid);
     if (!isAdmin) {
       throw new Error('Only class admins can approve assignments');
     }
 
-    // First, try to find the document with a query if needed
     let docId = assignmentId;
-    
-    // Check if this looks like a Firestore document ID (contains alphanumeric + special chars)
+    // Check if this looks like a Firestore document ID (typically 20 alphanumeric chars)
     if (!assignmentId.match(/^[a-zA-Z0-9]{20,}$/)) {
       // Might be using an internal ID - need to find the actual document ID
-      const querySnapshot = await firestore()
+      const qSnapshot = await firestore()
         .collection(CLASSES_COLLECTION)
         .doc(classId)
         .collection(ASSIGNMENTS_COLLECTION)
@@ -2193,12 +2190,21 @@ export const approveClassAssignment = async (classId, assignmentId) => {
         .limit(1)
         .get();
         
-      if (!querySnapshot.empty) {
-        docId = querySnapshot.docs[0].id;
+      if (!qSnapshot.empty) {
+        docId = qSnapshot.docs[0].id;
+      } else {
+        // If not a direct doc ID and not found by query, then it's an error
+        console.error(`approveClassAssignment: Assignment not found with internal id ${assignmentId} in class ${classId}`);
+        throw new Error('Assignment not found.');
       }
     }
-
-    // Update the assignment to approved status
+    
+    // Ensure docId is valid before attempting update (should be guaranteed by above logic)
+    if (!docId) {
+        console.error(`approveClassAssignment: docId resolved to null/undefined for assignmentId ${assignmentId} in class ${classId}`);
+        throw new Error('Failed to resolve assignment document ID.');
+    }
+    
     await firestore()
       .collection(CLASSES_COLLECTION)
       .doc(classId)
@@ -2297,6 +2303,34 @@ export const rejectClassAssignment = async (classId, assignmentId) => {
       success: false,
       error: error.message
     };
+  }
+};
+
+
+/**
+ * Adds a notification request to the Firestore queue.
+ * Uses @react-native-firebase/firestore methods.
+ * @param {object} notificationPayload - The payload for the notification.
+ * @param {string} notificationPayload.topic - The FCM topic to send the notification to.
+ * @param {string} notificationPayload.title - The title of the notification.
+ * @param {string} notificationPayload.body - The body of the notification.
+ * @param {object} notificationPayload.dataPayload - Additional data for the notification.
+ * @returns {Promise<string|null>} The ID of the new document in the queue, or null on error.
+ */
+export const addNotificationToQueue = async (notificationPayload) => {
+  try {
+    const queueRef = firestore().collection('notification_queue');
+    const docRef = await queueRef.add({
+      ...notificationPayload,
+      status: 'pending', // 'pending', 'sent', 'error'
+      createdAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: firestore.FieldValue.serverTimestamp(),
+    });
+    console.log('Notification added to queue with ID: ', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding notification to queue: ', error);
+    return null;
   }
 };
 
