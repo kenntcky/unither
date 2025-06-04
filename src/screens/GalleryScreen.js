@@ -619,7 +619,7 @@ const GalleryScreen = ({ navigation }) => {
             onPress={handleCreateAlbum}
           >
             <LinearGradient
-              colors={[Colors.gradientStart, Colors.gradientMiddle, Colors.gradientEnd]}
+              colors={['#4A148C', '#4A148C']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.createAlbumButton}
@@ -1093,13 +1093,10 @@ const GalleryScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={[Colors.gradientStart, Colors.gradientMiddle, Colors.gradientEnd]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.header}
+      <View
+        style={[styles.header, { backgroundColor: '#4A148C' }]}
       >
-        <Text style={styles.headerTitle}>✨ Gallery Kelas</Text>
+        <Text style={[styles.headerTitle, { fontSize: 28 }]}>✨ Gallery Kelas </Text>
         <View style={styles.headerButtons}>
           {isAdmin && (
             <TouchableOpacity 
@@ -1110,7 +1107,7 @@ const GalleryScreen = ({ navigation }) => {
             </TouchableOpacity>
           )}
         </View>
-      </LinearGradient>
+      </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -1150,7 +1147,7 @@ const GalleryScreen = ({ navigation }) => {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={[Colors.gradientStart, Colors.gradientMiddle, Colors.gradientEnd]}
+          colors={['#4A148C', '#4A148C']}
           style={styles.addButtonInner}
         >
           <MaterialIcons name="add-photo-alternate" size={32} color={Colors.white} />
@@ -1167,20 +1164,9 @@ const GalleryScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <LinearGradient
-              colors={[Colors.gradientStart, Colors.gradientEnd]}
+              colors={['#4A148C', '#4A148C']}
               style={styles.modalHeader}
             >
-              {isAdmin && (
-                <TouchableOpacity
-                  style={styles.approvalButtonInModal}
-                  onPress={() => {
-                    setUploadModalVisible(false)
-                    navigation.navigate('GalleryApproval')
-                  }}
-                >
-                  <MaterialIcons name="approval" size={22} color={Colors.primary} />
-                </TouchableOpacity>
-              )}
               <Text style={styles.modalTitle}>Upload Image</Text>
               <TouchableOpacity 
                 style={styles.closeButton}
@@ -1298,7 +1284,7 @@ const GalleryScreen = ({ navigation }) => {
                 disabled={isSubmitting}
               >
                 <LinearGradient
-                  colors={[Colors.gradientStart, Colors.gradientEnd]}
+                  colors={['#4A148C', '#4A148C']}
                   style={styles.submitButtonGradient}
                 >
                   {isSubmitting ? (
@@ -1357,7 +1343,7 @@ const GalleryScreen = ({ navigation }) => {
                 onPress={submitNewAlbum}
               >
                 <LinearGradient
-                  colors={[Colors.gradientStart, Colors.gradientEnd]}
+                  colors={['#4A148C', '#4A148C']}
                   style={styles.createButtonGradient}
                 >
                   <MaterialIcons name="create-new-folder" size={20} color={Colors.white} />
@@ -1620,7 +1606,7 @@ const GalleryScreen = ({ navigation }) => {
                     disabled={loading}
                   >
                     <LinearGradient
-                      colors={[Colors.gradientStart, Colors.gradientEnd]}
+                      colors={['#4A148C', '#4A148C']}
                       style={styles.saveEditButtonGradient}
                     >
                       {loading ? (
@@ -2601,9 +2587,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   addButtonFixed: {
-    marginBottom: 50,
+    bottom: 10,
     position: 'absolute',
-    right: 16,
+    right: 10,
     width: 80,
     height: 80,
     zIndex: 9999,

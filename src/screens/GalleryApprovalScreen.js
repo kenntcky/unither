@@ -312,6 +312,7 @@ const GalleryApprovalScreen = ({ navigation }) => {
           disabled={loading}
         >
           <MaterialIcons name="check" size={24} color="#FFFFFF" />
+          <Text style={styles.buttonText}>Approve</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -320,6 +321,7 @@ const GalleryApprovalScreen = ({ navigation }) => {
           disabled={loading}
         >
           <MaterialIcons name="close" size={24} color="#FFFFFF" />
+          <Text style={styles.buttonText}>Reject</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -327,11 +329,8 @@ const GalleryApprovalScreen = ({ navigation }) => {
   
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#0D47A1', '#1565C0']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.header}
+      <View
+        style={[styles.header, { backgroundColor: Colors.primary }]}
       >
         <TouchableOpacity 
           style={styles.backButton}
@@ -340,7 +339,7 @@ const GalleryApprovalScreen = ({ navigation }) => {
           <MaterialIcons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Pending Approvals</Text>
-      </LinearGradient>
+      </View>
       
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
@@ -449,7 +448,7 @@ const GalleryApprovalScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: "row",
@@ -457,17 +456,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 55 : 40,
     paddingBottom: 25,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
     borderBottomLeftRadius: 36,
     borderBottomRightRadius: 36,
   },
   backButton: {
     marginRight: 16,
-    padding: 5,
+    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
   },
   headerTitle: {
     fontSize: 24,
@@ -491,26 +487,19 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   approvalItem: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     backgroundColor: Colors.white,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 15,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
-    alignItems: 'center',
+    marginBottom: 20,
   },
   imageContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 8,
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: Colors.lightBackground,
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginBottom: 12,
   },
   thumbnailImage: {
     width: '100%',
@@ -518,59 +507,71 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   approvalDetails: {
-    flex: 1,
-    marginLeft: 15,
-    justifyContent: 'center',
+    marginBottom: 15,
   },
   submitterName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: Colors.textPrimary,
+    marginBottom: 4,
   },
   submissionDate: {
-    fontSize: 12,
+    fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: 4,
+    marginBottom: 8,
   },
   albumInfo: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 4,
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
+    backgroundColor: Colors.lightBackground,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   actionButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
   },
   approveButton: {
     backgroundColor: Colors.success,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: '48%',
+    height: 45,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
-    elevation: 2,
+    flexDirection: 'row',
   },
   rejectButton: {
     backgroundColor: Colors.error,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: '48%',
+    height: 45,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 2,
+    flexDirection: 'row',
+  },
+  buttonText: {
+    color: Colors.white,
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
+    marginTop: 100,
   },
   emptyText: {
     marginTop: 16,
     fontSize: 18,
-    color: '#2b3a9e',
+    color: Colors.primary,
     textAlign: 'center',
+    fontWeight: '600',
   },
   imageViewerContainer: {
     flex: 1,
@@ -602,7 +603,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     width: '90%',
     maxHeight: '80%',
-    elevation: 5,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -658,7 +658,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
-    elevation: 2,
   },
   confirmButtonText: {
     color: Colors.white,

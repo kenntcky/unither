@@ -6,25 +6,25 @@ import { ASSIGNMENT_STATUS, ASSIGNMENT_TYPES } from '../constants/Types';
 
 // Custom color theme (copy dari AssignmentDetailsScreen agar konsisten)
 const CustomColors = {
-  primary: '#6A3DE8', // Vibrant purple
-  primaryLight: '#8A6AFF', // Lighter purple
+  primary: Colors.primary,
+  primaryLight: Colors.primaryLight,
   primaryDark: '#4A1D96', // Darker purple
-  secondary: '#3D5AFE', // Vibrant blue
+  secondary: Colors.primaryLight,
   secondaryLight: '#8187FF', // Lighter blue
   secondaryDark: '#0031CA', // Darker blue
-  background: '#F8F9FF', // Very light blue-white
-  surface: '#FFFFFF', // Pure white
-  cardBackground: '#F0F4FF', // Light blue-white
-  text: '#1A1A2E', // Dark blue-black
-  textSecondary: '#4A4A6A', // Medium blue-gray
-  textTertiary: '#6E7191', // Light blue-gray
-  error: '#FF5252', // Red
-  success: '#4CAF50', // Green
-  warning: '#FFC107', // Amber
-  border: '#E0E7FF', // Very light blue
-  lightBackground: '#EDF0FF', // Very light blue for backgrounds
-  accent: '#3D5AFE', // Using secondary blue as accent
-  lightGray: '#D1D5DB', // Light gray for icons
+  background: Colors.background,
+  surface: Colors.surface,
+  cardBackground: Colors.cardBackground,
+  text: Colors.text,
+  textSecondary: Colors.textSecondary,
+  textTertiary: Colors.textSecondary,
+  error: Colors.error,
+  success: Colors.success,
+  warning: Colors.warning,
+  border: Colors.inputBorder,
+  lightBackground: Colors.background,
+  accent: Colors.accent,
+  lightGray: Colors.textSecondary
 };
 
 const FilterBar = ({ activeFilters, onFilterChange, onSortChange, sortBy }) => {

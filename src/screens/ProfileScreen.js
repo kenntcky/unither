@@ -28,7 +28,7 @@ import LevelProgressBar from '../components/LevelProgressBar';
 
 // Custom color theme with purple, blue, and white
 const CustomColors = {
-  primary: '#6A3DE8', // Vibrant purple
+  primary: '#4A148C', // Vibrant purple
   primaryLight: '#8A6AFF', // Lighter purple
   primaryDark: '#4A1D96', // Darker purple
   secondary: '#3D5AFE', // Vibrant blue
@@ -533,7 +533,7 @@ const ProfileScreen = ({ navigation }) => {
               {currentClass && (
                 <View style={styles.classLevelInfo}>
                   {loadingExperience ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color="#ffffff" />
                   ) : userExperience ? (
                     <Text style={styles.classLevelText}>
                       {t('Class: {className}', { className: currentClass.name })}
@@ -1229,6 +1229,7 @@ const styles = StyleSheet.create({
   classLevelInfo: {
     marginTop: 5,
     alignItems: 'center', // Center text
+    color: CustomColors.surface,
   },
   classLevelText: {
     fontSize: 14,

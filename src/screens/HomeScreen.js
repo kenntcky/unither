@@ -20,7 +20,6 @@ import { t, plural } from '../translations';
 import { useAssignment } from '../context/AssignmentContext';
 import { useClass } from '../context/ClassContext';
 import ScreenContainer from '../components/ScreenContainer';
-import LinearGradient from 'react-native-linear-gradient';
 
 const HomeScreen = ({ navigation }) => {
   const { assignments, refreshAssignments, loading: assignmentsLoading } = useAssignment();
@@ -296,12 +295,7 @@ const HomeScreen = ({ navigation }) => {
           }
         ]}
       >
-        <LinearGradient
-          colors={['#6366F1', '#8B5CF6', '#3B82F6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        >
+        <View style={[styles.headerGradient, { backgroundColor: '#4A148C' }]}>
           {/* Bubble dekoratif */}
           <View style={[styles.headerBubble, { top: 10, left: 30, backgroundColor: 'rgba(255,255,255,0.13)', width: 60, height: 60 }]} />
           <View style={[styles.headerBubble, { top: 40, right: 40, backgroundColor: 'rgba(255,255,255,0.09)', width: 40, height: 40 }]} />
@@ -319,7 +313,7 @@ const HomeScreen = ({ navigation }) => {
             <Icon name="arrow-back" size={24} color="#fff" />
             <Text style={styles.backButtonText}>{t('Change Class')}</Text>
           </TouchableOpacity>
-        </LinearGradient>
+        </View>
       </Animated.View>
 
       <ScreenContainer
@@ -609,8 +603,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   currentClassBanner: {
-    backgroundColor: '#9c4dcc',
-    backgroundImage: 'linear-gradient(135deg, #9c4dcc 0%, #7e2fa7 100%)',
+    backgroundColor: '#4A148C',
     padding: 18,
     marginHorizontal: 20,
     marginTop: 15,
@@ -881,9 +874,8 @@ const styles = StyleSheet.create({
   },
   floatingButtonContainer: {
     position: 'absolute',
-    bottom: 90,
-    right: 30,
-    marginBottom: 10,
+    bottom: 30,
+    right: 15,
   },
   floatingButton: {
     width: 60,
@@ -896,7 +888,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
-    elevation: 6,
   },
   loadingContainer: {
     flex: 1,

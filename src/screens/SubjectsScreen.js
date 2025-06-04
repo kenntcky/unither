@@ -8,20 +8,21 @@ import { useAssignment } from "../context/AssignmentContext"
 import { useClass } from "../context/ClassContext"
 import { t } from "../translations"
 import ScreenContainer from "../components/ScreenContainer"
+import Colors from "../constants/Colors"
 
 // Updated color palette
 const COLORS = {
-  background: "#FFFFFF",
-  primary: "#6A5ACD", // Purple
-  secondary: "#4169E1", // Blue
-  accent: "#FF4757", // Red
-  text: "#333333", // Near black
-  textLight: "#777777",
-  surface: "#F8F9FA",
-  success: "#4CAF50",
-  warning: "#FFC107",
-  cardBg: "#FFFFFF",
-  shadow: "rgba(0, 0, 0, 0.1)",
+  background: Colors.background,
+  primary: Colors.primary,
+  secondary: Colors.primaryLight,
+  accent: Colors.accent,
+  text: Colors.text,
+  textLight: Colors.textSecondary,
+  surface: Colors.surface,
+  success: Colors.success,
+  warning: Colors.warning,
+  cardBg: Colors.cardBackground,
+  shadow: Colors.shadow
 }
 
 const SubjectsScreen = ({ navigation }) => {
@@ -112,15 +113,13 @@ const SubjectsScreen = ({ navigation }) => {
     <View style={styles.header}>
       <Text style={styles.headerTitle}>{t("My Subjects")}</Text>
       {currentClass && (
-        <View
-          style={[
-            styles.syncStatusContainer,
-            { backgroundColor: syncedWithCloud ? "rgba(76, 175, 80, 0.1)" : "rgba(255, 193, 7, 0.1)" },
-          ]}
-        >
+        <Text style={styles.headerSubtitle}>{currentClass.name}</Text>
+      )}
+      {currentClass && (
+        <View style={styles.syncStatusContainer}>
           <Icon
             name={syncedWithCloud ? "cloud-done" : "cloud-off"}
-            size={18}
+            size={16}
             color={syncedWithCloud ? COLORS.success : COLORS.warning}
           />
           <Text style={[styles.syncStatusText, { color: syncedWithCloud ? COLORS.success : COLORS.warning }]}>
@@ -191,28 +190,62 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    backgroundColor: COLORS.primary,
+    paddingTop: 50,
+    paddingBottom: 20,
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-    backgroundColor: COLORS.background,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: COLORS.primary,
-    marginBottom: 8,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    opacity: 0.9,
+    textAlign: 'center',
+    marginBottom: 10,
   },
   syncStatusContainer: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 8,
+    justifyContent: "center",
+    padding: 8,
+    marginHorizontal: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   syncStatusText: {
-    fontSize: 14,
-    marginLeft: 8,
-    fontWeight: "500",
+    fontSize: 12,
+    marginLeft: 4,
   },
   emptyContainer: {
     flex: 1,
@@ -265,7 +298,8 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: 20,
-    bottom: 85,
+    bottom: 40,
+    marginBottom: 10,
     backgroundColor: COLORS.accent,
     width: 60,
     height: 60,
@@ -278,7 +312,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.27,
     shadowRadius: 4.65,
     zIndex: 5,
-    marginBottom: 30,
   },
 })
 

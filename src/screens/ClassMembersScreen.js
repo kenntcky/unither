@@ -22,35 +22,7 @@ import {
 import { calculateLevelFromExp } from '../constants/UserTypes';
 import { t } from '../translations';
 import LevelProgressBar from '../components/LevelProgressBar';
-
-// Custom color palette to match other screens
-const NewColors = {
-  primary: "#6A4CE4", // Purple primary
-  primaryLight: "#8A7CDC", // Lighter purple
-  primaryDark: "#5038C0", // Darker purple
-  secondary: "#3A8EFF", // Blue secondary
-  secondaryLight: "#6AADFF", // Lighter blue
-  secondaryDark: "#2A6EDF", // Darker blue
-  accent: "#FF4566", // Red accent
-  accentLight: "#FF7A90", // Lighter red
-  accentDark: "#E02545", // Darker red
-  background: "#FFFFFF", // White background
-  cardBackground: "#F4F7FF", // Light blue card background
-  cardBackgroundAlt: "#F0EDFF", // Light purple card background
-  textPrimary: "#333355", // Dark blue/purple text
-  textSecondary: "#7777AA", // Medium purple text
-  textLight: "#FFFFFF", // White text
-  separator: "#E0E6FF", // Light purple separator
-  success: "#44CC88", // Green success
-  warning: "#FFAA44", // Orange warning
-  error: "#FF4566", // Red error
-  shadow: "rgba(106, 76, 228, 0.2)", // Purple shadow
-  overlay: "rgba(51, 51, 85, 0.6)", // Dark overlay
-  gold: "#FFD700", // Gold for 1st place
-  silver: "#C0C0C0", // Silver for 2nd place
-  bronze: "#CD7F32", // Bronze for 3rd place
-  rankDefault: "#8A7CDC", // Default rank color (light purple)
-};
+import Colors from '../constants/Colors';
 
 const ClassMembersScreen = ({ navigation }) => {
   const { currentClass } = useClass();
@@ -268,19 +240,19 @@ const ClassMembersScreen = ({ navigation }) => {
     if (rank === 1) {
       return (
         <View style={[styles.rankContainer, styles.firstPlace]}>
-          <MaterialIcons name="emoji-events" size={16} color={NewColors.gold} />
+          <MaterialIcons name="emoji-events" size={16} color={Colors.gold} />
         </View>
       );
     } else if (rank === 2) {
       return (
         <View style={[styles.rankContainer, styles.secondPlace]}>
-          <MaterialIcons name="emoji-events" size={16} color={NewColors.silver} />
+          <MaterialIcons name="emoji-events" size={16} color={Colors.silver} />
         </View>
       );
     } else if (rank === 3) {
       return (
         <View style={[styles.rankContainer, styles.thirdPlace]}>
-          <MaterialIcons name="emoji-events" size={16} color={NewColors.bronze} />
+          <MaterialIcons name="emoji-events" size={16} color={Colors.bronze} />
         </View>
       );
     } else {
@@ -298,11 +270,11 @@ const ClassMembersScreen = ({ navigation }) => {
     // Add custom styles for role
     let roleBgColor, roleColor;
     if (item.role.toLowerCase() === 'teacher') {
-      roleBgColor = NewColors.primaryLight + '40'; // 40 = 25% opacity
-      roleColor = NewColors.primary;
+      roleBgColor = Colors.primaryLight + '40'; // 40 = 25% opacity
+      roleColor = Colors.primary;
     } else {
-      roleBgColor = NewColors.secondaryLight + '40';
-      roleColor = NewColors.secondary;
+      roleBgColor = Colors.secondaryLight + '40';
+      roleColor = Colors.secondary;
     }
     
     // Gender icon based on member's gender
@@ -310,7 +282,7 @@ const ClassMembersScreen = ({ navigation }) => {
       if (!item.gender) return null;
       
       let iconName = 'person';
-      let iconColor = NewColors.textSecondary;
+      let iconColor = Colors.textSecondary;
       
       switch(item.gender.toLowerCase()) {
         case 'male':
@@ -396,7 +368,7 @@ const ClassMembersScreen = ({ navigation }) => {
             <MaterialIcons 
               name="more-vert" 
               size={20} 
-              color={NewColors.textSecondary} 
+              color={Colors.textSecondary} 
             />
           </TouchableOpacity>
         )}
@@ -416,8 +388,8 @@ const ClassMembersScreen = ({ navigation }) => {
   if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
-        <StatusBar barStyle="light-content" backgroundColor={NewColors.primaryDark} />
-        <ActivityIndicator size="large" color={NewColors.primary} />
+        <StatusBar barStyle="light-content" backgroundColor={Colors.primaryDark} />
+        <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={styles.loadingText}>{t('Loading members...')}</Text>
       </View>
     );
@@ -427,7 +399,7 @@ const ClassMembersScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={NewColors.primaryDark} />
+      <StatusBar barStyle="light-content" backgroundColor={Colors.primaryDark} />
       
       {/* Enhanced Header */}
       <View style={styles.header}>
@@ -436,14 +408,14 @@ const ClassMembersScreen = ({ navigation }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <MaterialIcons name="arrow-back" size={24} color={NewColors.textLight} />
+            <MaterialIcons name="arrow-back" size={24} color={Colors.textLight} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{currentClass?.name}</Text>
           <TouchableOpacity 
             style={styles.sortButton}
             onPress={toggleSortOrder}
           >
-            <MaterialIcons name="sort" size={20} color={NewColors.textLight} />
+            <MaterialIcons name="sort" size={20} color={Colors.textLight} />
             <Text style={styles.sortText}>
               {sortOrder === 'level' ? t('XP') : 
                sortOrder === 'name' ? t('Name') : 
@@ -471,7 +443,7 @@ const ClassMembersScreen = ({ navigation }) => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <MaterialIcons name="people" size={64} color={NewColors.primaryLight} />
+              <MaterialIcons name="people" size={64} color={Colors.primaryLight} />
             </View>
             <Text style={styles.emptyText}>{t('No members found')}</Text>
           </View>
@@ -499,7 +471,7 @@ const ClassMembersScreen = ({ navigation }) => {
                 style={styles.closeButton}
                 onPress={() => setShowMemberActions(false)}
               >
-                <MaterialIcons name="close" size={24} color={NewColors.textPrimary} />
+                <MaterialIcons name="close" size={24} color={Colors.textPrimary} />
               </TouchableOpacity>
             </View>
             
@@ -508,14 +480,14 @@ const ClassMembersScreen = ({ navigation }) => {
               <>
                 <TouchableOpacity style={styles.modalOption} onPress={handlePromoteToTeacher}>
                   <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(58, 142, 255, 0.15)' }]}>
-                    <MaterialIcons name="school" size={22} color={NewColors.secondary} />
+                    <MaterialIcons name="school" size={22} color={Colors.secondary} />
                   </View>
                   <Text style={styles.modalOptionText}>{t('Make Teacher')}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity style={styles.modalOption} onPress={handlePromoteToAdmin}>
                   <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(106, 76, 228, 0.15)' }]}>
-                    <MaterialIcons name="admin-panel-settings" size={22} color={NewColors.primary} />
+                    <MaterialIcons name="admin-panel-settings" size={22} color={Colors.primary} />
                   </View>
                   <Text style={styles.modalOptionText}>{t('Make Admin')}</Text>
                 </TouchableOpacity>
@@ -526,14 +498,14 @@ const ClassMembersScreen = ({ navigation }) => {
               <>
                 <TouchableOpacity style={styles.modalOption} onPress={handlePromoteToAdmin}>
                   <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(106, 76, 228, 0.15)' }]}>
-                    <MaterialIcons name="admin-panel-settings" size={22} color={NewColors.primary} />
+                    <MaterialIcons name="admin-panel-settings" size={22} color={Colors.primary} />
                   </View>
                   <Text style={styles.modalOptionText}>{t('Make Admin')}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity style={styles.modalOption} onPress={handleDemoteToStudent}>
                   <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(255, 170, 68, 0.15)' }]}>
-                    <MaterialIcons name="person" size={22} color={NewColors.warning} />
+                    <MaterialIcons name="person" size={22} color={Colors.warning} />
                   </View>
                   <Text style={styles.modalOptionText}>{t('Demote to Student')}</Text>
                 </TouchableOpacity>
@@ -543,7 +515,7 @@ const ClassMembersScreen = ({ navigation }) => {
             {selectedMember?.role === 'admin' && (
               <TouchableOpacity style={styles.modalOption} onPress={handleDemoteToStudent}>
                 <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(255, 170, 68, 0.15)' }]}>
-                  <MaterialIcons name="person" size={22} color={NewColors.warning} />
+                  <MaterialIcons name="person" size={22} color={Colors.warning} />
                 </View>
                 <Text style={styles.modalOptionText}>{t('Remove Admin Rights')}</Text>
               </TouchableOpacity>
@@ -551,7 +523,7 @@ const ClassMembersScreen = ({ navigation }) => {
             
             <TouchableOpacity style={styles.modalOption} onPress={handleRemoveMember}>
               <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(255, 69, 102, 0.15)' }]}>
-                <MaterialIcons name="person-remove" size={22} color={NewColors.error} />
+                <MaterialIcons name="person-remove" size={22} color={Colors.error} />
               </View>
               <Text style={[styles.modalOptionText, styles.dangerText]}>
                 {t('Remove from Class')}
@@ -574,28 +546,28 @@ const ClassMembersScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: NewColors.background,
+    backgroundColor: Colors.background,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: NewColors.background,
+    backgroundColor: Colors.background,
   },
   loadingText: {
     marginTop: 16,
-    color: NewColors.textSecondary,
+    color: Colors.textSecondary,
     fontSize: 16,
   },
   
   // Enhanced Header
   header: {
-    backgroundColor: NewColors.primary,
+    backgroundColor: Colors.primary,
     paddingTop: 40,
     paddingBottom: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: NewColors.shadow,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -619,7 +591,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: NewColors.textLight,
+    color: Colors.textLight,
     flex: 1,
     textAlign: 'center',
     marginHorizontal: 8,
@@ -634,7 +606,7 @@ const styles = StyleSheet.create({
   },
   sortText: {
     fontSize: 12,
-    color: NewColors.textLight,
+    color: Colors.textLight,
     marginLeft: 4,
     fontWeight: '500',
   },
@@ -643,7 +615,8 @@ const styles = StyleSheet.create({
   },
   memberCount: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: Colors.textLight,
+    opacity: 0.7,
   },
   
   // Leaderboard header
@@ -655,12 +628,12 @@ const styles = StyleSheet.create({
   leaderboardTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: NewColors.textPrimary,
+    color: Colors.text,
     marginBottom: 4,
   },
   leaderboardSubtitle: {
     fontSize: 14,
-    color: NewColors.textSecondary,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   
@@ -673,25 +646,25 @@ const styles = StyleSheet.create({
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: NewColors.cardBackground,
+    backgroundColor: Colors.cardBackground,
     padding: 16,
     marginHorizontal: 16,
     marginVertical: 6,
     borderRadius: 12,
-    shadowColor: NewColors.shadow,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   topThreeMember: {
-    backgroundColor: NewColors.cardBackgroundAlt,
+    backgroundColor: Colors.cardBackgroundAlt,
     borderWidth: 1,
-    borderColor: NewColors.separator,
+    borderColor: Colors.separator,
   },
   currentUserItem: {
     borderWidth: 1,
-    borderColor: NewColors.primary,
+    borderColor: Colors.primary,
   },
   
   // Rank badges
@@ -706,27 +679,27 @@ const styles = StyleSheet.create({
   firstPlace: {
     backgroundColor: 'rgba(255, 215, 0, 0.2)',
     borderWidth: 1,
-    borderColor: NewColors.gold,
+    borderColor: Colors.gold,
   },
   secondPlace: {
     backgroundColor: 'rgba(192, 192, 192, 0.2)',
     borderWidth: 1,
-    borderColor: NewColors.silver,
+    borderColor: Colors.silver,
   },
   thirdPlace: {
     backgroundColor: 'rgba(205, 127, 50, 0.2)',
     borderWidth: 1,
-    borderColor: NewColors.bronze,
+    borderColor: Colors.bronze,
   },
   defaultRank: {
     backgroundColor: 'rgba(138, 124, 220, 0.2)',
     borderWidth: 1,
-    borderColor: NewColors.rankDefault,
+    borderColor: Colors.rankDefault,
   },
   rankText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: NewColors.textPrimary,
+    color: Colors.textPrimary,
   },
   
   // Member info
@@ -750,25 +723,25 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: NewColors.textPrimary,
+    color: Colors.textPrimary,
     flex: 1,
   },
   currentUser: {
     fontStyle: 'italic',
     fontWeight: 'normal',
-    color: NewColors.textSecondary,
+    color: Colors.textSecondary,
   },
   levelBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
-    backgroundColor: NewColors.primary,
+    backgroundColor: Colors.primary,
     marginLeft: 8,
   },
   levelText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: NewColors.textLight,
+    color: Colors.textLight,
   },
   progressBar: {
     marginVertical: 6,
@@ -780,7 +753,7 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 12,
-    color: NewColors.textSecondary,
+    color: Colors.textSecondary,
   },
   
   // Role badge
@@ -822,20 +795,20 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: NewColors.textSecondary,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: NewColors.overlay,
+    backgroundColor: Colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
     width: '85%',
-    backgroundColor: NewColors.background,
+    backgroundColor: Colors.background,
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -850,13 +823,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: NewColors.separator,
-    backgroundColor: NewColors.cardBackground,
+    borderBottomColor: Colors.separator,
+    backgroundColor: Colors.cardBackground,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: NewColors.textPrimary,
+    color: Colors.textPrimary,
     flex: 1,
   },
   closeButton: {
@@ -872,7 +845,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: NewColors.separator,
+    borderBottomColor: Colors.separator,
   },
   modalIconContainer: {
     width: 40,
@@ -884,10 +857,10 @@ const styles = StyleSheet.create({
   },
   modalOptionText: {
     fontSize: 16,
-    color: NewColors.textPrimary,
+    color: Colors.textPrimary,
   },
   dangerText: {
-    color: NewColors.error,
+    color: Colors.error,
   },
   cancelButton: {
     padding: 16,
@@ -895,7 +868,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 16,
-    color: NewColors.primary,
+    color: Colors.primary,
     fontWeight: 'bold',
   },
 });
